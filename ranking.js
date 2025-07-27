@@ -1,5 +1,5 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw28e5sBBlApdwyNory0rQgY-Yx_mvHqAdjqIk4FIX4U0HnSJeW7w_kf65pWsRBISw/exec";
-
+const SECRET = "kosen-brain-super-secret";
 // 事前に別ページで読み込まれている想定
 // let playerData = {
 //   "player1": { rate: 120, lastRank: 3, bonus: 0, title: "" },
