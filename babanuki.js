@@ -50,3 +50,38 @@ function renderRankingTable() {
     tbody.appendChild(tr);
   });
 }
+
+function convertRawDataToAppData(rawData) {
+  // 1. seatMapはそのまま代入
+  const seatMap = rawData.seatMap || {};
+
+  // 2. playerDataは最低限のキーを補完しつつコピー
+  const playerData = {};
+
+  for (const [pid, pdata] of Object.entries(rawData.playerData || {})) {
+    playerData[pid] = {
+      name: pdata.name || pid,
+      rate: typeof pdata.rate === 'number' ? pdata.rate : 30,
+      lastRank: typeof pdata.lastRank === 'number' ? pdata.lastRank : null,
+      consecutiveLastPlace: typeof pdata.consecutiveLastPlace === 'number' ? pdata.consecutiveLastPlace : 0,
+      title: pdata.title || null,
+      bonus: pdata.bonus || 0,
+      // もしrankTrend（順位変動）を計算するならここに
+      rankTrend: 0
+    };
+  }
+
+  // 3. rankTrend (順位変動) 計算例
+  // 例えば前回のlastRankと今回のlastRankの差で↑↓判定するイメージ
+  // ※今回のlastRankはまだ決まっていないことが多いので、決定後に再計算が必要かも
+  for (const pid in playerData) {
+    const p = playerData[pid];
+    if (p.lastRank != null) {
+      // 仮に今回のlastRankが決まっているなら計算可能
+      // ここでは0固定。後で更新してください。
+      p.rankTrend = 0;
+    }
+  }
+
+  return { seatMap, playerData };
+}
