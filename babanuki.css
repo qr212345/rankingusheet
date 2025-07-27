@@ -1,114 +1,58 @@
-#rankingTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #f9f9f9 0%, #e3e7f1 100%);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-#rankingTable th, #rankingTable td {
-  padding: 12px 15px;
-  border-bottom: 1px solid #ccc;
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f5f5;
   text-align: center;
-  vertical-align: middle;
 }
 
-#rankingTable thead th {
-  background: #4a90e2;
+#podium {
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  margin: 2em 0;
+}
+
+.podium-player {
+  font-size: 1.5em;
+  font-weight: bold;
+  padding: 1em;
+  border-radius: 15px;
   color: white;
-  font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-  user-select: none;
+  animation: float 2s infinite ease-in-out;
 }
 
-#rankingTable tbody tr:nth-child(even) {
-  background: #f1f5fb;
+.first { background: gold; }
+.second { background: silver; }
+.third { background: #cd7f32; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
 }
 
-#rankingTable tbody tr:hover {
-  background: #dbe9ff;
-  transition: background-color 0.3s ease;
+/* 称号アニメーション */
+.title-thunder {
+  animation: thunder 1s infinite;
+  color: yellow;
+}
+.title-wind {
+  animation: wind 2s infinite linear;
+  color: lightblue;
+}
+.title-fire {
+  animation: fire 1s infinite;
+  color: orangered;
 }
 
-/* 順位大きく */
-#rankingTable td:first-child {
-  font-size: 1.4em;
-  font-weight: 700;
-  color: #2c3e50;
+@keyframes thunder {
+  0%, 100% { text-shadow: 0 0 5px yellow; }
+  50%      { text-shadow: 0 0 20px white; }
 }
-
-/* 獲得レートの色分け */
-td .rate-positive {
-  color: #27ae60;
-  font-weight: bold;
+@keyframes wind {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
 }
-td .rate-negative {
-  color: #e74c3c;
-  font-weight: bold;
-}
-
-/* 称号エフェクト */
-td:last-child {
-  font-weight: 700;
-  font-size: 1.1em;
-  position: relative;
-  color: #444;
-  text-shadow: 0 0 5px rgba(0,0,0,0.1);
-}
-td:last-child.👑 {
-  color: gold;
-  text-shadow:
-    0 0 5px #f7d358,
-    0 0 10px #f7d358,
-    0 0 15px #f7d358;
-}
-td:last-child.🥈 {
-  color: silver;
-  text-shadow:
-    0 0 5px #bbb,
-    0 0 10px #bbb,
-    0 0 15px #bbb;
-}
-td:last-child.🥉 {
-  color: #cd7f32;
-  text-shadow:
-    0 0 5px #b06a2f,
-    0 0 10px #b06a2f,
-    0 0 15px #b06a2f;
-}
-
-/* 連続最下位🔥 */
-td:nth-child(5) {
-  color: #e67e22;
-  font-weight: 700;
-  text-shadow: 0 0 8px #e67e22;
-}
-
-/* 順位変動アニメーション */
-.rank-trend-up {
-  color: #27ae60;
-  font-weight: bold;
-  animation: moveUpFade 1.5s ease forwards;
-}
-.rank-trend-down {
-  color: #e74c3c;
-  font-weight: bold;
-  animation: moveDownFade 1.5s ease forwards;
-}
-.rank-trend-same {
-  color: #888;
-}
-
-/* アニメーション定義 */
-@keyframes moveUpFade {
-  0%   { transform: translateY(20px); opacity: 0; }
-  50%  { transform: translateY(-5px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-@keyframes moveDownFade {
-  0%   { transform: translateY(-20px); opacity: 0; }
-  50%  { transform: translateY(5px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
+@keyframes fire {
+  0%, 100% { text-shadow: 0 0 10px orange; }
+  50% { text-shadow: 0 0 20px red; }
 }
