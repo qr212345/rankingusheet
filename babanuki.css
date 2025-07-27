@@ -1,112 +1,114 @@
 #rankingTable {
-  border-collapse: collapse;
   width: 100%;
-  font-family: "Arial", sans-serif;
-  font-size: 16px;
-  text-align: center;
-  table-layout: fixed; /* 幅固定でズレ防止 */
+  border-collapse: collapse;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #f9f9f9 0%, #e3e7f1 100%);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 #rankingTable th, #rankingTable td {
-  border: 1px solid #bbb;
-  padding: 12px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ccc;
+  text-align: center;
+  vertical-align: middle;
 }
 
-#rankingTable thead tr {
-  background-color: #007acc;
+#rankingTable thead th {
+  background: #4a90e2;
   color: white;
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  user-select: none;
 }
 
 #rankingTable tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background: #f1f5fb;
 }
 
 #rankingTable tbody tr:hover {
-  background-color: #dbefff;
+  background: #dbe9ff;
+  transition: background-color 0.3s ease;
 }
 
-.rank-change-positive {
-  color: green;
+/* 順位大きく */
+#rankingTable td:first-child {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* 獲得レートの色分け */
+td .rate-positive {
+  color: #27ae60;
+  font-weight: bold;
+}
+td .rate-negative {
+  color: #e74c3c;
   font-weight: bold;
 }
 
-.rank-change-negative {
-  color: red;
-  font-weight: bold;
-}
-
-@media (max-width: 600px) {
-  #rankingTable {
-    font-size: 14px;
-  }
-  #rankingTable th, #rankingTable td {
-    padding: 8px 4px;
-  }
-}
-
-.fun-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: "Segoe UI", sans-serif;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.fun-table th, .fun-table td {
-  border: 1px solid #ddd;
-  padding: 12px;
-  text-align: center;
-}
-
-.fun-table th {
-  background: linear-gradient(to right, #ffe680, #ffcc66);
-  font-weight: bold;
-}
-
-.fun-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-.fun-table tbody tr:hover {
-  background-color: #fff3cd;
-}
-
-.rank-1 td {
-  background-color: #ffe066 !important;
-  font-weight: bold;
-}
-
-.rank-2 td {
-  background-color: #d0e2ff !important;
-}
-
-.rank-3 td {
-  background-color: #ffd6e0 !important;
-}
-
-.title-cell {
-  font-weight: bold;
+/* 称号エフェクト */
+td:last-child {
+  font-weight: 700;
   font-size: 1.1em;
+  position: relative;
+  color: #444;
+  text-shadow: 0 0 5px rgba(0,0,0,0.1);
 }
-@keyframes fadeInSlide {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+td:last-child.👑 {
+  color: gold;
+  text-shadow:
+    0 0 5px #f7d358,
+    0 0 10px #f7d358,
+    0 0 15px #f7d358;
 }
-.ranking-row {
-  animation: fadeInSlide 0.6s ease-in-out;
-  animation-fill-mode: both;
+td:last-child.🥈 {
+  color: silver;
+  text-shadow:
+    0 0 5px #bbb,
+    0 0 10px #bbb,
+    0 0 15px #bbb;
+}
+td:last-child.🥉 {
+  color: #cd7f32;
+  text-shadow:
+    0 0 5px #b06a2f,
+    0 0 10px #b06a2f,
+    0 0 15px #b06a2f;
+}
+
+/* 連続最下位🔥 */
+td:nth-child(5) {
+  color: #e67e22;
+  font-weight: 700;
+  text-shadow: 0 0 8px #e67e22;
+}
+
+/* 順位変動アニメーション */
+.rank-trend-up {
+  color: #27ae60;
+  font-weight: bold;
+  animation: moveUpFade 1.5s ease forwards;
+}
+.rank-trend-down {
+  color: #e74c3c;
+  font-weight: bold;
+  animation: moveDownFade 1.5s ease forwards;
+}
+.rank-trend-same {
+  color: #888;
+}
+
+/* アニメーション定義 */
+@keyframes moveUpFade {
+  0%   { transform: translateY(20px); opacity: 0; }
+  50%  { transform: translateY(-5px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes moveDownFade {
+  0%   { transform: translateY(-20px); opacity: 0; }
+  50%  { transform: translateY(5px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
 }
