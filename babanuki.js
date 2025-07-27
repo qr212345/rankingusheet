@@ -1,31 +1,52 @@
-function renderRankingTable(data) {
+function renderRankingTable() {
   const tbody = document.querySelector("#rankingTable tbody");
   tbody.innerHTML = "";
 
-  data.sort((a, b) => a.rank - b.rank);
+  // 総合レートで降順ソート（上位から表示）
+  const sortedPlayers = Object.entries(playerData)
+    .sort((a, b) => b[1].rate - a[1].rate);
 
-  data.forEach((entry, i) => {
+  sortedPlayers.forEach(([pid, p], i) => {
     const tr = document.createElement("tr");
 
-    const rankEmoji = ["🥇", "🥈", "🥉"][entry.rank - 1] || `#${entry.rank}`;
-    const trendColor = entry.rankTrend === "↑" ? "green" : entry.rankTrend === "↓" ? "red" : "gray";
-    const rateChangeStyled = `<span style="color:${entry.bonus >= 0 ? 'green' : 'red'}">${entry.rateChange}</span>`;
-    
-    tr.className = `ranking-row rank-${entry.rank}`;
-    tr.style.animationDelay = `${i * 0.1}s`; // ← ずらして順番に表示
+    // 獲得レートカラー設定
+    const rateChangeClass = p.bonus >= 0 ? "rate-positive" : "rate-negative";
+    const rateChangeText = (p.bonus >= 0 ? "+" : "") + p.bonus;
 
-    const rateChangeClass = entry.bonus >= 0 ? "rank-change-positive" : "rank-change-negative";
+    // 連続最下位表示
+    const consecutiveLastDisplay = p.consecutiveLast >= 2
+      ? `🔥${p.consecutiveLast}`
+      : (p.consecutiveLast > 0 ? p.consecutiveLast : "");
+
+    // 順位変動のクラス付け＆アイコン
+    let rankTrendClass = "rank-trend-same";
+    let rankTrendIcon = "＝";
+    if (p.rankTrend === "↑") {
+      rankTrendClass = "rank-trend-up";
+      rankTrendIcon = "↑";
+    } else if (p.rankTrend === "↓") {
+      rankTrendClass = "rank-trend-down";
+      rankTrendIcon = "↓";
+    }
+
+    // 称号のクラス（絵文字そのままclass名にするとトラブルなので置換）
+    let titleClass = "";
+    if (p.title) {
+      if (p.title.includes("👑")) titleClass = "👑";
+      else if (p.title.includes("🥈")) titleClass = "🥈";
+      else if (p.title.includes("🥉")) titleClass = "🥉";
+    }
 
     tr.innerHTML = `
-      <td>${entry.rank}</td>
-      <td>${entry.playerId}</td>
-      <td>${entry.name}</td>
-      <td>${entry.rate}</td>
-      <td class="${rateChangeClass}">${entry.rateChange}</td>
-      <td>${entry.consecutiveLast >= 2 ? `🔥 ${entry.consecutiveLast}` : entry.consecutiveLast}</td>
-      <td>${entry.title || ""}</td>
-      <td>${entry.rankTrend}</td>
+      <td style="font-weight:bold; font-size:1.2em;">${p.lastRank || (i + 1)}</td>
+      <td>${pid}</td>
+      <td>${p.rate}</td>
+      <td><span class="${rateChangeClass}">${rateChangeText}</span></td>
+      <td>${consecutiveLastDisplay}</td>
+      <td class="${rankTrendClass}">${rankTrendIcon}</td>
+      <td class="${titleClass}">${p.title || ""}</td>
     `;
-     tbody.appendChild(tr);
-   });
- }
+
+    tbody.appendChild(tr);
+  });
+}
