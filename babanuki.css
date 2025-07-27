@@ -1,3 +1,56 @@
+#rankingTable {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: "Arial", sans-serif;
+  font-size: 16px;
+  text-align: center;
+  table-layout: fixed; /* 幅固定でズレ防止 */
+}
+
+#rankingTable th, #rankingTable td {
+  border: 1px solid #bbb;
+  padding: 12px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#rankingTable thead tr {
+  background-color: #007acc;
+  color: white;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+#rankingTable tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+#rankingTable tbody tr:hover {
+  background-color: #dbefff;
+}
+
+.rank-change-positive {
+  color: green;
+  font-weight: bold;
+}
+
+.rank-change-negative {
+  color: red;
+  font-weight: bold;
+}
+
+@media (max-width: 600px) {
+  #rankingTable {
+    font-size: 14px;
+  }
+  #rankingTable th, #rankingTable td {
+    padding: 8px 4px;
+  }
+}
+
 .fun-table {
   border-collapse: collapse;
   width: 100%;
