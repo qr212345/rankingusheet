@@ -14,17 +14,18 @@ function renderRankingTable(data) {
     tr.className = `ranking-row rank-${entry.rank}`;
     tr.style.animationDelay = `${i * 0.1}s`; // ← ずらして順番に表示
 
+    const rateChangeClass = entry.bonus >= 0 ? "rank-change-positive" : "rank-change-negative";
+
     tr.innerHTML = `
-      <td>${rankEmoji}</td>
+      <td>${entry.rank}</td>
       <td>${entry.playerId}</td>
       <td>${entry.name}</td>
       <td>${entry.rate}</td>
-      <td>${rateChangeStyled}</td>
+      <td class="${rateChangeClass}">${entry.rateChange}</td>
       <td>${entry.consecutiveLast >= 2 ? `🔥 ${entry.consecutiveLast}` : entry.consecutiveLast}</td>
-      <td class="title-cell">${entry.title || ""}</td>
-      <td style="color:${trendColor}">${entry.rankTrend}</td>
+      <td>${entry.title || ""}</td>
+      <td>${entry.rankTrend}</td>
     `;
-
-    tbody.appendChild(tr);
-  });
-}
+     tbody.appendChild(tr);
+   });
+ }
