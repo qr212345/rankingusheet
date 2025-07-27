@@ -1,4 +1,4 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw28e5sBBlApdwyNory0rQgY-Yx_mvHqAdjqIk4FIX4U0HnSJeW7w_kf65pWsRBISw/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw3t8B_olroaQziFqRFesGU5cWUkYo5r8vM2ddsLRn3YYX0_aMZolPaLSd-301ME5o/exec";
 const SECRET = "kosen-brain-super-secret";
 // 事前に別ページで読み込まれている想定
 // let playerData = {
