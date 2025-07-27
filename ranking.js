@@ -15,19 +15,22 @@ if (typeof playerData === "undefined") {
 // 1. GASからデータ取得
 async function loadRankingData() {
   try {
-    const response = await fetch(GAS_URL, { method: "GET", mode: "cors" });
-    if (!response.ok) throw new Error("ネットワークエラー");
+    const res = await fetch(GAS_URL + "?mode=ranking");
+    const data = await res.json();
 
-    const data = await response.json();
-    if (data.status !== "success") throw new Error(data.message || "ランキング取得失敗");
+    if (!data || !data.playerData) {
+      console.warn("⚠️ playerData が見つかりません。デフォルト空配列で処理します。");
+      playerData = {};
+      return;
+    }
 
-    return data.rows;  // GASのdoGetが返す配列
-  } catch (err) {
-    console.error("ランキング読み込みエラー:", err);
-    alert("ランキングの読み込みに失敗しました");
-    return null;
+    playerData = data.playerData;
+    renderRankingTable(data.rateRanking || []);
+  } catch (e) {
+    console.error("ランキング読み込みエラー:", e);
   }
 }
+
 
 // 2. レート順位をソートし、playerDataを使って獲得レートや順位変動・称号を計算
 function processRankingData(rows) {
