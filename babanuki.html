@@ -1,16 +1,37 @@
-<button id="finalizeRankingBtn">順位決定</button>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ランキング表</title>
+  <link rel="stylesheet" href="ranking.css">
+</head>
+<body>
+  <h1>🔥 ランキング表 🔥</h1>
 
-<table id="rankingTable" border="1" style="width:100%; text-align:center;">
-  <thead>
-    <tr>
-      <th>順位</th>
-      <th>生徒ID</th>
-      <th>総合レート</th>
-      <th>獲得レート</th>
-      <th>連続最下位🔥</th>
-      <th>順位変動</th>
-      <th>称号</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+  <!-- GASから再読み込みするボタン -->
+  <button id="loadRankingBtn">🔄 最新のランキングを読み込む</button>
+
+  <div id="podium">
+    <!-- JSで上位3名をここに大きく表示 -->
+  </div>
+
+  <table id="rankingTable">
+    <thead>
+      <tr>
+        <th>順位</th>
+        <th>生徒ID</th>
+        <th>総合レート</th>
+        <th>獲得レート</th>
+        <th>特別ポイント🔥</th>
+        <th>順位変動</th>
+        <th>称号</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- JSで生成 -->
+    </tbody>
+  </table>
+
+  <script src="ranking.js"></script>
+</body>
+</html>
