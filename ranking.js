@@ -6,6 +6,11 @@ const SECRET = "kosen-brain-super-secret";
 //   "player2": { rate: 110, lastRank: 1, bonus: 2, title: "🍭連続ボーナス" },
 //   // ...
 // };
+// グローバルにplayerDataが存在しない場合、警告だけ出して空で続行（壊さない）
+if (typeof playerData === "undefined") {
+  console.warn("⚠️ playerData が見つかりません。デフォルト空配列で処理します。");
+  var playerData = {};  // デフォルト定義（壊さないよう var）
+}
 
 // 1. GASからデータ取得
 async function loadRankingData() {
