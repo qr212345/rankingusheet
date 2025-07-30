@@ -1,37 +1,5 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw3t8B_olroaQziFqRFesGU5cWUkYo5r8vM2ddsLRn3YYX0_aMZolPaLSd-301ME5o/exec";
 const SECRET = "kosen-brain-super-secret";
-// 事前に別ページで読み込まれている想定
-// let playerData = {
-//   "player1": { rate: 120, lastRank: 3, bonus: 0, title: "" },
-//   "player2": { rate: 110, lastRank: 1, bonus: 2, title: "🍭連続ボーナス" },
-//   // ...
-// };
-// グローバルにplayerDataが存在しない場合、警告だけ出して空で続行（壊さない）
-if (typeof playerData === "undefined") {
-  console.warn("⚠️ playerData が見つかりません。デフォルト空配列で処理します。");
-  var playerData = {};  // デフォルト定義（壊さないよう var）
-}
-
-// 1. GASからデータ取得
-async function loadPlayerData() {
-  try {
-    const res = await fetch(GAS_URL + "?mode=getPlayerData");
-    const data = await res.json();
-
-    if (!data || !data.playerData) {
-      console.warn("⚠️ playerData が見つかりません。");
-      return;
-    }
-
-    // ここで playerData を描画
-    renderRankingTable(data.playerData);
-
-  } catch (err) {
-    console.error("❌ playerData の取得に失敗しました:", err);
-  }
-}
-
-
 
 // 2. レート順位をソートし、playerDataを使って獲得レートや順位変動・称号を計算
 let playerData = {}; // ← GASなどから読み込んだ過去データ
@@ -99,6 +67,21 @@ function renderRankingTable(rows) {
       <td>${p.title}</td>
     `;
     tbody.appendChild(tr);
+  });
+  // 上位3人を表彰台風に表示
+  const podiumDiv = document.getElementById("podium");
+  podiumDiv.innerHTML = ""; // リセット
+  // ✓ 正しい
+    rows.slice(0, 3).forEach(p => {
+    const div = document.createElement("div");
+    div.className = "podium-entry"; // CSSで見た目を整える
+    div.innerHTML = `
+      <h2>${p.currentRank}位 🏆</h2>
+      <p>ID: ${p.id}</p>
+      <p>レート: ${p.rate}</p>
+      <p>${p.title}</p>
+    `;
+    podiumDiv.appendChild(div);
   });
 }
 
