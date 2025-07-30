@@ -30,6 +30,11 @@
     <tbody>
       <!-- JSで生成 -->
     </tbody>
+    <button onclick="showLatestLog()">🕘 最新のログを見る</button>
+    <div id="logModal" style="display:none">
+      <button onclick="document.getElementById('logModal').style.display='none'">✖️ 閉じる</button>
+    <div id="logContent"></div>
+    </div>
   </table>
 
   <script src="ranking.js"></script>
