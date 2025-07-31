@@ -7,8 +7,8 @@
 </head>
 <body>
   <h1>🔥 ランキング表 🔥</h1>
+
   <button onclick="downloadCSV()">💽CSVログをダウンロード</button>
-  <!-- GASから再読み込みするボタン -->
   <button id="loadRankingBtn">🔄 最新のランキングを読み込む</button>
 
   <div id="podium">
@@ -35,14 +35,13 @@
     </tbody>
   </table>
 
-  <!-- 表の外に配置 -->
   <button onclick="showLatestLog()">🕘 最新のログを見る</button>
-  <div id="logModal" style="display:none">
-    <!-- HTMLの適切な場所にボタンを追加 -->　
+
+  <div id="logModal" style="display: none;">
     <button id="backButton">🔙 戻る</button>
     <div id="logContent"></div>
   </div>
-　
+
   <script src="ranking.js"></script>
 </body>
 </html>
