@@ -1,4 +1,4 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbz5VnfOJrcHqPQaI-37y-uBcg1lCztNH_ePWlJMks4HiWCCdqZ2fQyHQw2gLj6lm_4/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzb8W_SyoT3avmJZEkfaYPXTj9PUP_GZ1CISCk13PRMhjo4lqdJ9CP2hMCa-75wmC8/exec";
 const SECRET = "kosen-brain-super-secret";
 
 // 2. レート順位をソートし、playerDataを使って獲得レートや順位変動・称号を計算
