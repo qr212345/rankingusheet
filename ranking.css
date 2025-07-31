@@ -89,3 +89,19 @@ tr.rank-3 td {
   0%, 100% { text-shadow: 0 0 10px orange; }
   50% { text-shadow: 0 0 20px red; }
 }
+
+/* 任意のスタイル（追加） */
+#backButton {
+  padding: 0.5em 1em;
+  margin: 1em auto;
+  display: block;
+  font-size: 1.1em;
+  background-color: #eee;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#backButton:hover {
+  background-color: #ddd;
+}
+
