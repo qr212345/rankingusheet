@@ -77,8 +77,8 @@ function renderRankingTable(rows) {
     div.className = "podium-entry"; // CSSで見た目を整える
     div.innerHTML = `
       <h2>${p.currentRank}位 🏆</h2>
-      <p>ID: ${p.id}</p>
-      <p>レート: ${p.rate}</p>
+      <p>ID: ${p.playerId}</p>
+      <p>レート: ${p["レート"]}</p>
       <p>${p.title}</p>
     `;
     podiumDiv.appendChild(div);
@@ -106,6 +106,21 @@ async function refreshRanking() {
   } catch (err) {
     console.error("読み込み失敗:", err);
   }
+}
+
+async function showLatestLog() {
+  const res = await fetch(GAS_URL);
+  const logs = await res.json();
+
+  const latest = logs[logs.length - 1];
+  const html = [`<p>${latest.timestamp}</p><ul>`];
+  latest.log.forEach(p => {
+    html.push(`<li>${p.playerId}: 順位${p.lastRank}, レート${p.rate}</li>`);
+  });
+  html.push("</ul>");
+
+  document.getElementById("logContent").innerHTML = html.join("");
+  document.getElementById("logModal").style.display = "block";
 }
 
 document.getElementById("loadRankingBtn").addEventListener("click", refreshRanking);
