@@ -5,14 +5,9 @@ const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証
 let playerData = {};
 
 /**
- * ランキングデータ処理：
- * - 総合レートで降順ソート
- * - 過去データから獲得レート、順位変動、称号を計算
- * @param {Array} rows ランキングデータ配列 [{ Player ID, レート, ボーナス, ... }, ...]
- * @returns {Array} 処理済みデータ配列（称号付与済み）
+ * ランキングデータ処理
  */
 function processRankingData(rows) {
-  // レート降順ソート
   rows.sort((a, b) => b["レート"] - a["レート"]);
 
   for (let i = 0; i < rows.length; i++) {
@@ -20,24 +15,16 @@ function processRankingData(rows) {
     const playerId = p["Player ID"];
 
     const prev = playerData[playerId] || {};
-    const prevRate = prev.rate ?? p["レート"];  // 過去レートがなければ今回レートを使う
-    const prevRank = prev.lastRank ?? i + 1;    // 過去順位がなければ現順位
+    const prevRate = prev.rate ?? p["レート"];
+    const prevRank = prev.lastRank ?? i + 1;
 
-    p.currentRank = i + 1;  // 今回順位
-
-    // 獲得レート = 今回レート - 過去レート
+    p.currentRank = i + 1;
     p.gainRate = Number(p["レート"]) - prevRate;
-
-    // 順位変動 = 過去順位 - 今回順位
     p.rankChange = prevRank - p.currentRank;
-
-    // 特別ポイント（ボーナス）：今回データ優先、無ければ過去のbonus
     p.specialPoint = Number(p["ボーナス"]) || prev.bonus || 0;
-
-    p.title = "";  // 称号はあとで付与
+    p.title = "";
   }
 
-  // 上位3名に称号付与
   const titles = ["⚡雷", "🌪風", "🔥火"];
   for (let i = 0; i < 3 && i < rows.length; i++) {
     rows[i].title = titles[i];
@@ -48,7 +35,6 @@ function processRankingData(rows) {
 
 /**
  * ランキング表の描画
- * @param {Array} rows 処理済みランキングデータ
  */
 function renderRankingTable(rows) {
   const tbody = document.querySelector("#rankingTable tbody");
@@ -63,7 +49,7 @@ function renderRankingTable(rows) {
     const bonusText = p.specialPoint > 0 ? `${p.specialPoint}🔥` : "";
 
     const tr = document.createElement("tr");
-    tr.classList.add(`rank-${p.currentRank}`); // 上位3人の強調用クラス
+    tr.classList.add(`rank-${p.currentRank}`);
 
     tr.innerHTML = `
       <td>${p.currentRank}</td>
@@ -78,7 +64,6 @@ function renderRankingTable(rows) {
     tbody.appendChild(tr);
   });
 
-  // 表彰台表示（上位3人）
   const podiumDiv = document.getElementById("podium");
   podiumDiv.innerHTML = "";
   rows.slice(0, 3).forEach(p => {
@@ -99,7 +84,7 @@ function renderRankingTable(rows) {
 }
 
 /**
- * GASからランキング情報を取得して表示更新
+ * GASからランキング情報を取得
  */
 async function refreshRanking() {
   try {
@@ -107,7 +92,6 @@ async function refreshRanking() {
     const data = await res.json();
 
     playerData = data.playerData || {};
-
     const rows = data.rateRanking;
     if (!rows) {
       console.warn("❌ ランキングデータなし");
@@ -126,17 +110,15 @@ async function refreshRanking() {
  */
 async function showLatestLog() {
   try {
-    const res = await fetch(GAS_URL + "?mode=log"); // ログ取得
+    const res = await fetch(GAS_URL + "?mode=log");
     const logs = await res.json();
 
-    // ✅ ログデータが空 or 不正な場合をチェック
     if (!Array.isArray(logs) || logs.length === 0 || !logs[logs.length - 1]?.log) {
       alert("ログデータが見つかりません。");
       return;
     }
 
     const latest = logs[logs.length - 1];
-
     const html = [`<p>${latest.timestamp}</p><ul>`];
     latest.log.forEach(p => {
       html.push(`<li>${p.playerId}: 順位${p.lastRank}, レート${p.rate}</li>`);
@@ -151,12 +133,8 @@ async function showLatestLog() {
   }
 }
 
-document.getElementById("closeLogBtn").addEventListener("click", () => {
-  document.getElementById("logOverlay").style.display = "none";
-});
-
 /**
- * CSVログをダウンロードする関数
+ * CSVログをダウンロード
  */
 function downloadCSV() {
   const url = GAS_URL + "?mode=csv";
@@ -178,27 +156,46 @@ function downloadCSV() {
     });
 }
 
+/**
+ * イベント登録まとめ
+ */
 function setupEventListeners() {
-  const btn = document.getElementById("showLatestLogBtn");
-  if (btn) {
-    btn.addEventListener("click", showLatestLog);
+  const showLogBtn = document.getElementById("showLatestLogBtn");
+  if (showLogBtn) {
+    showLogBtn.addEventListener("click", showLatestLog);
   } else {
-    console.warn("📛 showLatestLogBtn が見つかりませんでした。");
+    console.warn("📛 showLatestLogBtn が見つかりません。");
+  }
+
+  const loadBtn = document.getElementById("loadRankingBtn");
+  if (loadBtn) {
+    loadBtn.addEventListener("click", refreshRanking);
+  }
+
+  const backBtn = document.getElementById("backButton");
+  if (backBtn) {
+    backBtn.addEventListener("click", () => {
+      document.getElementById("logOverlay").style.display = "none";
+    });
+  }
+
+  const closeBtn = document.getElementById("closeLogBtn");
+  const overlay = document.getElementById("logOverlay");
+  if (closeBtn && overlay) {
+    closeBtn.addEventListener("click", () => {
+      overlay.style.display = "none";
+    });
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.style.display = "none";
+    });
   }
 }
 
-// DOM構築後にイベント登録を実行
-document.addEventListener("DOMContentLoaded", setupEventListeners);
-
 /**
- * 初期イベント登録
+ * 初期処理
  */
-function setupEventListeners() {
-  document.getElementById("loadRankingBtn").addEventListener("click", refreshRanking);
-  document.getElementById("backButton").addEventListener("click", () => {
-  document.getElementById("logOverlay").style.display = "none";
+document.addEventListener("DOMContentLoaded", () => {
+  setupEventListeners();
+  refreshRanking();
 });
-  window.addEventListener("DOMContentLoaded", refreshRanking);
-}
-
-setupEventListeners();
