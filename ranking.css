@@ -1,83 +1,41 @@
-body {
-  font-family: 'Segoe UI', sans-serif;
-  background: #f5f5f5;
-  text-align: center;
-}
-
-#podium {
-  display: flex;
-  justify-content: center;
-  gap: 2em;
-  margin: 2em 0;
-}
-
-.podium-player {
-  font-size: 1.5em;
-  font-weight: bold;
-  padding: 1em;
-  border-radius: 15px;
-  color: white;
-  animation: float 2s infinite ease-in-out;
-}
-
-.first { background: gold; }
-.second { background: silver; }
-.third { background: #cd7f32; }
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-10px); }
-}
-
-/* 称号アニメーション */
-.title-thunder {
-  animation: thunder 1s infinite;
-  color: yellow;
-}
-.title-wind {
-  animation: wind 2s infinite linear;
-  color: lightblue;
-}
-.title-fire {
-  animation: fire 1s infinite;
-  color: orangered;
-}
-
-@keyframes thunder {
-  0%, 100% { text-shadow: 0 0 5px yellow; }
-  50%      { text-shadow: 0 0 20px white; }
-}
-@keyframes wind {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(3px); }
-  100% { transform: translateX(0); }
-
-/* 既存 table, th, td の後に追加 or 差し替え */
-
-table {
-  border-collapse: collapse;
-  margin: auto;
-  /* 古い width や box-shadow は削除か上書き */
-}
-
+/* -------------------------
+   表全体（既存スタイルベース）
+------------------------- */
 #rankingTable {
   width: 95%;
   max-width: 1200px;
   margin: 2em auto;
-  font-size: 1.1rem;
   border-collapse: collapse;
+  font-size: 1.1rem;
   background: white;
   box-shadow: 0 0 15px rgba(0,0,0,0.15);
 }
 
-#rankingTable th,
-#rankingTable td {
+#rankingTable thead th {
+  background-color: #222;
+  color: white;
+  padding: 14px 16px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  border: 2px solid #444;
+  text-align: center;
+}
+
+#rankingTable tbody td {
   border: 2px solid #444;
   padding: 12px 16px;
   text-align: center;
   vertical-align: middle;
 }
 
+#rankingTable tbody tr:nth-child(odd) {
+  background-color: #f9f9f9;
+}
+#rankingTable tbody tr:nth-child(even) {
+  background-color: #fff;
+}
+
+/* 上位3位強調 */
 tr.rank-1 td {
   background-color: gold !important;
   font-weight: bold;
@@ -96,11 +54,77 @@ tr.rank-3 td {
   font-size: 1.1em;
 }
 
+/* -------------------------
+   ポディウムプレイヤー（表彰台）
+------------------------- */
+#podium {
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  margin: 2em 0;
+}
+
+.podium-player {
+  font-size: 1.6em;
+  font-weight: bold;
+  padding: 1.2em 1.6em;
+  border-radius: 15px;
+  color: white;
+  animation: float 2s infinite ease-in-out;
+  text-align: center;
+  min-width: 160px;
+}
+
+.first { background: gold; }
+.second { background: silver; }
+.third { background: #cd7f32; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* -------------------------
+   称号用アニメーション
+------------------------- */
+.title-thunder {
+  animation: thunder 1s infinite;
+  color: yellow;
+  font-weight: bold;
+  text-shadow: 0 0 5px yellow;
+}
+.title-wind {
+  animation: wind 2s infinite linear;
+  color: lightblue;
+  font-weight: bold;
+  text-shadow: 0 0 5px lightblue;
+}
+.title-fire {
+  animation: fire 1s infinite;
+  color: orangered;
+  font-weight: bold;
+  text-shadow: 0 0 10px orangered;
+}
+
+@keyframes thunder {
+  0%, 100% { text-shadow: 0 0 5px yellow; }
+  50% { text-shadow: 0 0 20px white; }
+}
+
+@keyframes wind {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
 @keyframes fire {
   0%, 100% { text-shadow: 0 0 10px orange; }
   50% { text-shadow: 0 0 20px red; }
 }
 
+/* -------------------------
+   ボタンのデザイン（使いやすく）
+------------------------- */
 button {
   font-size: 1.1em;
   padding: 0.6em 1.2em;
@@ -113,6 +137,7 @@ button {
   box-shadow: 0 4px 6px rgba(0,0,0,0.15);
   transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
   user-select: none;
+  min-width: 180px;
 }
 
 button:hover,
