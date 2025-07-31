@@ -123,5 +123,23 @@ async function showLatestLog() {
   document.getElementById("logModal").style.display = "block";
 }
 
+function downloadCSV() {
+  const url = GAS_URL + "?mode=csv";
+  fetch(url)
+    .then(res => res.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ranking_log.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      console.error("CSVダウンロード失敗:", err);
+      alert("CSVのダウンロードに失敗しました。");
+    });
+}
+
 document.getElementById("loadRankingBtn").addEventListener("click", refreshRanking);
 window.addEventListener("DOMContentLoaded", refreshRanking);
