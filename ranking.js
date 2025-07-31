@@ -178,6 +178,18 @@ function downloadCSV() {
     });
 }
 
+function setupEventListeners() {
+  const btn = document.getElementById("showLatestLogBtn");
+  if (btn) {
+    btn.addEventListener("click", showLatestLog);
+  } else {
+    console.warn("📛 showLatestLogBtn が見つかりませんでした。");
+  }
+}
+
+// DOM構築後にイベント登録を実行
+document.addEventListener("DOMContentLoaded", setupEventListeners);
+
 /**
  * 初期イベント登録
  */
