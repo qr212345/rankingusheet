@@ -90,18 +90,36 @@ tr.rank-3 td {
   50% { text-shadow: 0 0 20px red; }
 }
 
-/* 任意のスタイル（追加） */
-#backButton {
-  padding: 0.5em 1em;
-  margin: 1em auto;
-  display: block;
+button {
   font-size: 1.1em;
-  background-color: #eee;
-  border: 1px solid #ccc;
+  padding: 0.6em 1.2em;
+  margin: 0.5em;
+  border: none;
   border-radius: 8px;
+  background: linear-gradient(135deg, #4a90e2, #357ABD);
+  color: white;
   cursor: pointer;
-}
-#backButton:hover {
-  background-color: #ddd;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+  user-select: none;
 }
 
+button:hover,
+button:focus {
+  background: linear-gradient(135deg, #357ABD, #2a5c9e);
+  box-shadow: 0 6px 10px rgba(0,0,0,0.25);
+  outline: none;
+}
+
+button:active {
+  background: linear-gradient(135deg, #2a5c9e, #224a7d);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transform: translateY(2px);
+}
+
+button:disabled {
+  background: #ccc;
+  color: #666;
+  cursor: default;
+  box-shadow: none;
+}
