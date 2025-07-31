@@ -141,16 +141,17 @@ function downloadCSV() {
     });
 }
 // JavaScriptで戻る処理
-document.getElementById("backButton").addEventListener("click", () => {
-  // 例1: ページ遷移前に保存されたURLに戻る場合
-  if (document.referrer) {
-    window.location.href = document.referrer;
-  } else {
-    // 例2: 特定のセクションを表示する（SPA的な構造の場合）
-    document.getElementById("logSection").style.display = "none";
-    document.getElementById("mainSection").style.display = "block";
-  }
-});
+const backBtn = document.getElementById("backButton");
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    if (document.referrer) {
+      window.location.href = document.referrer;
+    } else {
+      document.getElementById("logSection").style.display = "none";
+      document.getElementById("mainSection").style.display = "block";
+    }
+  });
+}
 
 document.getElementById("loadRankingBtn").addEventListener("click", refreshRanking);
 window.addEventListener("DOMContentLoaded", refreshRanking);
