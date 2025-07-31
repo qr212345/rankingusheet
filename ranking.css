@@ -159,3 +159,7 @@ button:disabled {
   cursor: default;
   box-shadow: none;
 }
+
+#closeExpandBtn:hover {
+  opacity: 1;
+}
