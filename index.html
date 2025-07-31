@@ -11,7 +11,8 @@
   <button onclick="downloadCSV()">💽CSVログをダウンロード</button>
   <button id="loadRankingBtn">🔄 最新のランキングを読み込む</button>
   <button id="showLatestLogBtn">🕘 最新のログを見る</button>
-
+　<button id="expandTableBtn">📈 表を拡大表示</button>
+  
   <div id="podium">
     <div class="podium-player first">1位: xxx</div>
     <div class="podium-player second">2位: yyy</div>
@@ -48,6 +49,26 @@
   </div>
 </div>
 
+<!-- 拡大モーダル -->
+<div id="expandOverlay" style="display:none; position: fixed; top:0; left:0; width:100vw; height:100vh; background: rgba(0,0,0,0.8); z-index:10000; overflow: auto;">
+  <!-- 閉じるボタン -->
+  <button id="closeExpandBtn" style="
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.3s ease;
+  " title="閉じる">×</button>
+  <!-- 拡大表コピー表示領域 -->
+  <div id="expandedRankingContainer" style="margin: 3rem auto; max-width: 90vw; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+    <!-- JSで表をコピーしてここに挿入 -->
+  </div>
+</div>
 
   <script src="ranking.js"></script>
 </body>
