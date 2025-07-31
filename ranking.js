@@ -126,10 +126,17 @@ async function refreshRanking() {
  */
 async function showLatestLog() {
   try {
-    const res = await fetch(GAS_URL);
+    const res = await fetch(GAS_URL + "?mode=log"); // ログ取得
     const logs = await res.json();
 
+    // ✅ ログデータが空 or 不正な場合をチェック
+    if (!Array.isArray(logs) || logs.length === 0 || !logs[logs.length - 1]?.log) {
+      alert("ログデータが見つかりません。");
+      return;
+    }
+
     const latest = logs[logs.length - 1];
+
     const html = [`<p>${latest.timestamp}</p><ul>`];
     latest.log.forEach(p => {
       html.push(`<li>${p.playerId}: 順位${p.lastRank}, レート${p.rate}</li>`);
@@ -137,11 +144,16 @@ async function showLatestLog() {
     html.push("</ul>");
 
     document.getElementById("logContent").innerHTML = html.join("");
-    document.getElementById("logModal").style.display = "block";
+    document.getElementById("logOverlay").style.display = "block";
   } catch (err) {
-    console.error("ログ取得失敗:", err);
+    alert("ログの取得に失敗しました。");
+    console.error(err);
   }
 }
+
+document.getElementById("closeLogBtn").addEventListener("click", () => {
+  document.getElementById("logOverlay").style.display = "none";
+});
 
 /**
  * CSVログをダウンロードする関数
@@ -167,18 +179,13 @@ function downloadCSV() {
 }
 
 /**
- * ログモーダルを閉じてメイン画面に戻る
- */
-function closeLogModal() {
-  document.getElementById("logModal").style.display = "none";
-}
-
-/**
  * 初期イベント登録
  */
 function setupEventListeners() {
   document.getElementById("loadRankingBtn").addEventListener("click", refreshRanking);
-  document.getElementById("backButton").addEventListener("click", closeLogModal);
+  document.getElementById("backButton").addEventListener("click", () => {
+  document.getElementById("logOverlay").style.display = "none";
+});
   window.addEventListener("DOMContentLoaded", refreshRanking);
 }
 
