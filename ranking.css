@@ -85,7 +85,6 @@ tr.rank-3 td {
   font-size: 1.1em;
 }
 
-}
 @keyframes fire {
   0%, 100% { text-shadow: 0 0 10px orange; }
   50% { text-shadow: 0 0 20px red; }
