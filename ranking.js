@@ -94,20 +94,24 @@ function renderRankingTable(rows) {
  * GASからランキング情報を取得
  */
 async function refreshRanking() {
+  const statusDiv = document.getElementById("loadingStatus");
   try {
+    statusDiv.textContent = "ランキングデータを読み込み中…";
     const res = await fetch(GAS_URL + "?mode=ranking");
     const data = await res.json();
 
     playerData = data.playerData || {};
     const rows = data.rateRanking;
-    if (!rows) {
-      console.warn("❌ ランキングデータなし");
+    if (!rows || rows.length === 0) {
+      statusDiv.textContent = "❌ ランキングデータがありません。";
       return;
     }
 
+    statusDiv.textContent = "✅ ランキングデータを読み込みました。";
     const processedRows = processRankingData(rows);
     renderRankingTable(processedRows);
   } catch (err) {
+    statusDiv.textContent = "⚠️ ランキングデータの読み込みに失敗しました。";
     console.error("読み込み失敗:", err);
   }
 }
