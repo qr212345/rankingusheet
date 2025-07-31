@@ -24,18 +24,21 @@
         <th>獲得レート</th>
         <th>特別ポイント🔥</th>
         <th>順位変動</th>
+        <th>前回の試合順位</th>
         <th>称号</th>
       </tr>
     </thead>
     <tbody>
       <!-- JSで生成 -->
     </tbody>
-    <button onclick="showLatestLog()">🕘 最新のログを見る</button>
-    <div id="logModal" style="display:none">
-      <button onclick="document.getElementById('logModal').style.display='none'">✖️ 閉じる</button>
-    <div id="logContent"></div>
-    </div>
   </table>
+
+  <!-- 表の外に配置 -->
+  <button onclick="showLatestLog()">🕘 最新のログを見る</button>
+  <div id="logModal" style="display:none">
+    <button onclick="document.getElementById('logModal').style.display='none'">✖️ 閉じる</button>
+    <div id="logContent"></div>
+  </div>
 
   <script src="ranking.js"></script>
 </body>
