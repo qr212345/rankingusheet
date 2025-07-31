@@ -38,10 +38,11 @@
   <!-- 表の外に配置 -->
   <button onclick="showLatestLog()">🕘 最新のログを見る</button>
   <div id="logModal" style="display:none">
-    <button onclick="document.getElementById('logModal').style.display='none'">✖️ 閉じる</button>
+    <!-- HTMLの適切な場所にボタンを追加 -->　
+    <button id="backButton">🔙 戻る</button>
     <div id="logContent"></div>
   </div>
-
+　
   <script src="ranking.js"></script>
 </body>
 </html>
