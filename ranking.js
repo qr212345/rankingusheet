@@ -199,6 +199,52 @@ function setupEventListeners() {
   }
 }
 
+
+// 拡大ボタン＆閉じるボタン取得
+const expandBtn = document.getElementById("expandTableBtn");
+const expandOverlay = document.getElementById("expandOverlay");
+const closeExpandBtn = document.getElementById("closeExpandBtn");
+const expandedRankingContainer = document.getElementById("expandedRankingContainer");
+
+// 拡大表示を開く
+expandBtn.addEventListener("click", () => {
+  // ランキング表のコピーを作成
+  const originalTable = document.getElementById("rankingTable");
+  if (!originalTable) return;
+
+  // コピーしてから拡大表示領域に挿入
+  expandedRankingContainer.innerHTML = ""; // クリア
+  const tableClone = originalTable.cloneNode(true);
+
+  // 拡大用にフォントサイズ大きめなど追加スタイル調整
+  tableClone.style.fontSize = "1.5rem";
+  tableClone.style.width = "100%";
+  tableClone.style.maxWidth = "100%";
+
+  expandedRankingContainer.appendChild(tableClone);
+
+  // モーダル表示
+  expandOverlay.style.display = "block";
+
+  // スクロール位置トップに
+  window.scrollTo(0, 0);
+});
+
+// 拡大モードを閉じる
+closeExpandBtn.addEventListener("click", () => {
+  expandOverlay.style.display = "none";
+  expandedRankingContainer.innerHTML = ""; // 内容クリア
+});
+
+// オーバーレイの空白クリックでも閉じる
+expandOverlay.addEventListener("click", (e) => {
+  if (e.target === expandOverlay) {
+    expandOverlay.style.display = "none";
+    expandedRankingContainer.innerHTML = "";
+  }
+});
+
+
 /**
  * 初期処理
  */
