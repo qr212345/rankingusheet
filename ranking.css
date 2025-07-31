@@ -51,6 +51,40 @@ body {
   0% { transform: translateX(0); }
   50% { transform: translateX(3px); }
   100% { transform: translateX(0); }
+
+/* ランキングテーブル */
+table {
+  border-collapse: collapse;
+  margin: auto;
+  width: 90%;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 0.6em 1em;
+}
+
+/* 上位3位の強調表示 */
+tr.rank-1 td {
+  background-color: gold;
+  font-weight: bold;
+  font-size: 1.3em;
+}
+
+tr.rank-2 td {
+  background-color: silver;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+tr.rank-3 td {
+  background-color: #cd7f32;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
 }
 @keyframes fire {
   0%, 100% { text-shadow: 0 0 10px orange; }
