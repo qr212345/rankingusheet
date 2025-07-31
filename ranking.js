@@ -69,9 +69,16 @@ function renderRankingTable(rows) {
   rows.slice(0, 3).forEach(p => {
     const div = document.createElement("div");
     div.className = "podium-player";
-    if (p.currentRank === 1) div.classList.add("first");
-    else if (p.currentRank === 2) div.classList.add("second");
-    else if (p.currentRank === 3) div.classList.add("third");
+    if (p.currentRank === 1) {
+      div.classList.add("first");
+      div.classList.add("title-thunder");
+    } else if (p.currentRank === 2) {
+      div.classList.add("second");
+      div.classList.add("title-wind");
+    } else if (p.currentRank === 3) {
+      div.classList.add("third");
+      div.classList.add("title-fire");
+    }
 
     div.innerHTML = `
       <h2>${p.currentRank}位 🏆</h2>
