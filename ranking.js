@@ -1,5 +1,5 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbygkm8XdHzW27SpWuGB9EtDpfxUN7dwUMR_w4F6yFrsRq02F9UE1fcTe_n0f142Fe1m/exec";
-const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証用などに。
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyUVBsG0-5_7vgSHXSvWDkN434u1WJF12YEBSXYjfSnAXOBC96NkSx0qjH6400AidI/exec";
+const SECRET = "kosen";  // ※未使用。将来的な認証用などに。
 
 // 過去データを保持（GASから読み込み）
 let playerData = {};
@@ -133,7 +133,7 @@ async function refreshRanking() {
   const statusDiv = document.getElementById("loadingStatus");
   try {
     statusDiv.textContent = "ランキングデータを読み込み中…";
-    const res = await fetch(GAS_URL + "?mode=ranking", {
+    const res = await fetch(`${GAS_URL}?mode=ranking&secret=${encodeURIComponent(SECRET)}`, {
       method: "GET",
       mode: "cors"
     });
