@@ -97,7 +97,11 @@ async function refreshRanking() {
   const statusDiv = document.getElementById("loadingStatus");
   try {
     statusDiv.textContent = "ランキングデータを読み込み中…";
-    const res = await fetch(GAS_URL + "?mode=ranking");
+    const res = await fetch(GAS_URL + "?mode=ranking", {
+      method: "GET",
+      mode: "cors"
+    });
+    if (!res.ok) throw new Error("HTTP error " + res.status);
     const data = await res.json();
 
     playerData = data.playerData || {};
@@ -115,6 +119,7 @@ async function refreshRanking() {
     console.error("読み込み失敗:", err);
   }
 }
+
 
 /**
  * 最新ログをモーダルで表示
