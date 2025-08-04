@@ -1,89 +1,125 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxMmfyR_1DmnN7h7GHcvaFhhwePACVR54Fuu66ljhmQboRvU62LDtXBu3Cz_OHZhZ0/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbytTI2B9o8t4suF2htCY3D7JbHB7QbtIf6R1VdCQf_L8QPCnZKOoaN8CJt7BEXYNX24/exec";
 const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証用などに。
 
 // 過去データを保持（GASから読み込み）
 let playerData = {};
 
-/**
- * ランキングデータ処理
- */
-function processRankingData(rows) {
-  rows.sort((a, b) => b["レート"] - a["レート"]);
-
-  for (let i = 0; i < rows.length; i++) {
-    const p = rows[i];
-    const playerId = p["Player ID"];
-
+function processRanking(entries) {
+  // entriesの各playerIdにprevデータをセット（なければ初期化）
+  entries.forEach(player => {
+    const playerId = player["Player ID"];
     const prev = playerData[playerId] || {};
-    const prevRate = prev.rate ?? p["レート"];
-    const prevRank = prev.lastRank ?? i + 1;
+    
+    player.prevRate = prev.rate ?? player.rate;
+    player.prevRank = prev.lastRank ?? player.rank ?? 0;
+    player.prevRateRank = prev.prevRateRank ?? 0;
+    player.bonus = player.bonus ?? prev.bonus ?? 0;
+  });
 
-    p.currentRank = i + 1;
-    p.gainRate = Number(p["レート"]) - prevRate;
-    p.rankChange = prevRank - p.currentRank;
-    p.specialPoint = Number(p["ボーナス"]) || prev.bonus || 0;
-    p.title = "";
-  }
+  // 獲得レート計算（差分）
+  entries.forEach(player => {
+    player.rateGain = player.rate - player.prevRate;
+  });
 
+  // 最新レートでソート → レート順位付け
+  entries.sort((a, b) => b.rate - a.rate);
+  entries.forEach((player, idx) => {
+    player.rateRank = idx + 1;
+  });
+
+  // 前回レート順位がなければ今回の順位を代入
+  entries.forEach(player => {
+    if (!player.prevRateRank) player.prevRateRank = player.rateRank;
+  });
+
+  // 順位変動計算
+  entries.forEach(player => {
+    player.rankChange = player.prevRank - (player.rank ?? player.prevRank);
+    player.rateRankChange = player.prevRateRank - player.rateRank;
+  });
+
+  // 称号付与（上位3名）
   const titles = ["⚡雷", "🌪風", "🔥火"];
-  for (let i = 0; i < 3 && i < rows.length; i++) {
-    rows[i].title = titles[i];
+  entries.forEach(player => player.title = "");
+  for (let i = 0; i < 3 && i < entries.length; i++) {
+    entries[i].title = titles[i];
   }
 
-  return rows;
+  // 表示用に加工
+  const processedRows = entries.map(player => {
+    // 同順位チェック
+    const sameRankCount = entries.filter(p => p.rank === player.rank).length;
+    const sameRank = sameRankCount > 1;
+
+    // 獲得レート or 特別ポイントに振り分け
+    const gainDisplay = sameRank ? "" : (player.rateGain >= 0 ? "+" + player.rateGain : player.rateGain.toString());
+    const bonusDisplay = sameRank ? (player.rateGain >= 0 ? "+" + player.rateGain : player.rateGain.toString()) : player.bonus;
+
+    // 順位変動表示
+    const rankChangeStr = player.rankChange > 0 ? `↑${player.rankChange}` :
+                          player.rankChange < 0 ? `↓${-player.rankChange}` : "—";
+    const rateRankChangeStr = player.rateRankChange > 0 ? `↑${player.rateRankChange}` :
+                              player.rateRankChange < 0 ? `↓${-player.rateRankChange}` : "—";
+
+    return {
+      playerId: player["Player ID"],
+      rank: player.rank ?? "—",
+      rate: player.rate,
+      gain: gainDisplay,
+      bonus: bonusDisplay,
+      rankChange: rankChangeStr,
+      lastRank: player.prevRank ?? "—",
+      title: player.title,
+      rateRank: player.rateRank,
+      rateRankChange: rateRankChangeStr
+    };
+  });
+
+  return processedRows;
 }
 
 /**
- * ランキング表の描画
+ * renderRankingTableも合わせて修正例
  */
-function renderRankingTable(rows) {
+function renderRankingTable(processedRows) {
   const tbody = document.querySelector("#rankingTable tbody");
   tbody.innerHTML = "";
 
-  rows.forEach(p => {
-    let changeText = "—";
-    if (p.rankChange > 0) changeText = `↑${p.rankChange}`;
-    else if (p.rankChange < 0) changeText = `↓${-p.rankChange}`;
-
-    const gainRateText = `${p.gainRate >= 0 ? "+" : ""}${p.gainRate}`;
-    const bonusText = p.specialPoint > 0 ? `${p.specialPoint}🔥` : "";
-
+  processedRows.forEach(p => {
     const tr = document.createElement("tr");
-    tr.classList.add(`rank-${p.currentRank}`);
+    tr.classList.add(`rank-${p.rank}`);
 
     tr.innerHTML = `
-      <td>${p.currentRank}</td>
-      <td>${p["Player ID"]}</td>
-      <td>${p["レート"]}</td>
-      <td>${gainRateText}</td>
-      <td>${bonusText}</td>
-      <td>${changeText}</td>
-      <td>${playerData[p["Player ID"]]?.lastRank ?? "—"}</td>
+      <td>${p.rank}</td>
+      <td>${p.playerId}</td>
+      <td>${p.rate}</td>
+      <td>${p.gain}</td>
+      <td>${p.bonus}</td>
+      <td>${p.rankChange}</td>
+      <td>${p.lastRank}</td>
       <td>${p.title}</td>
     `;
     tbody.appendChild(tr);
   });
 
+  // 表彰台表示は前回のままでOK
   const podiumDiv = document.getElementById("podium");
   podiumDiv.innerHTML = "";
-  rows.slice(0, 3).forEach(p => {
+  processedRows.slice(0, 3).forEach(p => {
     const div = document.createElement("div");
     div.className = "podium-player";
-    if (p.currentRank === 1) {
-      div.classList.add("first");
-      div.classList.add("title-thunder");
-    } else if (p.currentRank === 2) {
-      div.classList.add("second");
-      div.classList.add("title-wind");
-    } else if (p.currentRank === 3) {
-      div.classList.add("third");
-      div.classList.add("title-fire");
+    if (p.rank === 1) {
+      div.classList.add("first", "title-thunder");
+    } else if (p.rank === 2) {
+      div.classList.add("second", "title-wind");
+    } else if (p.rank === 3) {
+      div.classList.add("third", "title-fire");
     }
 
     div.innerHTML = `
-      <h2>${p.currentRank}位 🏆</h2>
-      <p>ID: ${p["Player ID"]}</p>
-      <p>レート: ${p["レート"]}</p>
+      <h2>${p.rank}位 🏆</h2>
+      <p>ID: ${p.playerId}</p>
+      <p>レート: ${p.rate}</p>
       <p>${p.title}</p>
     `;
     podiumDiv.appendChild(div);
@@ -91,7 +127,7 @@ function renderRankingTable(rows) {
 }
 
 /**
- * GASからランキング情報を取得
+ * refreshRanking()の一部変更例
  */
 async function refreshRanking() {
   const statusDiv = document.getElementById("loadingStatus");
@@ -104,7 +140,9 @@ async function refreshRanking() {
     if (!res.ok) throw new Error("HTTP error " + res.status);
     const data = await res.json();
 
+    // 過去データを更新
     playerData = data.playerData || {};
+
     const rows = data.rateRanking;
     if (!rows || rows.length === 0) {
       statusDiv.textContent = "❌ ランキングデータがありません。";
@@ -112,13 +150,17 @@ async function refreshRanking() {
     }
 
     statusDiv.textContent = "✅ ランキングデータを読み込みました。";
-    const processedRows = processRankingData(rows);
+
+    // processRankingに渡して加工
+    const processedRows = processRanking(rows);
+
     renderRankingTable(processedRows);
   } catch (err) {
     statusDiv.textContent = "⚠️ ランキングデータの読み込みに失敗しました。";
     console.error("読み込み失敗:", err);
   }
 }
+
 
 
 /**
