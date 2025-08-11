@@ -1,5 +1,5 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyUVBsG0-5_7vgSHXSvWDkN434u1WJF12YEBSXYjfSnAXOBC96NkSx0qjH6400AidI/exec";
-const SECRET = "kosen";  // ※未使用。将来的な認証用などに。
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzTIu-me-XtueawkikqQZlnCM3vMVdmghX6zti1HgpmflKYJqG8I2tEA8QaV6mYWSB0/exec";
+const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証用などに。
 
 // 過去データを保持（GASから読み込み）
 let playerData = {};
