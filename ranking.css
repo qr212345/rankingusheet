@@ -1,14 +1,22 @@
 /* -------------------------
-   表全体（既存スタイルベース）
+   表全体（スクロール対応）
 ------------------------- */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin: 2em auto;
+}
+
+/* 表本体 */
 #rankingTable {
   width: 95%;
   max-width: 1200px;
-  margin: 2em auto;
+  margin: 0 auto;
   border-collapse: collapse;
   font-size: 1.1rem;
   background: white;
   box-shadow: 0 0 15px rgba(0,0,0,0.15);
+  min-width: 600px; /* 小さすぎる崩れ防止 */
 }
 
 #rankingTable thead th {
@@ -35,21 +43,24 @@
   background-color: #fff;
 }
 
-/* 上位3位強調 */
+/* 上位3位強調（コントラスト改善） */
 tr.rank-1 td {
   background-color: gold !important;
+  color: #000;
   font-weight: bold;
   font-size: 1.3em;
 }
 
 tr.rank-2 td {
   background-color: silver !important;
+  color: #000;
   font-weight: bold;
   font-size: 1.2em;
 }
 
 tr.rank-3 td {
   background-color: #cd7f32 !important;
+  color: #000;
   font-weight: bold;
   font-size: 1.1em;
 }
@@ -59,6 +70,7 @@ tr.rank-3 td {
 ------------------------- */
 #podium {
   display: flex;
+  flex-wrap: wrap; /* モバイル対応 */
   justify-content: center;
   gap: 2em;
   margin: 2em 0;
@@ -73,11 +85,12 @@ tr.rank-3 td {
   animation: float 2s infinite ease-in-out;
   text-align: center;
   min-width: 160px;
+  will-change: transform;
 }
 
-.first { background: gold; }
-.second { background: silver; }
-.third { background: #cd7f32; }
+.first { background: gold; color: #000; }
+.second { background: silver; color: #000; }
+.third { background: #cd7f32; color: #000; }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -123,11 +136,11 @@ tr.rank-3 td {
 }
 
 /* -------------------------
-   ボタンのデザイン（使いやすく）
+   ボタンのデザイン（モバイル対応）
 ------------------------- */
 button {
   font-size: 1.1em;
-  padding: 0.6em 1.2em;
+  padding: 0.8em 1.4em; /* タップしやすく */
   margin: 0.5em;
   border: none;
   border-radius: 8px;
@@ -162,4 +175,17 @@ button:disabled {
 
 #closeExpandBtn:hover {
   opacity: 1;
+}
+
+/* -------------------------
+   レスポンシブ対応
+------------------------- */
+@media (max-width: 768px) {
+  #rankingTable {
+    font-size: 1rem;
+  }
+  .podium-player {
+    min-width: 120px;
+    font-size: 1.4em;
+  }
 }
