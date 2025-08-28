@@ -1,4 +1,4 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxzBcssjOX5-bJrS0jfIQC2I-3m8pZi2hpmo3UjJZEe0HfV7ypDZEH9R1JrBfoZDQU/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwC4RScJxeEqSnvGtqCn4P5451iGrmbjhjCgbswOFWrUiRavYKWU9J-yaMsSwer44lk/exec";
 const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証用などに。
 
 // 過去データを保持（GASから読み込み）
