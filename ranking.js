@@ -66,8 +66,20 @@ function processRanking(entries) {
 function renderRankingTable(processedRows) {
   const tbody = document.querySelector("#rankingTable tbody");
   const frag = document.createDocumentFragment();
+
   processedRows.forEach(p => {
     const tr = document.createElement("tr");
+
+    // ===== 順位クラス付与 =====
+    if (p.rank === 1) tr.classList.add("rank-1");
+    else if (p.rank === 2) tr.classList.add("rank-2");
+    else if (p.rank === 3) tr.classList.add("rank-3");
+
+    // ===== レート増減クラス付与 =====
+    if (p.rateGain > 0) tr.classList.add("gain-up");
+    else if (p.rateGain < 0) tr.classList.add("gain-down");
+
+    // ===== HTML構築 =====
     tr.innerHTML = `
       <td title="現在順位">${p.rank}</td>
       <td>${p.playerId}</td>
@@ -76,15 +88,22 @@ function renderRankingTable(processedRows) {
       <td>${p.bonus}</td>
       <td title="順位変動">${p.rankChangeStr}</td>
       <td>${p.prevRank ?? "—"}</td>
-      <td>${p.title}</td>
+      <td class="${
+        p.title === "⚡雷" ? "title-thunder" :
+        p.title === "🌪風" ? "title-wind" :
+        p.title === "🔥火" ? "title-fire" : ""
+      }">${p.title}</td>
     `;
-    if (p.rateGain > 0) tr.classList.add("gain-up");
-    else if (p.rateGain < 0) tr.classList.add("gain-down");
+
+    // 個別履歴グラフイベント
     tr.addEventListener("click", () => showPlayerChart(p.playerId));
+
     frag.appendChild(tr);
   });
+
   tbody.innerHTML = "";
   tbody.appendChild(frag);
+
   renderSideAwards(processedRows);
 }
 
