@@ -1,315 +1,177 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwC4RScJxeEqSnvGtqCn4P5451iGrmbjhjCgbswOFWrUiRavYKWU9J-yaMsSwer44lk/exec";
-const SECRET = "kosen-brain-super-secret";  // ※未使用。将来的な認証用などに。
+// ===============================
+// 定数設定
+// ===============================
+const GAS_URL = "https://script.google.com/macros/s/…/exec";
+const TITLES = ["⚡雷", "🌪風", "🔥火"];
+let playerData = new Map();
+let autoRefreshTimer = null;
 
-// 過去データを保持（GASから読み込み）
-let playerData = {};
+// ===============================
+// 基本処理
+// ===============================
+function applyPreviousData(entries) {
+  entries.forEach(p => {
+    const prev = playerData.get(p.playerId) || {};
+    p.prevRate = prev.rate ?? p.rate;
+    p.prevRank = prev.lastRank ?? p.rank ?? 0;
+    p.prevRateRank = prev.prevRateRank ?? p.rateRank ?? 0;
+    p.bonus = p.bonus ?? prev.bonus ?? 0;
+  });
+}
+
+function calculateRanking(entries) {
+  entries.forEach(p => p.rateGain = p.rate - p.prevRate);
+  entries.sort((a, b) => b.rate - a.rate);
+  entries.forEach((p, i) => p.rateRank = i + 1);
+  entries.forEach(p => {
+    if (p.prevRateRank == null) p.prevRateRank = p.rateRank;
+    p.rankChange = p.prevRank - (p.rank ?? p.prevRank);
+    p.rateRankChange = p.prevRateRank - p.rateRank;
+  });
+  entries.forEach((p, i) => p.title = i < TITLES.length ? TITLES[i] : "");
+}
+
+function storeCurrentData(entries) {
+  entries.forEach(p => {
+    playerData.set(p.playerId, {
+      rate: p.rate,
+      lastRank: p.rank,
+      prevRateRank: p.rateRank,
+      bonus: p.bonus
+    });
+  });
+}
+
+function formatForDisplay(entries) {
+  return entries.map(p => {
+    const gainDisplay = p.rateGain >= 0 ? "+" + p.rateGain : p.rateGain.toString();
+    const rankChangeStr = p.rankChange > 0 ? `↑${p.rankChange}` :
+                          p.rankChange < 0 ? `↓${-p.rankChange}` : "—";
+    const rateRankChangeStr = p.rateRankChange > 0 ? `↑${p.rateRankChange}` :
+                              p.rateRankChange < 0 ? `↓${-p.rateRankChange}` : "—";
+    return { ...p, gain: gainDisplay, rankChangeStr, rateRankChangeStr };
+  });
+}
 
 function processRanking(entries) {
-  // entriesの各playerIdにprevデータをセット（なければ初期化）
-  entries.forEach(player => {
-    const playerId = player["Player ID"];
-    const prev = playerData[playerId] || {};
-    
-    player.prevRate = prev.rate ?? player.rate;
-    player.prevRank = prev.lastRank ?? player.rank ?? 0;
-    player.prevRateRank = prev.prevRateRank ?? 0;
-    player.bonus = player.bonus ?? prev.bonus ?? 0;
-  });
-
-  // 獲得レート計算（差分）
-  entries.forEach(player => {
-    player.rateGain = player.rate - player.prevRate;
-  });
-
-  // 最新レートでソート → レート順位付け
-  entries.sort((a, b) => b.rate - a.rate);
-  entries.forEach((player, idx) => {
-    player.rateRank = idx + 1;
-  });
-
-  // 前回レート順位がなければ今回の順位を代入
-  entries.forEach(player => {
-    if (!player.prevRateRank) player.prevRateRank = player.rateRank;
-  });
-
-  // 順位変動計算
-  entries.forEach(player => {
-    player.rankChange = player.prevRank - (player.rank ?? player.prevRank);
-    player.rateRankChange = player.prevRateRank - player.rateRank;
-  });
-
-  // 称号付与（上位3名）
-  const titles = ["⚡雷", "🌪風", "🔥火"];
-  entries.forEach(player => player.title = "");
-  for (let i = 0; i < 3 && i < entries.length; i++) {
-    entries[i].title = titles[i];
-  }
-
-  // 表示用に加工
-  const processedRows = entries.map(player => {
-    // 同順位チェック
-    const sameRankCount = entries.filter(p => p.rank === player.rank).length;
-    const sameRank = sameRankCount > 1;
-
-    // 獲得レート or 特別ポイントに振り分け
-    const gainDisplay = sameRank ? "" : (player.rateGain >= 0 ? "+" + player.rateGain : player.rateGain.toString());
-    const bonusDisplay = sameRank ? (player.rateGain >= 0 ? "+" + player.rateGain : player.rateGain.toString()) : player.bonus;
-
-    // 順位変動表示
-    const rankChangeStr = player.rankChange > 0 ? `↑${player.rankChange}` :
-                          player.rankChange < 0 ? `↓${-player.rankChange}` : "—";
-    const rateRankChangeStr = player.rateRankChange > 0 ? `↑${player.rateRankChange}` :
-                              player.rateRankChange < 0 ? `↓${-player.rateRankChange}` : "—";
-
-    return {
-      playerId: player["Player ID"],
-      rank: player.rank ?? "—",
-      rate: player.rate,
-      gain: gainDisplay,
-      bonus: bonusDisplay,
-      rankChange: rankChangeStr,
-      lastRank: player.prevRank ?? "—",
-      title: player.title,
-      rateRank: player.rateRank,
-      rateRankChange: rateRankChangeStr
-    };
-  });
-
-  return processedRows;
+  applyPreviousData(entries);
+  calculateRanking(entries);
+  storeCurrentData(entries);
+  return formatForDisplay(entries);
 }
 
-/**
- * renderRankingTableも合わせて修正例
- */
+// ===============================
+// 描画系
+// ===============================
 function renderRankingTable(processedRows) {
   const tbody = document.querySelector("#rankingTable tbody");
-  tbody.innerHTML = "";
-
+  const frag = document.createDocumentFragment();
   processedRows.forEach(p => {
     const tr = document.createElement("tr");
-    tr.classList.add(`rank-${p.rank}`);
-
     tr.innerHTML = `
-      <td>${p.rank}</td>
+      <td title="現在順位">${p.rank}</td>
       <td>${p.playerId}</td>
       <td>${p.rate}</td>
-      <td>${p.gain}</td>
+      <td title="レート差分">${p.gain}</td>
       <td>${p.bonus}</td>
-      <td>${p.rankChange}</td>
-      <td>${p.lastRank}</td>
+      <td title="順位変動">${p.rankChangeStr}</td>
+      <td>${p.prevRank ?? "—"}</td>
       <td>${p.title}</td>
     `;
-    tbody.appendChild(tr);
+    if (p.rateGain > 0) tr.classList.add("gain-up");
+    else if (p.rateGain < 0) tr.classList.add("gain-down");
+    tr.addEventListener("click", () => showPlayerChart(p.playerId));
+    frag.appendChild(tr);
   });
-
-  // 表彰台表示は前回のままでOK
-  const podiumDiv = document.getElementById("podium");
-  podiumDiv.innerHTML = "";
-  processedRows.slice(0, 3).forEach(p => {
-    const div = document.createElement("div");
-    div.className = "podium-player";
-    if (p.rank === 1) {
-      div.classList.add("first", "title-thunder");
-    } else if (p.rank === 2) {
-      div.classList.add("second", "title-wind");
-    } else if (p.rank === 3) {
-      div.classList.add("third", "title-fire");
-    }
-
-    div.innerHTML = `
-      <h2>${p.rank}位 🏆</h2>
-      <p>ID: ${p.playerId}</p>
-      <p>レート: ${p.rate}</p>
-      <p>${p.title}</p>
-    `;
-    podiumDiv.appendChild(div);
-  });
+  tbody.innerHTML = "";
+  tbody.appendChild(frag);
+  renderSideAwards(processedRows);
 }
 
-/**
- * refreshRanking()の一部変更例
- */
+function renderSideAwards(rows) {
+  const topUp = [...rows].sort((a,b)=>b.rateGain-a.rateGain).slice(0,3);
+  const topDown = [...rows].sort((a,b)=>a.rateGain-b.rateGain).slice(0,3);
+  document.getElementById("awardUp").innerHTML = topUp.map(p=>`<li>${p.playerId} (${p.gain})</li>`).join("");
+  document.getElementById("awardDown").innerHTML = topDown.map(p=>`<li>${p.playerId} (${p.gain})</li>`).join("");
+}
+
+// ===============================
+// 検索・ソート・期間
+// ===============================
+document.getElementById("searchInput")?.addEventListener("input", e => {
+  const term = e.target.value.toLowerCase();
+  document.querySelectorAll("#rankingTable tbody tr").forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(term) ? "" : "none";
+  });
+});
+
+document.querySelectorAll("#rankingTable th").forEach((th, idx) => {
+  let asc = true;
+  th.addEventListener("click", () => {
+    sortTable(idx, asc);
+    asc = !asc;
+  });
+});
+
+function sortTable(idx, asc) {
+  const tbody = document.querySelector("#rankingTable tbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  rows.sort((a,b)=>a.cells[idx].textContent.localeCompare(b.cells[idx].textContent, 'ja', { numeric:true })*(asc?1:-1));
+  tbody.innerHTML = "";
+  rows.forEach(r=>tbody.appendChild(r));
+}
+
+// ===============================
+// 自動更新
+// ===============================
+function setAutoRefresh(sec) {
+  clearInterval(autoRefreshTimer);
+  if (sec > 0) autoRefreshTimer = setInterval(refreshRanking, sec*1000);
+}
+
+// ===============================
+// 履歴グラフ（Chart.js想定）
+// ===============================
+function showPlayerChart(playerId) {
+  fetch(`${GAS_URL}?mode=history&id=${playerId}`)
+    .then(res=>res.json())
+    .then(history=>{
+      const ctx = document.getElementById("historyChart").getContext("2d");
+      new Chart(ctx, {
+        type:'line',
+        data: {
+          labels: history.map(h=>h.date),
+          datasets: [{ label:`${playerId} レート推移`, data: history.map(h=>h.rate), borderColor:'#36a2eb', fill:false }]
+        }
+      });
+      document.getElementById("chartModal").style.display="block";
+    });
+}
+
+// ===============================
+// データ更新
+// ===============================
 async function refreshRanking() {
-  const statusDiv = document.getElementById("loadingStatus");
   try {
-    statusDiv.textContent = "ランキングデータを読み込み中…";
-
-    const res = await fetch(`${GAS_URL}`, {
-      method: "GET",
-      headers: { "Content-Type": "text/plain" },
-      mode: "cors"
-    });
-
-    if (!res.ok) throw new Error("HTTP error " + res.status);
-
+    const res = await fetch(GAS_URL);
     const csvText = await res.text();
-
     const lines = csvText.trim().split(/\r?\n/);
-
-    if (lines.length <= 1) {
-      statusDiv.textContent = "❌ ランキングデータがありません。";
-      return;
-    }
-
-    statusDiv.textContent = "✅ ランキングデータを読み込みました。";
-
-    // 1行目はヘッダーなので除外
-    const [header, ...dataLines] = lines;
-
-    // CSVをオブジェクト配列に変換
-    const rows = dataLines.map(line => {
+    if (lines.length<=1) return;
+    const [, ...dataLines] = lines;
+    const rows = dataLines.map(line=>{
       const [playerId, rank, rate] = line.split(",");
-      return { playerId, rank: Number(rank), rate: Number(rate) };
+      return { playerId, rank:Number(rank), rate:Number(rate) };
     });
-
-    // processRanking に渡して加工
-    const processedRows = processRanking(rows);
-
-    renderRankingTable(processedRows);
-
-  } catch (err) {
-    statusDiv.textContent = "⚠️ ランキングデータの読み込みに失敗しました。";
-    console.error("読み込み失敗:", err);
+    renderRankingTable(processRanking(rows));
+  } catch(e) {
+    console.error("更新失敗", e);
   }
 }
 
-/**
- * 最新ログをモーダルで表示
- */
-async function showLatestLog() {
-  try {
-    const res = await fetch(GAS_URL + "?mode=log");
-    const logs = await res.json();
-
-    if (!Array.isArray(logs) || logs.length === 0 || !logs[logs.length - 1]?.log) {
-      alert("ログデータが見つかりません。");
-      return;
-    }
-
-    const latest = logs[logs.length - 1];
-    const html = [`<p>${latest.timestamp}</p><ul>`];
-    latest.log.forEach(p => {
-      html.push(`<li>${p.playerId}: 順位${p.lastRank}, レート${p.rate}</li>`);
-    });
-    html.push("</ul>");
-
-    document.getElementById("logContent").innerHTML = html.join("");
-    document.getElementById("logOverlay").style.display = "block";
-  } catch (err) {
-    alert("ログの取得に失敗しました。");
-    console.error(err);
-  }
-}
-
-/**
- * CSVログをダウンロード
- */
-function downloadCSV() {
-  const url = GAS_URL + "?mode=csv";
-  fetch(url)
-    .then(res => res.blob())
-    .then(blob => {
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = "ranking_log.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
-    })
-    .catch(err => {
-      console.error("CSVダウンロード失敗:", err);
-      alert("CSVのダウンロードに失敗しました。");
-    });
-}
-
-/**
- * イベント登録まとめ
- */
-function setupEventListeners() {
-  const showLogBtn = document.getElementById("showLatestLogBtn");
-  if (showLogBtn) {
-    showLogBtn.addEventListener("click", showLatestLog);
-  } else {
-    console.warn("📛 showLatestLogBtn が見つかりません。");
-  }
-
-  const loadBtn = document.getElementById("loadRankingBtn");
-  if (loadBtn) {
-    loadBtn.addEventListener("click", refreshRanking);
-  }
-
-  const backBtn = document.getElementById("backButton");
-  if (backBtn) {
-    backBtn.addEventListener("click", () => {
-      document.getElementById("logOverlay").style.display = "none";
-    });
-  }
-
-  const closeBtn = document.getElementById("closeLogBtn");
-  const overlay = document.getElementById("logOverlay");
-  if (closeBtn && overlay) {
-    closeBtn.addEventListener("click", () => {
-      overlay.style.display = "none";
-    });
-
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.style.display = "none";
-    });
-  }
-}
-
-
-// 拡大ボタン＆閉じるボタン取得
-const expandBtn = document.getElementById("expandTableBtn");
-const expandOverlay = document.getElementById("expandOverlay");
-const closeExpandBtn = document.getElementById("closeExpandBtn");
-const expandedRankingContainer = document.getElementById("expandedRankingContainer");
-
-// 拡大表示を開く
-expandBtn.addEventListener("click", () => {
-  // ランキング表のコピーを作成
-  const originalTable = document.getElementById("rankingTable");
-  if (!originalTable) return;
-
-  // コピーしてから拡大表示領域に挿入
-  expandedRankingContainer.innerHTML = ""; // クリア
-  const tableClone = originalTable.cloneNode(true);
-
-  // 拡大用にフォントサイズ大きめなど追加スタイル調整
-  tableClone.style.fontSize = "1.5rem";
-  tableClone.style.width = "100%";
-  tableClone.style.maxWidth = "100%";
-
-  expandedRankingContainer.appendChild(tableClone);
-
-  // モーダル表示
-  expandOverlay.style.display = "block";
-
-  // スクロール位置トップに
-  window.scrollTo(0, 0);
-});
-
-// 拡大モードを閉じる
-closeExpandBtn.addEventListener("click", () => {
-  expandOverlay.style.display = "none";
-  expandedRankingContainer.innerHTML = ""; // 内容クリア
-});
-
-// オーバーレイの空白クリックでも閉じる
-expandOverlay.addEventListener("click", (e) => {
-  if (e.target === expandOverlay) {
-    expandOverlay.style.display = "none";
-    expandedRankingContainer.innerHTML = "";
-  }
-});
-
-
-/**
- * 初期処理
- */
+// ===============================
+// 初期化
+// ===============================
 document.addEventListener("DOMContentLoaded", () => {
-  setupEventListeners();
   refreshRanking();
+  setupAwardUI();
 });
