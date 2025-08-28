@@ -133,35 +133,45 @@ async function refreshRanking() {
   const statusDiv = document.getElementById("loadingStatus");
   try {
     statusDiv.textContent = "ランキングデータを読み込み中…";
-    const res = await fetch(`${GAS_URL}?mode=ranking&secret=${encodeURIComponent(SECRET)}`, {
+
+    const res = await fetch(`${GAS_URL}`, {
       method: "GET",
+      headers: { "Content-Type": "text/plain" },
       mode: "cors"
     });
+
     if (!res.ok) throw new Error("HTTP error " + res.status);
-    const data = await res.json();
 
-    // 過去データを更新
-    playerData = data.playerData || {};
+    const csvText = await res.text();
 
-    const rows = data.rateRanking;
-    if (!rows || rows.length === 0) {
+    const lines = csvText.trim().split(/\r?\n/);
+
+    if (lines.length <= 1) {
       statusDiv.textContent = "❌ ランキングデータがありません。";
       return;
     }
 
     statusDiv.textContent = "✅ ランキングデータを読み込みました。";
 
-    // processRankingに渡して加工
+    // 1行目はヘッダーなので除外
+    const [header, ...dataLines] = lines;
+
+    // CSVをオブジェクト配列に変換
+    const rows = dataLines.map(line => {
+      const [playerId, rank, rate] = line.split(",");
+      return { playerId, rank: Number(rank), rate: Number(rate) };
+    });
+
+    // processRanking に渡して加工
     const processedRows = processRanking(rows);
 
     renderRankingTable(processedRows);
+
   } catch (err) {
     statusDiv.textContent = "⚠️ ランキングデータの読み込みに失敗しました。";
     console.error("読み込み失敗:", err);
   }
 }
-
-
 
 /**
  * 最新ログをモーダルで表示
