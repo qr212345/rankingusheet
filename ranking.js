@@ -339,6 +339,48 @@ async function refreshRanking(){
   finally{ showLoading(false); isFetching=false; }
 }
 
+function attachAutoRefreshControls() {
+  const toggle = $("#autoRefreshToggle");
+  const secInput = $("#autoRefreshSec");
+
+  if (!toggle || !secInput) return;
+
+  // 初期状態の自動更新設定
+  if (toggle.checked) {
+    const sec = parseInt(secInput.value, 10);
+    if (Number.isFinite(sec) && sec >= 5) setAutoRefresh(sec);
+  }
+
+  // ON/OFF 切り替え
+  toggle.addEventListener("change", () => {
+    if (toggle.checked) {
+      const sec = parseInt(secInput.value, 10);
+      if (Number.isFinite(sec) && sec >= 5) {
+        setAutoRefresh(sec);
+        announce(`自動更新をON、間隔: ${sec}秒`);
+      }
+    } else {
+      clearInterval(autoRefreshTimer);
+      announce("自動更新をOFFにしました");
+    }
+  });
+
+  // 秒数変更
+  secInput.addEventListener("change", () => {
+    const sec = parseInt(secInput.value, 10);
+    if (!Number.isFinite(sec) || sec < 5) {
+      secInput.value = 5;
+      announce("間隔は5秒以上に設定してください");
+      return;
+    }
+
+    if (toggle.checked) {
+      setAutoRefresh(sec);
+      announce(`自動更新間隔を${sec}秒に変更しました`);
+    }
+  });
+}
+
 /* ===============================
    初期化
    =============================== */
@@ -349,6 +391,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   attachModalControls();
   refreshRanking();
 
-  // 自動更新例: 60秒
-  // setAutoRefresh(60);
+  // 自動更新UIを有効化
+  attachAutoRefreshControls();
 });
