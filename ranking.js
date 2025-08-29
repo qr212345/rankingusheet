@@ -52,7 +52,6 @@ function savePlayerData() {
 function parseCSV(text) {
   const lines = text.replace(/\r\n?/g, "\n").split("\n").filter(l => l.trim());
   if (!lines.length) return [];
-
   return lines.map(line => {
     const out = [];
     let cur = "", inQ = false;
@@ -90,10 +89,8 @@ function applyPreviousData(entries) {
 function calculateRanking(entries, { tieMode = "competition" } = {}) {
   entries.forEach(p => p.rateGain = (Number.isFinite(p.rate) && Number.isFinite(p.prevRate)) ? p.rate - p.prevRate : 0);
 
-  // 安定ソート
   entries = entries.map((p, i) => ({ p, i })).sort((a,b)=> (b.p.rate - a.p.rate) || (a.i - b.i)).map(x=>x.p);
 
-  // 順位計算
   if (tieMode === "competition") {
     let rank = 1;
     for (let i = 0; i < entries.length; i++) {
@@ -101,18 +98,16 @@ function calculateRanking(entries, { tieMode = "competition" } = {}) {
       rank++;
     }
   } else {
-    entries.forEach((p,i)=>p.rateRank = i+1);
+    entries.forEach((p,i)=>p.rateRank=i+1);
   }
-  entries.forEach(p=>p.rank = p.rateRank);
+  entries.forEach(p=>p.rank=p.rateRank);
 
-  // 変動計算
   entries.forEach(p => {
     if (p.prevRateRank == null) p.prevRateRank = p.rateRank;
     p.rankChange = (Number.isFinite(p.prevRank) ? p.prevRank : p.rank) - p.rank;
     p.rateRankChange = (Number.isFinite(p.prevRateRank) ? p.prevRateRank : p.rateRank) - p.rateRank;
   });
 
-  // タイトル付与
   entries.forEach((p,i)=> p.title = i < TITLES.length ? TITLES[i] : "");
 
   return entries;
@@ -162,12 +157,11 @@ function renderRankingTable(processedRows) {
       <td data-sort="${p.playerId}">${p.playerId}</td>
       <td data-sort="${p.rate}">${p.rate}</td>
       <td title="レート差分" data-sort="${p.rateGain}">${p.gain}</td>
-      <td data-sort="${p.bonus}">${p.bonus}</td>
+      <td data-sort="${p.bonus}">${p.bonus ?? ""}</td>
       <td title="順位変動" data-sort="${p.rankChange}">${p.rankChangeStr}</td>
       <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
       <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
     `;
-
     frag.appendChild(tr);
   });
 
@@ -262,10 +256,9 @@ function setAutoRefresh(sec){
   if(sec>0) autoRefreshTimer=setInterval(refreshRanking, sec*1000);
 }
 
-function showLoading(show){ const el=$("#loadingSpinner"); if(el) el.style.display=show?"block":"none"; }
-function showError(msg){ const el=$("#errorBanner"); if(el){ el.textContent=msg; el.style.display="block"; } else console.error(msg); }
-function hideError(){ const el=$("#errorBanner"); if(el) el.style.display="none"; }
-function announce(text){ const live=$("#ariaLive"); if(live) live.textContent=text; }
+function showLoading(show){ const el=$("#loadingStatus"); if(el) el.style.display=show?"block":"none"; }
+function showError(msg){ const el=$("#loadingStatus"); if(el){ el.textContent=msg; el.style.color="red"; } else console.error(msg); }
+function announce(text){ const live=$("#ariaLive"); if(live) live.textContent=text; console.log(text); }
 
 /* ===============================
    Chart.js
@@ -273,7 +266,7 @@ function announce(text){ const live=$("#ariaLive"); if(live) live.textContent=te
 function closeChartModal(){ const modal=$("#chartModal"); if(modal) modal.style.display="none"; }
 function attachModalControls(){
   const modal=$("#chartModal"); if(!modal) return;
-  const closeBtn=$("#chartClose")||modal.querySelector(".modal-close");
+  const closeBtn=$("#chartCloseBtn")||modal.querySelector(".modal-close");
   if(closeBtn) closeBtn.addEventListener("click",closeChartModal);
   modal.addEventListener("click",e=>{if(e.target===modal)closeChartModal();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape")closeChartModal();});
@@ -304,7 +297,7 @@ async function refreshRanking(){
   if(isFetching) return;
   isFetching=true;
   try{
-    showLoading(true); hideError();
+    showLoading(true); 
     const res=await fetch(GAS_URL,{cache:"no-store"});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const csvText=await res.text();
@@ -339,19 +332,20 @@ async function refreshRanking(){
   finally{ showLoading(false); isFetching=false; }
 }
 
+/* ===============================
+   自動更新コントロール
+   =============================== */
 function attachAutoRefreshControls() {
   const toggle = $("#autoRefreshToggle");
   const secInput = $("#autoRefreshSec");
 
   if (!toggle || !secInput) return;
 
-  // 初期状態の自動更新設定
   if (toggle.checked) {
     const sec = parseInt(secInput.value, 10);
     if (Number.isFinite(sec) && sec >= 5) setAutoRefresh(sec);
   }
 
-  // ON/OFF 切り替え
   toggle.addEventListener("change", () => {
     if (toggle.checked) {
       const sec = parseInt(secInput.value, 10);
@@ -365,15 +359,13 @@ function attachAutoRefreshControls() {
     }
   });
 
-  // 秒数変更
   secInput.addEventListener("change", () => {
-    const sec = parseInt(secInput.value, 10);
+    let sec = parseInt(secInput.value, 10);
     if (!Number.isFinite(sec) || sec < 5) {
-      secInput.value = 5;
+      sec = 5;
+      secInput.value = sec;
       announce("間隔は5秒以上に設定してください");
-      return;
     }
-
     if (toggle.checked) {
       setAutoRefresh(sec);
       announce(`自動更新間隔を${sec}秒に変更しました`);
@@ -384,13 +376,11 @@ function attachAutoRefreshControls() {
 /* ===============================
    初期化
    =============================== */
-document.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded", ()=>{
   loadPlayerData();
   attachSearch();
   attachSorting();
   attachModalControls();
-  refreshRanking();
-
-  // 自動更新UIを有効化
   attachAutoRefreshControls();
+  refreshRanking();
 });
