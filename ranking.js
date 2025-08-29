@@ -3,7 +3,7 @@
 /* ===============================
    定数・ユーティリティ
    =============================== */
-const GAS_URL = "https://script.google.com/macros/s/実際のID/exec"; // ←ここをCORS対応GASに変更
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxfKWdnvIznzeoi5j5btBcgIDpj407iOiMPM2X8ZPsCJArdxqSlj-_1yDTj5f3bs3C4/exec"; // ←ここをCORS対応GASに変更
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
 const STORAGE_KEY = "rankingPlayerData_v2";
 
