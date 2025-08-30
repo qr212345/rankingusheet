@@ -284,21 +284,21 @@ function attachExpandTable() {
 }
 
 /* ===============================
-   サイドの上昇/下降TOP3クリックで拡大
+   サイドの上昇/下降TOP3ボタンクリックで拡大
    =============================== */
 function attachSideClickExpand() {
   const expandOverlay = $("#expandOverlay");
   const expandedContainer = $("#expandedRankingContainer");
+  const originalTable = $("#rankingTable");
 
-  const renderSinglePlayer = (playerId) => {
-    const originalTable = $("#rankingTable");
-    if (!originalTable) return;
+  if (!expandOverlay || !expandedContainer || !originalTable) return;
 
-    // 対象行をコピー
-    const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === playerId);
-    if (!row) return;
-
+  // 共通の描画関数
+  const renderMultiplePlayers = (playerIds, title) => {
     expandedContainer.innerHTML = "";
+
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `<h2 style="margin:0 0 1rem 0;">${title}</h2>`;
 
     const table = document.createElement("table");
     table.style.width = "100%";
@@ -308,34 +308,42 @@ function attachSideClickExpand() {
     const thead = originalTable.querySelector("thead").cloneNode(true);
     table.appendChild(thead);
 
-    // 行コピー
+    // 対象行コピー
     const tbody = document.createElement("tbody");
-    tbody.appendChild(row.cloneNode(true));
+    playerIds.forEach(pid => {
+      const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === pid);
+      if (row) tbody.appendChild(row.cloneNode(true));
+    });
     table.appendChild(tbody);
 
-    expandedContainer.appendChild(table);
+    wrapper.appendChild(table);
+    expandedContainer.appendChild(wrapper);
+
     expandOverlay.style.display = "block";
   };
 
-  const bindList = (ul) => {
-    if (!ul) return;
-    ul.querySelectorAll("li").forEach(li => {
-      li.style.cursor = "pointer";
-      li.addEventListener("click", () => {
-        const playerId = li.textContent.split(" ")[0]; // "ID (gain)" の形式
-        renderSinglePlayer(playerId);
-      });
+  // ボタンクリック処理
+  const upBtn = document.querySelector("h4[data-role='expand-up']");
+  const downBtn = document.querySelector("h4[data-role='expand-down']");
+
+  if (upBtn) {
+    upBtn.style.cursor = "pointer";
+    upBtn.addEventListener("click", () => {
+      const ids = Array.from($("#awardUp")?.querySelectorAll("li") || [])
+        .map(li => li.textContent.split(" ")[0]);
+      renderMultiplePlayers(ids, "📈 上昇TOP3");
     });
-  };
+  }
 
-  bindList($("#awardUp"));
-  bindList($("#awardDown"));
+  if (downBtn) {
+    downBtn.style.cursor = "pointer";
+    downBtn.addEventListener("click", () => {
+      const ids = Array.from($("#awardDown")?.querySelectorAll("li") || [])
+        .map(li => li.textContent.split(" ")[0]);
+      renderMultiplePlayers(ids, "📉 下降TOP3");
+    });
+  }
 }
-
-// 初期化に追加
-document.addEventListener("DOMContentLoaded", () => {
-  attachSideClickExpand();
-});
 
 /* ===============================
    自動更新・UI
@@ -495,4 +503,5 @@ document.addEventListener("DOMContentLoaded",()=>{
   attachAutoRefreshControls();
   refreshRanking();
   attachExpandTable();
+  attachSideClickExpand();
 });
