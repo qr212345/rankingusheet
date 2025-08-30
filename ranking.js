@@ -358,6 +358,30 @@ async function fetchRankingCSV() {
   finally { showLoading(false); isFetching=false; }
 }
 
+function downloadCSV() {
+  if (!lastProcessedRows || !lastProcessedRows.length) {
+    alert("ダウンロードするデータがありません");
+    return;
+  }
+
+  const header = ["Rank","PlayerId","Rate","Gain","Bonus","RankChange","PrevRank","Title"];
+  const rows = lastProcessedRows.map(p => [
+    p.rank, p.playerId, p.rate, p.gain, p.bonus, p.rankChangeStr, p.prevRank ?? "—", p.title
+  ]);
+
+  const csvContent = [header, ...rows]
+    .map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ranking_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function refreshRanking() {
   const rows = await fetchRankingCSV();
   lastProcessedRows = processRanking(rows);
