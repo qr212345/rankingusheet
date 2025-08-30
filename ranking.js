@@ -154,15 +154,17 @@ function renderRankingTable(processedRows) {
     tr.addEventListener("click", () => showPlayerChart(p.playerId));
 
     tr.innerHTML = `
-      <td title="現在順位" data-sort="${p.rank}">${p.rank}</td>
-      <td data-sort="${p.playerId}">${p.playerId}</td>
-      <td data-sort="${p.rate}">${p.rate}</td>
-      <td title="レート差分" data-sort="${p.rateGain}">${p.gain}</td>
-      <td data-sort="${p.bonus}">${p.bonus}</td>
-      <td title="順位変動" data-sort="${p.rankChange}">${p.rankChangeStr}</td>
-      <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
-      <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
-    `;
+  　　<td title="現在順位" data-sort="${p.rank}">${p.rank}</td>
+  　　<td data-sort="${p.playerId}">${p.playerId}</td>
+ 　　 <td data-sort="${p.rate}">${p.rate}</td>
+　　  <td title="レート差分" data-sort="${p.rateGain}">${p.gain}</td>
+ 　　 <td data-sort="${p.bonus}">${p.bonus}</td>
+　　  <td title="順位変動" data-sort="${p.rankChange}">${p.rankChangeStr}</td>
+　　  <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
+　　  <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
+ 　　 <td><button class="delete-btn" data-playerid="${p.playerId}">削除</button></td>
+　　`;
+
     frag.appendChild(tr);
   });
 
