@@ -229,6 +229,7 @@ function renderRankingTable(processedRows) {
     newBtn.style.display = "none";
   }
 });
+}
 
 function renderSideAwards(rows) {
   const upUl = $("#awardUp");
