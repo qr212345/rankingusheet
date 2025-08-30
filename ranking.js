@@ -30,6 +30,7 @@ let lastProcessedRows = [];
 let currentSort = { idx: 0, asc: true };
 let isFetching = false;
 let deletedPlayers = new Set();
+let isAdmin = false;
 /* ===============================
    ストレージ
    =============================== */
@@ -60,6 +61,20 @@ function saveDeletedPlayers() {
     localStorage.setItem(DELETED_KEY, JSON.stringify([...deletedPlayers]));
   } catch { console.warn("DeletedPlayers save failed"); }
 }
+
+/* ===============================
+   管理者モード
+　 =============================== */
+function setAdminMode(enabled) {
+  isAdmin = enabled;
+  document.body.classList.toggle("admin-mode", enabled);
+
+  // 管理者用UIの表示制御
+  $$("#rankingTable .delete-btn").forEach(btn => btn.style.display = enabled ? "inline-block" : "none");
+  const autoRefreshControls = $("#autoRefreshToggle")?.parentElement;
+  if (autoRefreshControls) autoRefreshControls.style.display = enabled ? "block" : "none";
+}
+
 
 /* ===============================
    CSV パース
@@ -559,7 +574,11 @@ function downloadCSV() {
 }
 
 async function refreshRanking() {
-  const rows = await fetchRankingCSV();
+  let rows = await fetchRankingCSV();
+
+  // 削除済みプレイヤーを除外
+  rows = rows.filter(r => !deletedPlayers.has(r.playerId));
+
   lastProcessedRows = processRanking(rows);
   renderRankingTable(lastProcessedRows);
 
@@ -577,6 +596,7 @@ async function refreshRanking() {
    =============================== */
 document.addEventListener("DOMContentLoaded", () => {
   loadPlayerData();
+　loadDeletedPlayers(); 
   attachSearch();
   attachSorting();
   attachModalControls();
@@ -585,6 +605,16 @@ document.addEventListener("DOMContentLoaded", () => {
   attachExpandTable();
   attachSideClickExpand();
 
+　document.getElementById("adminToggleBtn")?.addEventListener("click", () => {
+  const password = prompt("管理者パスワードを入力してください:");
+  if (password === "secret123") { // ここで任意のパスワード
+    setAdminMode(true);
+    alert("管理者モード ON");
+  } else {
+    alert("パスワードが違います");
+    setAdminMode(false);
+  }
+});
   // ===== 最新ログ表示用モーダル（履歴蓄積版） =====
   const logBtn = $("#showLatestLogBtn");
   const logOverlay = $("#logOverlay");
