@@ -3,7 +3,7 @@
 /* ===============================
    定数・ユーティリティ
    =============================== */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxfKWdnvIznzeoi5j5btBcgIDpj407iOiMPM2X8ZPsCJArdxqSlj-_1yDTj5f3bs3C4/exec"; // ←ここをCORS対応GASに変更
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwbvvVIifa6j9IS6jlU2U-iszM4V_KZtsXaQMo_aBtVF_toqxxWcacwwflySrjnzaOP/exec";
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
 const STORAGE_KEY = "rankingPlayerData_v2";
 
@@ -163,7 +163,6 @@ function renderRankingTable(processedRows) {
       <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
       <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
     `;
-
     frag.appendChild(tr);
   });
 
@@ -258,6 +257,36 @@ function setAutoRefresh(sec){
   if(sec>0) autoRefreshTimer=setInterval(refreshRanking, sec*1000);
 }
 
+function attachAutoRefreshControls() {
+  const toggle = $("#autoRefreshToggle");
+  const secInput = $("#autoRefreshSec");
+  if (!toggle || !secInput) return;
+
+  if (toggle.checked) {
+    const sec = parseInt(secInput.value, 10);
+    if (Number.isFinite(sec) && sec >= 5) setAutoRefresh(sec);
+  }
+
+  toggle.addEventListener("change", () => {
+    if (toggle.checked) {
+      const sec = parseInt(secInput.value, 10);
+      if (Number.isFinite(sec) && sec >= 5) { setAutoRefresh(sec); announce(`自動更新ON、間隔:${sec}秒`); }
+    } else {
+      clearInterval(autoRefreshTimer);
+      announce("自動更新OFF");
+    }
+  });
+
+  secInput.addEventListener("change", () => {
+    let sec = parseInt(secInput.value,10);
+    if(!Number.isFinite(sec)||sec<5){ secInput.value=5; announce("間隔は5秒以上"); return;}
+    if(toggle.checked){ setAutoRefresh(sec); announce(`自動更新間隔を${sec}秒に変更`); }
+  });
+}
+
+/* ===============================
+   ローディング・エラー表示
+   =============================== */
 function showLoading(show){ const el=$("#loadingStatus"); if(el) el.style.display=show?"block":"none"; el.textContent=show?"更新中…":""; }
 function showError(msg){ const el=$("#errorBanner"); if(el){ el.textContent=msg; el.style.display="block"; } else console.error(msg); }
 function hideError(){ const el=$("#errorBanner"); if(el) el.style.display="none"; }
@@ -275,113 +304,72 @@ function attachModalControls(){
   document.addEventListener("keydown",e=>{if(e.key==="Escape")closeChartModal();});
 }
 
-function showPlayerChart(playerId){
+function showPlayerChart(playerId) {
   if(isFetching){ announce("前回更新中…"); return; }
   isFetching=true;
   if(historyChartInstance){ historyChartInstance.destroy(); historyChartInstance=null; }
 
-  const url = `${GAS_URL}?mode=history&id=${encodeURIComponent(playerId)}`;
-  fetch(url, { cache: "no-store" })
-    .then(res => { if(!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-    .then(history => {
+  fetch(`${GAS_URL}?mode=history&id=${encodeURIComponent(playerId)}`, {cache:"no-store"})
+    .then(r=>{if(!r.ok)throw new Error(r.statusText); return r.json();})
+    .then(history=>{
       const canvas=$("#historyChart"); if(!canvas) return;
-      const ctx=canvas.getContext("2d");
-      const labels=history.map(h=>h.date);
-      const data=history.map(h=>Number(h.rate));
+      const ctx = canvas.getContext("2d");
+      const labels = history.map(h=>h.date);
+      const data = history.map(h=>Number(h.rate));
 
-      historyChartInstance=new Chart(ctx,{
+      historyChartInstance = new Chart(ctx,{
         type:"line",
         data:{labels,datasets:[{label:`${playerId} レート推移`,data,borderColor:"#36a2eb",backgroundColor:"rgba(54,162,235,0.08)",tension:0.25,fill:true,pointRadius:2}]},
-        options:{
-          responsive:true,
-          maintainAspectRatio:false,
-          plugins:{legend:{display:true},tooltip:{mode:"index",intersect:false}},
-          interaction:{mode:"nearest",intersect:false},
-          scales:{x:{display:true,title:{display:true,text:"日付"}},y:{display:true,title:{display:true,text:"レート"},beginAtZero:false}}
-        }
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}
       });
-
-      const modal=$("#chartModal"); if(modal) modal.style.display="block";
+      $("#chartModal").style.display="block";
     })
-    .catch(err=>showError(`履歴取得失敗: ${err.message}`))
+    .catch(e=>showError(`履歴取得失敗: ${e.message}`))
     .finally(()=>isFetching=false);
 }
 
 /* ===============================
-   データ更新（CORS対応）
+   CSV fetch & ランキング更新
    =============================== */
-async function refreshRanking(){
-  if(isFetching) return;
-  isFetching=true;
-  try{
+async function fetchRankingCSV() {
+  try {
+    isFetching = true;
     showLoading(true); hideError();
-    const url = `${GAS_URL}?mode=ranking`;
-    const res=await fetch(url,{cache:"no-store"});
+
+    const res = await fetch(`${GAS_URL}?mode=ranking`, {cache:"no-store"});
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const csvText=await res.text();
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if(rows.length<=1) return [];
 
-    const rowsCSV=parseCSV(csvText);
-    if(rowsCSV.length<=1){ renderRankingTable([]); return; }
+    const [header,...data] = rows;
+    const hmap = header.map(h=>h.trim().toLowerCase());
+    const idxId = hmap.indexOf("playerid")!==-1?hmap.indexOf("playerid"):0;
+    const idxRate = hmap.indexOf("rate")!==-1?hmap.indexOf("rate"):2;
+    const idxBonus = hmap.indexOf("bonus");
 
-    const [header,...dataLines]=rowsCSV;
-    const hmap=header.map(h=>h.trim().toLowerCase());
-    const idxId=hmap.indexOf("playerid")!==-1?hmap.indexOf("playerid"):0;
-    const idxRank=hmap.indexOf("rank")!==-1?hmap.indexOf("rank"):1;
-    const idxRate=hmap.indexOf("rate")!==-1?hmap.indexOf("rate"):2;
-    const idxBonus=hmap.indexOf("bonus");
-
-    const rows=dataLines.map(cols=>{
-      const playerId=cols[idxId];
-      const rank=Number(cols[idxRank]);
-      const rate=Number(cols[idxRate]);
-      const bonus=idxBonus>=0?Number(cols[idxBonus]):undefined;
-      return {playerId,rank,rate, ...(idxBonus>=0?{bonus}:{} )};
-    }).filter(r=>r.playerId&&Number.isFinite(r.rate));
-
-    lastProcessedRows=processRanking(rows);
-    renderRankingTable(lastProcessedRows);
-
-    const ths=$$("#rankingTable thead th");
-    if(ths.length && currentSort){
-      const type=ths[currentSort.idx]?.getAttribute("data-type")||inferColumnType(currentSort.idx);
-      sortTable(currentSort.idx,currentSort.asc,type);
-      updateSortIndicators(ths,currentSort.idx,currentSort.asc);
-    }
-  }catch(e){ showError(`ランキング更新失敗: ${e.message}`); }
-  finally{ showLoading(false); isFetching=false; }
+    return data.map(cols=>{
+      const playerId = cols[idxId];
+      const rate = Number(cols[idxRate]);
+      const bonus = idxBonus>=0?Number(cols[idxBonus]):0;
+      return {playerId, rate, bonus};
+    }).filter(r=>r.playerId && Number.isFinite(r.rate));
+  } catch(e){ showError(`ランキング取得失敗: ${e.message}`); return []; }
+  finally { showLoading(false); isFetching=false; }
 }
 
-/* ===============================
-   自動更新UI
-   =============================== */
-function attachAutoRefreshControls() {
-  const toggle = $("#autoRefreshToggle");
-  const secInput = $("#autoRefreshSec");
-  if (!toggle || !secInput) return;
+async function refreshRanking() {
+  const rows = await fetchRankingCSV();
+  lastProcessedRows = processRanking(rows);
+  renderRankingTable(lastProcessedRows);
 
-  if (toggle.checked) {
-    const sec = parseInt(secInput.value, 10);
-    if (Number.isFinite(sec) && sec >= 5) setAutoRefresh(sec);
+  // 前回ソートを維持
+  const ths = $$("#rankingTable thead th");
+  if(ths.length && currentSort) {
+    const type = ths[currentSort.idx].getAttribute("data-type")||inferColumnType(currentSort.idx);
+    sortTable(currentSort.idx, currentSort.asc, type);
+    updateSortIndicators(ths, currentSort.idx, currentSort.asc);
   }
-
-  toggle.addEventListener("change", () => {
-    if (toggle.checked) {
-      const sec = parseInt(secInput.value, 10);
-      if (Number.isFinite(sec) && sec >= 5) {
-        setAutoRefresh(sec);
-        announce(`自動更新をON、間隔: ${sec}秒`);
-      }
-    } else {
-      clearInterval(autoRefreshTimer);
-      announce("自動更新をOFFにしました");
-    }
-  });
-
-  secInput.addEventListener("change", () => {
-    const sec = parseInt(secInput.value, 10);
-    if (!Number.isFinite(sec) || sec < 5) { secInput.value=5; announce("間隔は5秒以上に設定してください"); return; }
-    if (toggle.checked) { setAutoRefresh(sec); announce(`自動更新間隔を${sec}秒に変更しました`); }
-  });
 }
 
 /* ===============================
@@ -392,6 +380,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   attachSearch();
   attachSorting();
   attachModalControls();
-  refreshRanking();
   attachAutoRefreshControls();
+  refreshRanking();
 });
