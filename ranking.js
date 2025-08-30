@@ -7,6 +7,7 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbzuGRUi_5LdmW278kuO7SFE
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
 const STORAGE_KEY = "rankingPlayerData_v2";
 const DELETED_KEY = "rankingDeletedPlayers";
+const HISTORY_KEY = "rankingHistory_v2";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -20,17 +21,23 @@ function debounce(fn, wait = 250) {
   };
 }
 
+function formatChange(val, up = "↑", down = "↓") {
+  return val > 0 ? `${up}${val}` : val < 0 ? `${down}${-val}` : "—";
+}
+
 /* ===============================
    状態
    =============================== */
 let playerData = new Map();
+let deletedPlayers = new Set();
 let autoRefreshTimer = null;
 let historyChartInstance = null;
 let lastProcessedRows = [];
 let currentSort = { idx: 0, asc: true };
 let isFetching = false;
-let deletedPlayers = new Set();
 let isAdmin = false;
+let rankingHistory = [];
+
 /* ===============================
    ストレージ
    =============================== */
@@ -62,19 +69,30 @@ function saveDeletedPlayers() {
   } catch { console.warn("DeletedPlayers save failed"); }
 }
 
+function loadRankingHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return;
+    rankingHistory = JSON.parse(raw);
+  } catch { console.warn("RankingHistory load failed"); }
+}
+
+function saveRankingHistory() {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(rankingHistory));
+  } catch { console.warn("RankingHistory save failed"); }
+}
+
 /* ===============================
    管理者モード
-　 =============================== */
+   =============================== */
 function setAdminMode(enabled) {
   isAdmin = enabled;
   document.body.classList.toggle("admin-mode", enabled);
-
-  // 管理者用UIの表示制御
   $$("#rankingTable .delete-btn").forEach(btn => btn.style.display = enabled ? "inline-block" : "none");
   const autoRefreshControls = $("#autoRefreshToggle")?.parentElement;
   if (autoRefreshControls) autoRefreshControls.style.display = enabled ? "block" : "none";
 }
-
 
 /* ===============================
    CSV パース
@@ -82,7 +100,6 @@ function setAdminMode(enabled) {
 function parseCSV(text) {
   const lines = text.replace(/\r\n?/g, "\n").split("\n").filter(l => l.trim());
   if (!lines.length) return [];
-
   return lines.map(line => {
     const out = [];
     let cur = "", inQ = false;
@@ -119,7 +136,6 @@ function applyPreviousData(entries) {
 
 function calculateRanking(entries, { tieMode = "competition" } = {}) {
   entries.forEach(p => p.rateGain = (Number.isFinite(p.rate) && Number.isFinite(p.prevRate)) ? p.rate - p.prevRate : 0);
-
   entries = entries.map((p, i) => ({ p, i })).sort((a,b)=> (b.p.rate - a.p.rate) || (a.i - b.i)).map(x=>x.p);
 
   if (tieMode === "competition") {
@@ -150,12 +166,12 @@ function storeCurrentData(entries) {
 }
 
 function formatForDisplay(entries) {
-  return entries.map(p => {
-    const gainDisplay = (Number.isFinite(p.rateGain) && p.rateGain >= 0) ? `+${p.rateGain}` : `${p.rateGain ?? 0}`;
-    const rankChangeStr = p.rankChange > 0 ? `↑${p.rankChange}` : p.rankChange < 0 ? `↓${-p.rankChange}` : "—";
-    const rateRankChangeStr = p.rateRankChange > 0 ? `↑${p.rateRankChange}` : p.rateRankChange < 0 ? `↓${-p.rateRankChange}` : "—";
-    return { ...p, gain: gainDisplay, rankChangeStr, rateRankChangeStr };
-  });
+  return entries.map(p => ({
+    ...p,
+    gain: (Number.isFinite(p.rateGain) && p.rateGain >= 0) ? `+${p.rateGain}` : `${p.rateGain ?? 0}`,
+    rankChangeStr: formatChange(p.rankChange),
+    rateRankChangeStr: formatChange(p.rateRankChange)
+  }));
 }
 
 function processRanking(entries) {
@@ -181,8 +197,7 @@ function renderRankingTable(processedRows) {
     if (p.rateGain > 0) tr.classList.add("gain-up");
     else if (p.rateGain < 0) tr.classList.add("gain-down");
 
-    tr.addEventListener("click", () => showPlayerChart(p.playerId));
-
+    tr.dataset.playerId = p.playerId;
     tr.innerHTML = `
       <td title="現在順位" data-sort="${p.rank}">${p.rank}</td>
       <td data-sort="${p.playerId}">${p.playerId}</td>
@@ -201,47 +216,41 @@ function renderRankingTable(processedRows) {
   tbody.appendChild(frag);
   renderSideAwards(processedRows);
   announce(`${processedRows.length}件のランキングを更新しました`);
-
-  // -----------------------
-  // 削除ボタンイベント登録（ここに入れる）
-  // -----------------------
-  $$(".delete-btn").forEach(btn => {
-  const newBtn = btn.cloneNode(true);
-  btn.replaceWith(newBtn);
-  if (isAdmin) {
-  newBtn.style.display = "inline-block";
-  newBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    const id = newBtn.dataset.playerid;
-    if (!id) return;
-    if (!confirm(`${id} をランキングから削除しますか？`)) return;
-
-    // GAS に削除リクエスト
-    try {
-      const res = await fetch(`${GAS_URL}?mode=delete&id=${encodeURIComponent(id)}`, {method:"POST"});
-      const result = await res.json();
-      if(result.status !== "ok") throw new Error("削除失敗");
-    } catch(err) {
-      alert("削除リクエスト失敗: " + err.message);
-      return;
-    }
-
-    // ブラウザ側の更新
-    lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
-    playerData.delete(id);
-    savePlayerData();
-
-    deletedPlayers.add(id);
-    saveDeletedPlayers();
-
-    renderRankingTable(lastProcessedRows);
-  });
-} else {
-  newBtn.style.display = "none";
 }
+
+/* ===============================
+   削除ボタン（イベントデリゲーション化）
+   =============================== */
+document.querySelector("#rankingTable tbody")?.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".delete-btn");
+  if(!btn || !isAdmin) return;
+  e.stopPropagation();
+  const id = btn.dataset.playerid;
+  if (!id) return;
+  if (!confirm(`${id} をランキングから削除しますか？`)) return;
+
+  try {
+    const res = await fetch(`${GAS_URL}?mode=delete&id=${encodeURIComponent(id)}`, { method: "POST" });
+    const result = await res.json();
+    if(result.status !== "ok") throw new Error("削除失敗");
+  } catch(err) {
+    alert("削除リクエスト失敗: " + err.message);
+    return;
+  }
+
+  lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+  playerData.delete(id);
+  savePlayerData();
+
+  deletedPlayers.add(id);
+  saveDeletedPlayers();
+
+  renderRankingTable(lastProcessedRows);
 });
-}
 
+/* ===============================
+   サイドTOP3描画
+   =============================== */
 function renderSideAwards(rows) {
   const upUl = $("#awardUp");
   const downUl = $("#awardDown");
@@ -320,7 +329,7 @@ function updateSortIndicators(ths, activeIdx, asc) {
 }
 
 /* ===============================
-   表拡大モーダル
+   表拡大モーダル・サイドクリック拡大
    =============================== */
 function attachExpandTable() {
   const expandBtn = $("#expandTableBtn");
@@ -333,67 +342,67 @@ function attachExpandTable() {
   expandBtn.addEventListener("click", () => {
     const originalTable = $("#rankingTable");
     if (!originalTable) return;
-
-    // コピーして挿入
     expandedContainer.innerHTML = "";
     const tableClone = originalTable.cloneNode(true);
     tableClone.style.width = "100%";
     tableClone.style.borderCollapse = "collapse";
     expandedContainer.appendChild(tableClone);
-
     expandOverlay.style.display = "block";
   });
 
-  closeBtn.addEventListener("click", () => {
-    expandOverlay.style.display = "none";
-  });
-
-  expandOverlay.addEventListener("click", (e) => {
-    if (e.target === expandOverlay) expandOverlay.style.display = "none";
-  });
+  closeBtn.addEventListener("click", () => expandOverlay.style.display = "none");
+  expandOverlay.addEventListener("click", (e) => { if(e.target===expandOverlay) expandOverlay.style.display = "none"; });
 }
 
-/* ===============================
-   サイドの上昇/下降TOP3クリックで拡大
-   =============================== */
 function attachSideClickExpand() {
   const expandOverlay = $("#expandOverlay");
   const expandedContainer = $("#expandedRankingContainer");
   const originalTable = $("#rankingTable");
   if (!expandOverlay || !expandedContainer || !originalTable) return;
 
-  // -----------------------------
-  // 1. 個別プレイヤー表示
-  // -----------------------------
   const renderSinglePlayer = (playerId) => {
     expandedContainer.innerHTML = "";
-
-    const row = Array.from(originalTable.rows)
-      .find(tr => tr.cells[1]?.textContent === playerId);
+    const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === playerId);
     if (!row) return;
 
     const table = document.createElement("table");
     table.style.width = "100%";
     table.style.borderCollapse = "collapse";
-
-    const thead = originalTable.querySelector("thead").cloneNode(true);
-    table.appendChild(thead);
+    table.appendChild(originalTable.querySelector("thead").cloneNode(true));
 
     const tbody = document.createElement("tbody");
     tbody.appendChild(row.cloneNode(true));
     table.appendChild(tbody);
-
     expandedContainer.appendChild(table);
     expandOverlay.style.display = "block";
   };
 
-  // 各 li にクリックイベント
+  const renderMultiplePlayers = (playerIds, title) => {
+    expandedContainer.innerHTML = "";
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = `<h2 style="margin:0 0 1rem 0;">${title}</h2>`;
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+    table.appendChild(originalTable.querySelector("thead").cloneNode(true));
+
+    const tbody = document.createElement("tbody");
+    playerIds.forEach(pid => {
+      const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === pid);
+      if (row) tbody.appendChild(row.cloneNode(true));
+    });
+    table.appendChild(tbody);
+    wrapper.appendChild(table);
+    expandedContainer.appendChild(wrapper);
+    expandOverlay.style.display = "block";
+  };
+
   const bindList = (ul) => {
     if (!ul) return;
     ul.querySelectorAll("li").forEach(li => {
       li.style.cursor = "pointer";
       li.addEventListener("click", () => {
-        const playerId = li.textContent.split(" ")[0]; // "ID (gain)" 形式
+        const playerId = li.textContent.split(" ")[0];
         renderSinglePlayer(playerId);
       });
     });
@@ -401,59 +410,20 @@ function attachSideClickExpand() {
   bindList($("#awardUp"));
   bindList($("#awardDown"));
 
-  // -----------------------------
-  // 2. TOP3まとめ表示（ボタン化）
-  // -----------------------------
-  const renderMultiplePlayers = (playerIds, title) => {
-    expandedContainer.innerHTML = "";
-
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = `<h2 style="margin:0 0 1rem 0;">${title}</h2>`;
-
-    const table = document.createElement("table");
-    table.style.width = "100%";
-    table.style.borderCollapse = "collapse";
-
-    const thead = originalTable.querySelector("thead").cloneNode(true);
-    table.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-    playerIds.forEach(pid => {
-      const row = Array.from(originalTable.rows)
-        .find(tr => tr.cells[1]?.textContent === pid);
-      if (row) tbody.appendChild(row.cloneNode(true));
-    });
-    table.appendChild(tbody);
-
-    wrapper.appendChild(table);
-    expandedContainer.appendChild(wrapper);
-    expandOverlay.style.display = "block";
-  };
-
   const upBtn = document.querySelector("h4[data-role='expand-up']");
   const downBtn = document.querySelector("h4[data-role='expand-down']");
-
-  if (upBtn) {
-    upBtn.style.cursor = "pointer";
-    upBtn.addEventListener("click", () => {
-      const ids = Array.from($("#awardUp")?.querySelectorAll("li") || [])
-        .map(li => li.textContent.split(" ")[0]);
-      renderMultiplePlayers(ids, "📈 上昇TOP3");
-    });
-  }
-
-  if (downBtn) {
-    downBtn.style.cursor = "pointer";
-    downBtn.addEventListener("click", () => {
-      const ids = Array.from($("#awardDown")?.querySelectorAll("li") || [])
-        .map(li => li.textContent.split(" ")[0]);
-      renderMultiplePlayers(ids, "📉 下降TOP3");
-    });
-  }
+  if(upBtn) upBtn.addEventListener("click", () => {
+    const ids = Array.from($("#awardUp")?.querySelectorAll("li") || []).map(li=>li.textContent.split(" ")[0]);
+    renderMultiplePlayers(ids,"📈 上昇TOP3");
+  });
+  if(downBtn) downBtn.addEventListener("click", () => {
+    const ids = Array.from($("#awardDown")?.querySelectorAll("li") || []).map(li=>li.textContent.split(" ")[0]);
+    renderMultiplePlayers(ids,"📉 下降TOP3");
+  });
 }
 
 /* ===============================
-   自動更新・UI
+   自動更新
    =============================== */
 function setAutoRefresh(sec){
   clearInterval(autoRefreshTimer);
@@ -465,24 +435,21 @@ function attachAutoRefreshControls() {
   const secInput = $("#autoRefreshSec");
   if (!toggle || !secInput) return;
 
-  if (toggle.checked) {
-    const sec = parseInt(secInput.value, 10);
-    if (Number.isFinite(sec) && sec >= 5) setAutoRefresh(sec);
+  if(toggle.checked){
+    const sec = parseInt(secInput.value,10);
+    if(Number.isFinite(sec)&&sec>=5) setAutoRefresh(sec);
   }
 
-  toggle.addEventListener("change", () => {
-    if (toggle.checked) {
-      const sec = parseInt(secInput.value, 10);
-      if (Number.isFinite(sec) && sec >= 5) { setAutoRefresh(sec); announce(`自動更新ON、間隔:${sec}秒`); }
-    } else {
-      clearInterval(autoRefreshTimer);
-      announce("自動更新OFF");
-    }
+  toggle.addEventListener("change",()=>{
+    if(toggle.checked){
+      const sec=parseInt(secInput.value,10);
+      if(Number.isFinite(sec)&&sec>=5){ setAutoRefresh(sec); announce(`自動更新ON、間隔:${sec}秒`); }
+    } else { clearInterval(autoRefreshTimer); announce("自動更新OFF"); }
   });
 
-  secInput.addEventListener("change", () => {
-    let sec = parseInt(secInput.value,10);
-    if(!Number.isFinite(sec)||sec<5){ secInput.value=5; announce("間隔は5秒以上"); return;}
+  secInput.addEventListener("change",()=>{
+    let sec=parseInt(secInput.value,10);
+    if(!Number.isFinite(sec)||sec<5){ secInput.value=5; announce("間隔は5秒以上"); return; }
     if(toggle.checked){ setAutoRefresh(sec); announce(`自動更新間隔を${sec}秒に変更`); }
   });
 }
@@ -519,7 +486,6 @@ function showPlayerChart(playerId) {
       const ctx = canvas.getContext("2d");
       const labels = history.map(h=>h.date);
       const data = history.map(h=>Number(h.rate));
-
       historyChartInstance = new Chart(ctx,{
         type:"line",
         data:{labels,datasets:[{label:`${playerId} レート推移`,data,borderColor:"#36a2eb",backgroundColor:"rgba(54,162,235,0.08)",tension:0.25,fill:true,pointRadius:2}]},
@@ -540,7 +506,7 @@ async function fetchRankingCSV() {
     showLoading(true); hideError();
 
     const res = await fetch(`${GAS_URL}?mode=ranking`, {cache:"no-store"});
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    if(!(res.status>=200&&res.status<300)) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
     const rows = parseCSV(text);
     if(rows.length<=1) return [];
@@ -562,19 +528,11 @@ async function fetchRankingCSV() {
 }
 
 function downloadCSV() {
-  if (!lastProcessedRows || !lastProcessedRows.length) {
-    alert("ダウンロードするデータがありません");
-    return;
-  }
+  if (!lastProcessedRows || !lastProcessedRows.length) { alert("ダウンロードするデータがありません"); return; }
 
   const header = ["Rank","PlayerId","Rate","Gain","Bonus","RankChange","PrevRank","Title"];
-  const rows = lastProcessedRows.map(p => [
-    p.rank, p.playerId, p.rate, p.gain, p.bonus, p.rankChangeStr, p.prevRank ?? "—", p.title
-  ]);
-
-  const csvContent = [header, ...rows]
-    .map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(','))
-    .join('\n');
+  const rows = lastProcessedRows.map(p => [p.rank, p.playerId, p.rate, p.gain, p.bonus, p.rankChangeStr, p.prevRank ?? "—", p.title]);
+  const csvContent = [header, ...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -587,19 +545,22 @@ function downloadCSV() {
 
 async function refreshRanking() {
   let rows = await fetchRankingCSV();
-
-  // 削除済みプレイヤーを除外
   rows = rows.filter(r => !deletedPlayers.has(r.playerId));
-
   lastProcessedRows = processRanking(rows);
   renderRankingTable(lastProcessedRows);
 
-  // 前回ソートを維持
   const ths = $$("#rankingTable thead th");
   if(ths.length && currentSort) {
     const type = ths[currentSort.idx].getAttribute("data-type")||inferColumnType(currentSort.idx);
     sortTable(currentSort.idx, currentSort.asc, type);
     updateSortIndicators(ths, currentSort.idx, currentSort.asc);
+  }
+
+  // 履歴保存（最新5件）
+  if(lastProcessedRows.length){
+    rankingHistory.push({time:new Date().toLocaleString(),rows:JSON.parse(JSON.stringify(lastProcessedRows))});
+    if(rankingHistory.length>5) rankingHistory.shift();
+    saveRankingHistory();
   }
 }
 
@@ -608,70 +569,42 @@ async function refreshRanking() {
    =============================== */
 document.addEventListener("DOMContentLoaded", () => {
   loadPlayerData();
-　loadDeletedPlayers(); 
+  loadDeletedPlayers();
+  loadRankingHistory();
+
   attachSearch();
   attachSorting();
   attachModalControls();
   attachAutoRefreshControls();
-  refreshRanking();
   attachExpandTable();
   attachSideClickExpand();
+  refreshRanking();
 
-　document.getElementById("adminToggleBtn")?.addEventListener("click", () => {
-  const password = prompt("管理者パスワードを入力してください:");
-  if (password === "babanuki123") { // ここで任意のパスワード
-    setAdminMode(true);
-    alert("管理者モード ON");
-  } else {
-    alert("パスワードが違います");
-    setAdminMode(false);
-  }
-});
-  // ===== 最新ログ表示用モーダル（履歴蓄積版） =====
+  document.getElementById("adminToggleBtn")?.addEventListener("click", () => {
+    const password = prompt("管理者パスワードを入力してください:");
+    if(password==="babanuki123"){ setAdminMode(true); alert("管理者モード ON"); }
+    else{ alert("パスワードが違います"); setAdminMode(false); }
+  });
+
+  // 最新ログ表示用モーダル
   const logBtn = $("#showLatestLogBtn");
   const logOverlay = $("#logOverlay");
   const logContent = $("#logContent");
   const closeLogBtn = $("#closeLogBtn");
-
-  // 履歴配列
-  const rankingHistory = [];
-
-  if (logBtn && logOverlay && logContent && closeLogBtn) {
-    // ボタンで表示
-    logBtn.addEventListener("click", () => {
-      if (rankingHistory.length === 0) {
-        logContent.innerHTML = "<em>まだランキングが取得されていません</em>";
-      } else {
-        const html = rankingHistory.map((snapshot, idx) => {
+  if(logBtn && logOverlay && logContent && closeLogBtn){
+    logBtn.addEventListener("click",()=>{
+      if(rankingHistory.length===0){ logContent.innerHTML="<em>まだランキングが取得されていません</em>"; }
+      else{
+        const html = rankingHistory.map(snapshot=>{
           const time = snapshot.time;
-          const rowsHtml = snapshot.rows.map(p => 
-            `<div>
-              <strong>${p.rank}. ${p.playerId}</strong> 
-              総合レート: ${p.rate} / 獲得: ${p.gain} / ボーナス: ${p.bonus} / 順位変動: ${p.rankChangeStr}
-            </div>`
-          ).join("");
+          const rowsHtml = snapshot.rows.map(p=>`<div><strong>${p.rank}. ${p.playerId}</strong> 総合レート: ${p.rate} / 獲得: ${p.gain} / ボーナス: ${p.bonus} / 順位変動: ${p.rankChangeStr}</div>`).join("");
           return `<div style="margin-bottom:1rem;"><em>${time}</em>${rowsHtml}</div>`;
         }).join("<hr>");
         logContent.innerHTML = html;
       }
-      logOverlay.style.display = "block";
+      logOverlay.style.display="block";
     });
-
-    closeLogBtn.addEventListener("click", () => logOverlay.style.display = "none");
-    logOverlay.addEventListener("click", e => { if (e.target === logOverlay) logOverlay.style.display = "none"; });
+    closeLogBtn.addEventListener("click",()=>logOverlay.style.display="none");
+    logOverlay.addEventListener("click",e=>{ if(e.target===logOverlay) logOverlay.style.display="none"; });
   }
-
-  // ===== refreshRanking の後で履歴に追加 =====
-  const originalRefreshRanking = refreshRanking;
-  refreshRanking = async function() {
-    await originalRefreshRanking();
-    if (lastProcessedRows && lastProcessedRows.length) {
-      rankingHistory.push({
-        time: new Date().toLocaleString(),
-        rows: JSON.parse(JSON.stringify(lastProcessedRows)) // ディープコピー
-      });
-      // 履歴を最新5件だけに制限
-      if (rankingHistory.length > 5) rankingHistory.shift();
-    }
-  };
 });
