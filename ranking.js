@@ -154,16 +154,16 @@ function renderRankingTable(processedRows) {
     tr.addEventListener("click", () => showPlayerChart(p.playerId));
 
     tr.innerHTML = `
-  　　<td title="現在順位" data-sort="${p.rank}">${p.rank}</td>
-  　　<td data-sort="${p.playerId}">${p.playerId}</td>
- 　　 <td data-sort="${p.rate}">${p.rate}</td>
-　　  <td title="レート差分" data-sort="${p.rateGain}">${p.gain}</td>
- 　　 <td data-sort="${p.bonus}">${p.bonus}</td>
-　　  <td title="順位変動" data-sort="${p.rankChange}">${p.rankChangeStr}</td>
-　　  <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
-　　  <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
- 　　 <td><button class="delete-btn" data-playerid="${p.playerId}">削除</button></td>
-　　`;
+      <td title="現在順位" data-sort="${p.rank}">${p.rank}</td>
+      <td data-sort="${p.playerId}">${p.playerId}</td>
+      <td data-sort="${p.rate}">${p.rate}</td>
+      <td title="レート差分" data-sort="${p.rateGain}">${p.gain}</td>
+      <td data-sort="${p.bonus}">${p.bonus}</td>
+      <td title="順位変動" data-sort="${p.rankChange}">${p.rankChangeStr}</td>
+      <td data-sort="${p.prevRank ?? ''}">${p.prevRank ?? "—"}</td>
+      <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
+      <td><button class="delete-btn" data-playerid="${p.playerId}">削除</button></td>
+    `;
 
     frag.appendChild(tr);
   });
@@ -172,6 +172,32 @@ function renderRankingTable(processedRows) {
   tbody.appendChild(frag);
   renderSideAwards(processedRows);
   announce(`${processedRows.length}件のランキングを更新しました`);
+
+  // -----------------------
+  // 削除ボタンのイベント設定
+  // -----------------------
+  $$(".delete-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.playerid;
+      if (!id) return;
+
+      if (!confirm(`${id} をランキングから削除しますか？`)) return;
+
+      // lastProcessedRows から削除
+      lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+
+      // playerData から削除
+      playerData.delete(id);
+      savePlayerData();
+
+      // 削除済みプレイヤーリストにも追加して自動更新でも消す
+      deletedPlayers.add(id);
+      saveDeletedPlayers();
+
+      // テーブルを再描画
+      renderRankingTable(lastProcessedRows);
+    });
+  });
 }
 
 function renderSideAwards(rows) {
