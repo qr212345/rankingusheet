@@ -3,7 +3,7 @@
 /* ===============================
    定数・ユーティリティ
    =============================== */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzuGRUi_5LdmW278kuO7SFEo9KaEMxxgCGyrJu0o1ktur4OaDc2InyGbs1Ey_1GxAjc/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwouDFvC4OGl8qgL9yeWmGNeXC5e60_dXQ8l0MOBdTSEm6lZKsVyXma2vBSGFzgYhpr/exec";
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
 const STORAGE_KEY = "rankingPlayerData_v2";
 const DELETED_KEY = "rankingDeletedPlayers";
