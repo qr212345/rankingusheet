@@ -284,16 +284,56 @@ function attachExpandTable() {
 }
 
 /* ===============================
-   サイドの上昇/下降TOP3ボタンクリックで拡大
+   サイドの上昇/下降TOP3クリックで拡大
    =============================== */
 function attachSideClickExpand() {
   const expandOverlay = $("#expandOverlay");
   const expandedContainer = $("#expandedRankingContainer");
   const originalTable = $("#rankingTable");
-
   if (!expandOverlay || !expandedContainer || !originalTable) return;
 
-  // 共通の描画関数
+  // -----------------------------
+  // 1. 個別プレイヤー表示
+  // -----------------------------
+  const renderSinglePlayer = (playerId) => {
+    expandedContainer.innerHTML = "";
+
+    const row = Array.from(originalTable.rows)
+      .find(tr => tr.cells[1]?.textContent === playerId);
+    if (!row) return;
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+
+    const thead = originalTable.querySelector("thead").cloneNode(true);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    tbody.appendChild(row.cloneNode(true));
+    table.appendChild(tbody);
+
+    expandedContainer.appendChild(table);
+    expandOverlay.style.display = "block";
+  };
+
+  // 各 li にクリックイベント
+  const bindList = (ul) => {
+    if (!ul) return;
+    ul.querySelectorAll("li").forEach(li => {
+      li.style.cursor = "pointer";
+      li.addEventListener("click", () => {
+        const playerId = li.textContent.split(" ")[0]; // "ID (gain)" 形式
+        renderSinglePlayer(playerId);
+      });
+    });
+  };
+  bindList($("#awardUp"));
+  bindList($("#awardDown"));
+
+  // -----------------------------
+  // 2. TOP3まとめ表示（ボタン化）
+  // -----------------------------
   const renderMultiplePlayers = (playerIds, title) => {
     expandedContainer.innerHTML = "";
 
@@ -304,25 +344,22 @@ function attachSideClickExpand() {
     table.style.width = "100%";
     table.style.borderCollapse = "collapse";
 
-    // ヘッダーコピー
     const thead = originalTable.querySelector("thead").cloneNode(true);
     table.appendChild(thead);
 
-    // 対象行コピー
     const tbody = document.createElement("tbody");
     playerIds.forEach(pid => {
-      const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === pid);
+      const row = Array.from(originalTable.rows)
+        .find(tr => tr.cells[1]?.textContent === pid);
       if (row) tbody.appendChild(row.cloneNode(true));
     });
     table.appendChild(tbody);
 
     wrapper.appendChild(table);
     expandedContainer.appendChild(wrapper);
-
     expandOverlay.style.display = "block";
   };
 
-  // ボタンクリック処理
   const upBtn = document.querySelector("h4[data-role='expand-up']");
   const downBtn = document.querySelector("h4[data-role='expand-down']");
 
