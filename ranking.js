@@ -209,25 +209,36 @@ function renderRankingTable(processedRows) {
   const newBtn = btn.cloneNode(true);
   btn.replaceWith(newBtn);
   if (isAdmin) {
-    newBtn.style.display = "inline-block";
-    newBtn.addEventListener("click", (e) => {
-      e.stopPropagation(); // tr click の干渉防止
-      const id = newBtn.dataset.playerid;
-      if (!id) return;
-      if (!confirm(`${id} をランキングから削除しますか？`)) return;
+  newBtn.style.display = "inline-block";
+  newBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const id = newBtn.dataset.playerid;
+    if (!id) return;
+    if (!confirm(`${id} をランキングから削除しますか？`)) return;
 
-      lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
-      playerData.delete(id);
-      savePlayerData();
+    // GAS に削除リクエスト
+    try {
+      const res = await fetch(`${GAS_URL}?mode=delete&id=${encodeURIComponent(id)}`, {method:"POST"});
+      const result = await res.json();
+      if(result.status !== "ok") throw new Error("削除失敗");
+    } catch(err) {
+      alert("削除リクエスト失敗: " + err.message);
+      return;
+    }
 
-      deletedPlayers.add(id);
-      saveDeletedPlayers();
+    // ブラウザ側の更新
+    lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+    playerData.delete(id);
+    savePlayerData();
 
-      renderRankingTable(lastProcessedRows);
-    });
-  } else {
-    newBtn.style.display = "none";
-  }
+    deletedPlayers.add(id);
+    saveDeletedPlayers();
+
+    renderRankingTable(lastProcessedRows);
+  });
+} else {
+  newBtn.style.display = "none";
+}
 });
 }
 
