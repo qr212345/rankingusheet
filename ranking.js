@@ -250,6 +250,40 @@ function updateSortIndicators(ths, activeIdx, asc) {
 }
 
 /* ===============================
+   表拡大モーダル
+   =============================== */
+function attachExpandTable() {
+  const expandBtn = $("#expandTableBtn");
+  const expandOverlay = $("#expandOverlay");
+  const expandedContainer = $("#expandedRankingContainer");
+  const closeBtn = $("#closeExpandBtn");
+
+  if (!expandBtn || !expandOverlay || !expandedContainer || !closeBtn) return;
+
+  expandBtn.addEventListener("click", () => {
+    const originalTable = $("#rankingTable");
+    if (!originalTable) return;
+
+    // コピーして挿入
+    expandedContainer.innerHTML = "";
+    const tableClone = originalTable.cloneNode(true);
+    tableClone.style.width = "100%";
+    tableClone.style.borderCollapse = "collapse";
+    expandedContainer.appendChild(tableClone);
+
+    expandOverlay.style.display = "block";
+  });
+
+  closeBtn.addEventListener("click", () => {
+    expandOverlay.style.display = "none";
+  });
+
+  expandOverlay.addEventListener("click", (e) => {
+    if (e.target === expandOverlay) expandOverlay.style.display = "none";
+  });
+}
+
+/* ===============================
    自動更新・UI
    =============================== */
 function setAutoRefresh(sec){
@@ -406,4 +440,5 @@ document.addEventListener("DOMContentLoaded",()=>{
   attachModalControls();
   attachAutoRefreshControls();
   refreshRanking();
+  attachExpandTable();
 });
