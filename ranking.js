@@ -194,7 +194,6 @@ function renderRankingTable(processedRows) {
       <td class="${p.title === "⚡雷" ? "title-thunder" : p.title === "🌪風" ? "title-wind" : p.title === "🔥火" ? "title-fire" : ""}" data-sort="${p.title}">${p.title}</td>
       <td><button class="delete-btn" data-playerid="${p.playerId}">削除</button></td>
     `;
-
     frag.appendChild(tr);
   });
 
@@ -204,31 +203,31 @@ function renderRankingTable(processedRows) {
   announce(`${processedRows.length}件のランキングを更新しました`);
 
   // -----------------------
-  // 削除ボタンのイベント設定
+  // 削除ボタンイベント登録（ここに入れる）
   // -----------------------
   $$(".delete-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const id = btn.dataset.playerid;
-      if (!id) return;
+    if (isAdmin) {
+      btn.style.display = "inline-block";
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.playerid;
+        if (!id) return;
+        if (!confirm(`${id} をランキングから削除しますか？`)) return;
 
-      if (!confirm(`${id} をランキングから削除しますか？`)) return;
+        lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+        playerData.delete(id); 
+        savePlayerData();
 
-      // lastProcessedRows から削除
-      lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+        deletedPlayers.add(id); 
+        saveDeletedPlayers();
 
-      // playerData から削除
-      playerData.delete(id);
-      savePlayerData();
-
-      // 削除済みプレイヤーリストにも追加して自動更新でも消す
-      deletedPlayers.add(id);
-      saveDeletedPlayers();
-
-      // テーブルを再描画
-      renderRankingTable(lastProcessedRows);
-    });
+        renderRankingTable(lastProcessedRows);
+      });
+    } else {
+      btn.style.display = "none";
+    }
   });
 }
+
 
 function renderSideAwards(rows) {
   const upUl = $("#awardUp");
@@ -607,7 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 　document.getElementById("adminToggleBtn")?.addEventListener("click", () => {
   const password = prompt("管理者パスワードを入力してください:");
-  if (password === "secret123") { // ここで任意のパスワード
+  if (password === "babanuki123") { // ここで任意のパスワード
     setAdminMode(true);
     alert("管理者モード ON");
   } else {
