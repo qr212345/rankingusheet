@@ -15,13 +15,6 @@
     <label for="searchInput">検索:</label>
     <input id="searchInput" type="text" placeholder="IDや名前で絞り込み" style="padding:.4rem .6rem;">
 
-    <!-- 期間切替 -->
-    <div id="rangeGroup" style="display:inline-flex; gap:.25rem; margin-left:.75rem;">
-      <button type="button" data-range="week">今週</button>
-      <button type="button" data-range="month">今月</button>
-      <button type="button" data-range="all" class="active">累計</button>
-    </div>
-
     <!-- 自動更新 -->
     <div id="autoRefreshGroup" style="display:inline-flex; align-items:center; gap:.4rem; margin-left: .75rem;">
       <label><input id="autoRefreshToggle" type="checkbox">自動更新</label>
@@ -72,15 +65,15 @@
       <h3 style="margin:.25rem 0 .5rem;">🏆 変動ランキング</h3>
 
       <section style="margin-bottom:.75rem;">
-        <h4 style="margin:.25rem 0;">📈 上昇TOP3</h4>
-        <ul id="awardUp" style="margin:.25rem 0; padding-left:1.25rem;">
+        <h4 style="margin:.25rem 0; cursor:pointer;" data-role="expand-up">📈 上昇TOP3</h4>
+        <ul id="awardUp"></ul>
           <!-- JSで生成 -->
         </ul>
       </section>
 
       <section>
-        <h4 style="margin:.25rem 0;">📉 下降TOP3</h4>
-        <ul id="awardDown" style="margin:.25rem 0; padding-left:1.25rem;">
+        <h4 style="margin:.25rem 0; cursor:pointer;" data-role="expand-down">📉 下降TOP3</h4>
+        <ul id="awardDown"></ul>
           <!-- JSで生成 -->
         </ul>
       </section>
