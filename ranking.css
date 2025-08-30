@@ -177,6 +177,60 @@ button:disabled {
   cursor: default;
 }
 
+.expand-btn {
+  margin: .25rem 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.expand-btn:hover {
+  transform: scale(1.05);
+  color: #36a2eb;
+}
+
+.expand-overlay {
+  display: none;
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  overflow: auto;
+  animation: fadeIn 0.3s;
+}
+
+.expanded-container {
+  max-width: 90%;
+  margin: 5% auto;
+  background: white;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  animation: zoomIn 0.3s;
+}
+
+.close-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: #ff5c5c;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  z-index: 10000;
+}
+
+@keyframes fadeIn {
+  from {opacity:0;}
+  to {opacity:1;}
+}
+
+@keyframes zoomIn {
+  from {transform: scale(0.9);}
+  to {transform: scale(1);}
+}
+
 /* =========================
    レスポンシブ
 ========================= */
