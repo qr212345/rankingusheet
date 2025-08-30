@@ -532,7 +532,7 @@ async function refreshRanking() {
 /* ===============================
    初期化
    =============================== */
-document.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded", () => {
   loadPlayerData();
   attachSearch();
   attachSorting();
@@ -541,4 +541,52 @@ document.addEventListener("DOMContentLoaded",()=>{
   refreshRanking();
   attachExpandTable();
   attachSideClickExpand();
+
+  // ===== 最新ログ表示用モーダル（履歴蓄積版） =====
+  const logBtn = $("#showLatestLogBtn");
+  const logOverlay = $("#logOverlay");
+  const logContent = $("#logContent");
+  const closeLogBtn = $("#closeLogBtn");
+
+  // 履歴配列
+  const rankingHistory = [];
+
+  if (logBtn && logOverlay && logContent && closeLogBtn) {
+    // ボタンで表示
+    logBtn.addEventListener("click", () => {
+      if (rankingHistory.length === 0) {
+        logContent.innerHTML = "<em>まだランキングが取得されていません</em>";
+      } else {
+        const html = rankingHistory.map((snapshot, idx) => {
+          const time = snapshot.time;
+          const rowsHtml = snapshot.rows.map(p => 
+            `<div>
+              <strong>${p.rank}. ${p.playerId}</strong> 
+              総合レート: ${p.rate} / 獲得: ${p.gain} / ボーナス: ${p.bonus} / 順位変動: ${p.rankChangeStr}
+            </div>`
+          ).join("");
+          return `<div style="margin-bottom:1rem;"><em>${time}</em>${rowsHtml}</div>`;
+        }).join("<hr>");
+        logContent.innerHTML = html;
+      }
+      logOverlay.style.display = "block";
+    });
+
+    closeLogBtn.addEventListener("click", () => logOverlay.style.display = "none");
+    logOverlay.addEventListener("click", e => { if (e.target === logOverlay) logOverlay.style.display = "none"; });
+  }
+
+  // ===== refreshRanking の後で履歴に追加 =====
+  const originalRefreshRanking = refreshRanking;
+  refreshRanking = async function() {
+    await originalRefreshRanking();
+    if (lastProcessedRows && lastProcessedRows.length) {
+      rankingHistory.push({
+        time: new Date().toLocaleString(),
+        rows: JSON.parse(JSON.stringify(lastProcessedRows)) // ディープコピー
+      });
+      // 履歴を最新5件だけに制限
+      if (rankingHistory.length > 5) rankingHistory.shift();
+    }
+  };
 });
