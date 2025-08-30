@@ -206,28 +206,29 @@ function renderRankingTable(processedRows) {
   // 削除ボタンイベント登録（ここに入れる）
   // -----------------------
   $$(".delete-btn").forEach(btn => {
-    if (isAdmin) {
-      btn.style.display = "inline-block";
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.playerid;
-        if (!id) return;
-        if (!confirm(`${id} をランキングから削除しますか？`)) return;
+  const newBtn = btn.cloneNode(true);
+  btn.replaceWith(newBtn);
+  if (isAdmin) {
+    newBtn.style.display = "inline-block";
+    newBtn.addEventListener("click", (e) => {
+      e.stopPropagation(); // tr click の干渉防止
+      const id = newBtn.dataset.playerid;
+      if (!id) return;
+      if (!confirm(`${id} をランキングから削除しますか？`)) return;
 
-        lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
-        playerData.delete(id); 
-        savePlayerData();
+      lastProcessedRows = lastProcessedRows.filter(p => p.playerId !== id);
+      playerData.delete(id);
+      savePlayerData();
 
-        deletedPlayers.add(id); 
-        saveDeletedPlayers();
+      deletedPlayers.add(id);
+      saveDeletedPlayers();
 
-        renderRankingTable(lastProcessedRows);
-      });
-    } else {
-      btn.style.display = "none";
-    }
-  });
-}
-
+      renderRankingTable(lastProcessedRows);
+    });
+  } else {
+    newBtn.style.display = "none";
+  }
+});
 
 function renderSideAwards(rows) {
   const upUl = $("#awardUp");
