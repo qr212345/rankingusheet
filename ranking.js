@@ -284,6 +284,60 @@ function attachExpandTable() {
 }
 
 /* ===============================
+   サイドの上昇/下降TOP3クリックで拡大
+   =============================== */
+function attachSideClickExpand() {
+  const expandOverlay = $("#expandOverlay");
+  const expandedContainer = $("#expandedRankingContainer");
+
+  const renderSinglePlayer = (playerId) => {
+    const originalTable = $("#rankingTable");
+    if (!originalTable) return;
+
+    // 対象行をコピー
+    const row = Array.from(originalTable.rows).find(tr => tr.cells[1]?.textContent === playerId);
+    if (!row) return;
+
+    expandedContainer.innerHTML = "";
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+
+    // ヘッダーコピー
+    const thead = originalTable.querySelector("thead").cloneNode(true);
+    table.appendChild(thead);
+
+    // 行コピー
+    const tbody = document.createElement("tbody");
+    tbody.appendChild(row.cloneNode(true));
+    table.appendChild(tbody);
+
+    expandedContainer.appendChild(table);
+    expandOverlay.style.display = "block";
+  };
+
+  const bindList = (ul) => {
+    if (!ul) return;
+    ul.querySelectorAll("li").forEach(li => {
+      li.style.cursor = "pointer";
+      li.addEventListener("click", () => {
+        const playerId = li.textContent.split(" ")[0]; // "ID (gain)" の形式
+        renderSinglePlayer(playerId);
+      });
+    });
+  };
+
+  bindList($("#awardUp"));
+  bindList($("#awardDown"));
+}
+
+// 初期化に追加
+document.addEventListener("DOMContentLoaded", () => {
+  attachSideClickExpand();
+});
+
+/* ===============================
    自動更新・UI
    =============================== */
 function setAutoRefresh(sec){
