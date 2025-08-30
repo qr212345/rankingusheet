@@ -6,6 +6,7 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyhvqBiHIAsVYfUDw5e3Bz6L83OkwuZEFL-YCFHCNBi7MrUb7zQx1EV1RxZKTD62QED/exec";
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
 const STORAGE_KEY = "rankingPlayerData_v2";
+const DELETED_KEY = "rankingDeletedPlayers";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -28,7 +29,7 @@ let historyChartInstance = null;
 let lastProcessedRows = [];
 let currentSort = { idx: 0, asc: true };
 let isFetching = false;
-
+let deletedPlayers = new Set();
 /* ===============================
    ストレージ
    =============================== */
@@ -44,6 +45,20 @@ function savePlayerData() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(playerData.entries())));
   } catch { console.warn("PlayerData save failed"); }
+}
+
+function loadDeletedPlayers() {
+  try {
+    const raw = localStorage.getItem(DELETED_KEY);
+    if (!raw) return;
+    deletedPlayers = new Set(JSON.parse(raw));
+  } catch { console.warn("DeletedPlayers load failed"); }
+}
+
+function saveDeletedPlayers() {
+  try {
+    localStorage.setItem(DELETED_KEY, JSON.stringify([...deletedPlayers]));
+  } catch { console.warn("DeletedPlayers save failed"); }
 }
 
 /* ===============================
