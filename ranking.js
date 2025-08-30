@@ -3,7 +3,7 @@
 /* ===============================
    Configuration
    =============================== */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwouDFvC4OGl8qgL9yeWmGNeXC5e60_dXQ8l0MOBdTSEm6lZKsVyXma2vBSGFzgYhpr/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxnqDdZJPE0BPN5TRpqR49ejScQKyKADygXzw5tcp6RdCauKbeTfeQTWpP6WAKYK7Ue/exec";
 const SECRET_KEY = "kosen-brain-super-secret"; // GAS の doPost が期待する secret
 const ADMIN_PASSWORD = "babanuki123";         // 管理者モード切替の簡易パスワード（任意で変更）
 const TITLES = ["⚡雷", "🌪風", "🔥火"];
