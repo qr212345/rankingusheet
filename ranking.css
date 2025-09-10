@@ -54,6 +54,23 @@
   cursor: pointer;
 }
 
+/* CSS */
+#rankingTableWrapper { 
+  overflow-x: auto; 
+  max-width: 100%; 
+}
+#rankingTable thead th {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+#rankingTable tbody tr:hover { 
+  background: #f0f8ff; 
+  cursor: pointer; 
+}
+
 /* =========================
    上位3位強調
 ========================= */
