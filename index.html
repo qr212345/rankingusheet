@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>🔥 ランキング表 🔥</title>
+  <title>🔥 ババ抜きランキング 🔥</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <!-- Tailwind CSS -->
@@ -30,7 +30,7 @@
       <button id="downloadCSVBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded shadow">💽 CSV</button>
       <button id="loadRankingBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded shadow">🔄 更新</button>
       <button id="adminToggleBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow">管理者モード</button>
-       <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
+      <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
     </div>
   </div>
 
@@ -39,8 +39,9 @@
 
   <!-- メインレイアウト -->
   <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 p-4">
+
     <!-- ランキングテーブル -->
-    <div class="overflow-x-auto bg-white rounded shadow">
+    <div id="rankingTableWrapper" class="overflow-x-auto bg-white rounded shadow">
       <table id="rankingTable" class="min-w-full text-center table-auto">
         <thead class="bg-gray-800 text-white sticky top-0">
           <tr>
@@ -59,6 +60,13 @@
       </table>
     </div>
 
+    <!-- ズームボタン -->
+    <div id="tableControls" class="mt-2">
+      <button id="zoomInBtn">拡大</button>
+      <button id="zoomOutBtn">縮小</button>
+      <span id="zoomLevel">14px</span>
+    </div>
+
     <!-- サイド：変動ランキング -->
     <aside class="bg-white p-4 rounded shadow">
       <h3 class="font-bold mb-2">🏆 変動ランキング</h3>
@@ -69,6 +77,12 @@
       <section class="mt-4">
         <h4 class="font-semibold mb-1">📉 下降TOP3</h4>
         <ul id="awardDown" class="list-disc list-inside"></ul>
+      </section>
+
+      <!-- 称号図鑑 -->
+      <section class="mt-4">
+        <h4 class="font-semibold mb-1">🏅 称号図鑑</h4>
+        <div id="titleCatalog" class="grid grid-cols-2 gap-2"></div>
       </section>
     </aside>
   </div>
@@ -82,18 +96,10 @@
     </div>
   </div>
 
-  <!-- ログモーダル -->
-  <div id="logOverlay" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg p-6 relative w-[90%] max-w-md max-h-[80vh] overflow-y-auto">
-      <button id="closeLogBtn" class="absolute top-2 right-2 text-xl text-gray-700 hover:text-gray-900">✖️</button>
-      <h2 class="font-bold mb-2">🕘 最新ログ</h2>
-      <div id="logContent" class="text-sm"></div>
-    </div>
-  </div>
-
   <!-- トースト通知 -->
   <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded shadow-lg hidden"></div>
 
+  <!-- JS -->
   <script src="ranking.js"></script>
 </body>
 </html>
