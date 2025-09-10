@@ -23,7 +23,7 @@
 }
 
 #rankingTable thead th {
-  background-color: #222;
+  background: linear-gradient(135deg, #333, #111);
   color: #fff;
   padding: 12px 14px;
   letter-spacing: 0.5px;
@@ -33,6 +33,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
+  box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3);
 }
 
 #rankingTable tbody td {
@@ -48,66 +49,82 @@
 }
 
 #rankingTable tbody tr:hover {
-  background-color: #f1f7ff;
-  transition: background-color 0.25s ease;
+  background: linear-gradient(to right, #f0f9ff, #d0f0ff);
+  transition: background 0.25s ease;
   cursor: pointer;
 }
 
 /* =========================
    上位3位強調
 ========================= */
-tr.rank-1 td {
-  background-color: gold !important;
-  color: #000;
-  font-weight: bold;
-  font-size: 1.2em;
-}
-tr.rank-2 td {
-  background-color: silver !important;
-  color: #000;
-  font-weight: bold;
-}
-tr.rank-3 td {
-  background-color: #cd7f32 !important;
-  color: #000;
-  font-weight: bold;
-}
+tr.rank-1 td { background-color: gold !important; color: #000; font-weight: bold; font-size: 1.2em; }
+tr.rank-2 td { background-color: silver !important; color: #000; font-weight: bold; }
+tr.rank-3 td { background-color: #cd7f32 !important; color: #000; font-weight: bold; }
 
 /* =========================
-   増減の視覚強調
+   増減の視覚強調（矢印＋アニメ） 
 ========================= */
 .gain-up {
-  background-color: #e6ffed;
+  background: linear-gradient(90deg, #e6ffed 0%, #c8ffd3 100%);
+  position: relative;
 }
+.gain-up::after {
+  content: "⬆";
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: green;
+  animation: up-bounce 1s infinite alternate;
+}
+@keyframes up-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(-4px);} }
+
 .gain-down {
-  background-color: #ffecec;
+  background: linear-gradient(90deg, #ffecec 0%, #ffc9c9 100%);
+  position: relative;
 }
+.gain-down::after {
+  content: "⬇";
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: red;
+  animation: down-bounce 1s infinite alternate;
+}
+@keyframes down-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(4px);} }
 
 /* =========================
-   表彰台
+   表彰台（3D＋アニメ） 
 ========================= */
 #podium {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 1.5em;
-  margin: 1.5em 0;
+  gap: 1.5rem;
+  margin: 2rem 0;
+  perspective: 800px;
 }
 
 .podium-player {
-  font-size: 1.4em;
   font-weight: bold;
-  padding: 1em 1.4em;
+  padding: 1rem 1.5rem;
   border-radius: 12px;
   color: white;
-  animation: float 2s infinite ease-in-out;
-  text-align: center;
   min-width: 140px;
+  text-align: center;
+  transform-style: preserve-3d;
+  transition: transform 0.3s, box-shadow 0.3s;
 }
 
-.first { background: gold; color: #000; }
-.second { background: silver; color: #000; }
-.third { background: #cd7f32; color: #000; }
+.podium-player:hover {
+  transform: rotateY(10deg) translateY(-5px);
+  box-shadow: 0 15px 25px rgba(0,0,0,0.35);
+}
+
+.first { background: gold; height: 160px; }
+.second { background: silver; height: 140px; }
+.third { background: #cd7f32; height: 120px; }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -115,40 +132,43 @@ tr.rank-3 td {
 }
 
 /* =========================
-   称号アニメーション
+   称号アニメーション（光沢＋揺れ＋炎） 
 ========================= */
 .title-thunder {
-  animation: thunder 1s infinite;
+  animation: thunder-glow 1s infinite alternate;
   color: gold;
-  text-shadow: 0 0 5px yellow;
+  text-shadow: 0 0 5px yellow, 0 0 15px orange;
 }
-.title-wind {
-  animation: wind 2s infinite linear;
-  color: deepskyblue;
-  text-shadow: 0 0 5px lightblue;
-}
-.title-fire {
-  animation: fire 1s infinite;
-  color: orangered;
-  text-shadow: 0 0 10px orangered;
+@keyframes thunder-glow {
+  0% { text-shadow: 0 0 5px yellow, 0 0 15px orange; }
+  50% { text-shadow: 0 0 20px white, 0 0 40px yellow; }
+  100% { text-shadow: 0 0 5px yellow, 0 0 15px orange; }
 }
 
-@keyframes thunder {
-  0%, 100% { text-shadow: 0 0 5px yellow; }
-  50% { text-shadow: 0 0 15px white; }
+.title-wind {
+  animation: wind-sway 2s infinite linear;
+  background: linear-gradient(to right, #00f, #0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
-@keyframes wind {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(3px); }
-  100% { transform: translateX(0); }
+@keyframes wind-sway {
+  0%,100% { transform: translateX(0) rotate(-1deg); }
+  50% { transform: translateX(3px) rotate(1deg); }
 }
-@keyframes fire {
-  0%, 100% { text-shadow: 0 0 10px orange; }
-  50% { text-shadow: 0 0 18px red; }
+
+.title-fire {
+  animation: fire-flicker 1s infinite;
+  color: orangered;
+  text-shadow: 0 0 10px orangered, 0 0 20px orange, 0 0 30px yellow;
+}
+@keyframes fire-flicker {
+  0% { text-shadow: 0 0 10px orangered, 0 0 20px orange; transform: scale(1); }
+  50% { text-shadow: 0 0 15px red, 0 0 30px orange; transform: scale(1.05) rotate(-1deg); }
+  100% { text-shadow: 0 0 10px orangered, 0 0 20px orange; transform: scale(1); }
 }
 
 /* =========================
-   ボタン
+   ボタン（グラデ＋シャドウ＋ホバー） 
 ========================= */
 button {
   font-size: 1em;
@@ -163,89 +183,28 @@ button {
   transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
   user-select: none;
 }
-button:hover,
-button:focus {
+button:hover, button:focus {
   background: linear-gradient(135deg, #357ABD, #2a5c9e);
   box-shadow: 0 5px 10px rgba(0,0,0,0.25);
 }
-button:active {
-  transform: translateY(2px);
-}
-button:disabled {
-  background: #ccc;
-  color: #666;
-  cursor: default;
-}
-
-.expand-btn {
-  margin: .25rem 0;
-  cursor: pointer;
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-.expand-btn:hover {
-  transform: scale(1.05);
-  color: #36a2eb;
-}
-
-.expand-overlay {
-  display: none;
-  position: fixed;
-  top:0; left:0; right:0; bottom:0;
-  background: rgba(0,0,0,0.5);
-  z-index: 9999;
-  overflow: auto;
-  animation: fadeIn 0.3s;
-}
-
-.expanded-container {
-  max-width: 90%;
-  margin: 5% auto;
-  background: white;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-  animation: zoomIn 0.3s;
-}
-
-.close-btn {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  background: #ff5c5c;
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  padding: 0.3rem 0.6rem;
-  cursor: pointer;
-  border-radius: 0.25rem;
-  z-index: 10000;
-}
-
-@keyframes fadeIn {
-  from {opacity:0;}
-  to {opacity:1;}
-}
-
-@keyframes zoomIn {
-  from {transform: scale(0.9);}
-  to {transform: scale(1);}
-}
+button:active { transform: translateY(2px); }
+button:disabled { background: #ccc; color: #666; cursor: default; }
 
 /* =========================
-   レスポンシブ
+   拡大モーダル 
+========================= */
+.expand-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 9999; overflow: auto; animation: fadeIn 0.3s; }
+.expanded-container { max-width: 90%; margin: 5% auto; background: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); animation: zoomIn 0.3s; }
+.close-btn { position: fixed; top: 1rem; right: 1rem; background: #ff5c5c; border: none; color: white; font-size: 1.5rem; padding: 0.3rem 0.6rem; cursor: pointer; border-radius: 0.25rem; z-index: 10000; }
+@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+@keyframes zoomIn { from {transform: scale(0.9);} to {transform: scale(1);} }
+
+/* =========================
+   レスポンシブ対応
 ========================= */
 @media (max-width: 768px) {
-  #rankingTable {
-    font-size: 0.9rem;
-    min-width: auto;
-  }
-  .podium-player {
-    font-size: 1.2em;
-    min-width: 120px;
-  }
-  button {
-    min-width: auto;
-    font-size: 0.9em;
-    padding: 0.5em 1em;
-  }
+  #rankingTable { font-size: 0.9rem; min-width: auto; }
+  .podium-player { font-size: 1.2em; min-width: 120px; flex: 0 0 auto; }
+  #podium { gap: 0.5rem; overflow-x: auto; padding-bottom: 1rem; }
+  button { font-size: 0.85em; padding: 0.4em 0.8em; }
 }
