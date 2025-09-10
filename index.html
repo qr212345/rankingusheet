@@ -1,119 +1,98 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>ランキング表</title>
+  <meta charset="UTF-8">
+  <title>🔥 ランキング表 🔥</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { podiumGold:'#FFD700', podiumSilver:'#C0C0C0', podiumBronze:'#CD7F32' } } } }
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- カスタムCSS -->
   <link rel="stylesheet" href="ranking.css">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
-<body>
-  <h1>🔥 ランキング表 🔥</h1>
+<body class="bg-gray-100 text-gray-800">
 
   <!-- 操作パネル -->
-  <div id="controls" style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-bottom: .75rem;">
-    <!-- 検索 -->
-    <label for="searchInput">検索:</label>
-    <input id="searchInput" type="text" placeholder="IDや名前で絞り込み" style="padding:.4rem .6rem;">
-
-    <!-- 自動更新 -->
-    <div id="autoRefreshGroup" style="display:inline-flex; align-items:center; gap:.4rem; margin-left: .75rem;">
-      <label><input id="autoRefreshToggle" type="checkbox">自動更新</label>
-      <label>間隔(s): <input id="autoRefreshSec" type="number" min="5" value="30" style="width:4.5rem;"></label>
+  <div class="sticky top-0 bg-white p-4 shadow z-50 flex flex-wrap gap-3 items-center justify-between">
+    <div class="flex gap-2 flex-wrap items-center">
+      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み" class="border rounded px-2 py-1 w-44">
+      <label class="flex items-center gap-1"><input id="autoRefreshToggle" type="checkbox" class="accent-blue-500"> 自動更新</label>
+      <input id="autoRefreshSec" type="number" min="5" value="30" class="w-20 border rounded px-2 py-1">
     </div>
-
-    <!-- 既存ボタン類 -->
-    <div style="margin-left:auto; display:flex; gap:.5rem; flex-wrap:wrap;">
-      <button onclick="downloadCSV()">💽CSVログをダウンロード</button>
-      <button id="showLatestLogBtn">🕘 最新のログを見る</button>
-      <button id="expandTableBtn">📈 表を拡大表示</button>
-      <button id="loadRankingBtn">🔄 最新のランキングを読み込む</button>
-      <button id="adminToggleBtn">管理者モード</button>
+    <div class="flex gap-2 flex-wrap">
+      <button id="downloadCSVBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded shadow">💽 CSV</button>
+      <button id="loadRankingBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded shadow">🔄 更新</button>
+      <button id="adminToggleBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow">管理者モード</button>
     </div>
   </div>
-
-  <div id="loadingStatus" style="margin: .25rem 0 .75rem; font-weight: bold;"></div>
 
   <!-- 表彰台 -->
-  <div id="podium" style="display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom: .75rem;">
-    <!-- JSで上位3名を描画 -->
-  </div>
+  <div id="podium" class="flex flex-wrap justify-center gap-4 mt-4"></div>
 
-  <!-- メインレイアウト：テーブル + サイドの変動ランキング -->
-  <div id="mainLayout" style="display:grid; grid-template-columns: 1fr minmax(220px, 280px); gap: 1rem; align-items:start;">
+  <!-- メインレイアウト -->
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 p-4">
     <!-- ランキングテーブル -->
-    <div>
-      <table id="rankingTable" style="width:100%; border-collapse: collapse;">
-        <thead>
+    <div class="overflow-x-auto bg-white rounded shadow">
+      <table id="rankingTable" class="min-w-full text-center table-auto">
+        <thead class="bg-gray-800 text-white sticky top-0">
           <tr>
-            <th title="現在の順位。列クリックでソート">順位</th>
-            <th title="プレイヤーID。列クリックでソート">生徒ID</th>
-            <th title="現在の総合レート。列クリックでソート">総合レート</th>
-            <th title="今回のレート差分（+は上昇、-は下降）。列クリックでソート">獲得レート</th>
-            <th title="特別加点。列クリックでソート">特別ポイント🔥</th>
-            <th title="前回比の順位変動（↑は上昇、↓は下降）。列クリックでソート">順位変動</th>
-            <th title="前回の試合での順位。列クリックでソート">前回の試合順位</th>
-            <th title="上位称号">称号</th>
+            <th>順位</th>
+            <th>生徒ID</th>
+            <th>総合レート</th>
+            <th>獲得レート</th>
+            <th>特別ポイント🔥</th>
+            <th>順位変動</th>
+            <th>前回の試合順位</th>
+            <th>称号</th>
+            <th class="hidden admin-only">削除</th>
           </tr>
         </thead>
-        <tbody>
-          <!-- JSで生成 -->
-        </tbody>
+        <tbody></tbody>
       </table>
     </div>
 
     <!-- サイド：変動ランキング -->
-    <aside id="sideAwards" style="border:1px solid #ddd; border-radius:8px; padding:.75rem; background:#fafafa;">
-      <h3 style="margin:.25rem 0 .5rem;">🏆 変動ランキング</h3>
-
-      <section style="margin-bottom:.75rem;">
-        <h4 style="margin:.25rem 0; cursor:pointer;" data-role="expand-up">📈 上昇TOP3</h4>
-        <ul id="awardUp"></ul>
-          <!-- JSで生成 -->
-        </ul>
-      </section>
-
+    <aside class="bg-white p-4 rounded shadow">
+      <h3 class="font-bold mb-2">🏆 変動ランキング</h3>
       <section>
-        <h4 style="margin:.25rem 0; cursor:pointer;" data-role="expand-down">📉 下降TOP3</h4>
-        <ul id="awardDown"></ul>
-          <!-- JSで生成 -->
-        </ul>
+        <h4 class="font-semibold mb-1">📈 上昇TOP3</h4>
+        <ul id="awardUp" class="list-disc list-inside"></ul>
+      </section>
+      <section class="mt-4">
+        <h4 class="font-semibold mb-1">📉 下降TOP3</h4>
+        <ul id="awardDown" class="list-disc list-inside"></ul>
       </section>
     </aside>
   </div>
 
-  <!-- ログ表示用のオーバーレイ（モーダル） -->
-  <div id="logOverlay" style="display:none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7); z-index: 9999; overflow-y: auto;">
-    <div style="background: white; margin: 5vh auto; padding: 1em; max-width: 600px; border-radius: 10px; position: relative;">
-      <button id="closeLogBtn" style="position: absolute; top: 10px; right: 10px; font-size: 1.5em; cursor: pointer;">✖️</button>
-      <h2>🕘 最新のログ</h2>
-      <div id="logContent" style="max-height: 70vh; overflow-y: auto;"></div>
-    </div>
-  </div>
-
-  <!-- 拡大モーダル -->
-  <div id="expandOverlay" style="display:none; position: fixed; inset:0; background: rgba(0,0,0,0.8); z-index:10000; overflow: auto;">
-    <button id="closeExpandBtn" style="
-      position: fixed; top: 1rem; right: 1rem;
-      background: transparent; border: none; color: white;
-      font-size: 2rem; cursor: pointer; opacity: 0.8; transition: opacity 0.2s;" title="閉じる">×</button>
-    <div id="expandedRankingContainer" style="margin: 3rem auto; max-width: 90vw; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
-      <!-- JSで表をコピーして挿入 -->
-    </div>
-  </div>
-
   <!-- 履歴グラフモーダル -->
-  <div id="chartModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:10001;">
-    <div class="modal-body" style="background:#fff; width:min(90vw,900px); margin:5vh auto; padding:16px; border-radius:10px; position:relative;">
-      <button id="chartCloseBtn" title="閉じる" style="position:absolute; right:12px; top:8px; font-size:1.4rem; background:none; border:none; cursor:pointer;">✖️</button>
-      <h3 style="margin:.25rem 0 1rem;">📊 レート推移</h3>
-      <canvas id="historyChart" height="240"></canvas>
+  <div id="chartModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 relative w-[90%] max-w-3xl">
+      <button id="chartCloseBtn" class="absolute top-2 right-2 text-xl text-gray-700 hover:text-gray-900">✖️</button>
+      <h3 class="font-bold mb-4">📊 レート推移</h3>
+      <canvas id="chartCanvas" class="w-full h-64"></canvas>
     </div>
   </div>
-  <!-- 必要スクリプト -->
-  <!-- Chart.js を CDN から読み込む（SRI 属性なし、開発用） -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- ログモーダル -->
+  <div id="logOverlay" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 relative w-[90%] max-w-md max-h-[80vh] overflow-y-auto">
+      <button id="closeLogBtn" class="absolute top-2 right-2 text-xl text-gray-700 hover:text-gray-900">✖️</button>
+      <h2 class="font-bold mb-2">🕘 最新ログ</h2>
+      <div id="logContent" class="text-sm"></div>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded shadow-lg hidden"></div>
+
   <script src="ranking.js"></script>
 </body>
 </html>
