@@ -14,6 +14,9 @@ const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
 const RANDOM_TITLE_PROB = { "ミラクルババ":0.05, "ラッキーババ":0.10 };
 const RANDOM_TITLE_DAILY_LIMIT = 5;
 
+const SECRET_KEY = "your-secret-key";
+const AUTO_REFRESH_INTERVAL = 30; // 秒
+
 const ALL_TITLES = [
   {name:"キングババ", desc:"1位獲得！"},
   {name:"シルバーババ", desc:"2位獲得！"},
@@ -55,6 +58,8 @@ const assignedRandomTitles = new Set();
 let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
 let titleFilter = "all";
 let titleSearch = "";
+let autoRefreshTimer = null; // 自動更新タイマー
+let isFetching = false;      // フラグ二重取得防止
 
 /* =========================
    Utility
@@ -323,30 +328,70 @@ function downloadCSV(){
 /* =========================
    データ取得・更新
 ========================= */
-async function fetchRankingJSON(){
-  try{
-    isFetching=true;
-    const res=await fetch(`${GAS_URL}?mode=getRanking`,{cache:"no-store"});
-    if(!res.ok) throw new Error(res.status);
-    const json=await res.json();
-    if(!json.ranking) throw new Error("データなし");
-    return Object.entries(json.ranking).map(([id,[rate,bonus]])=>({playerId:id,rate:Number(rate)||0,bonus:Number(bonus)||0}));
-  }catch(e){ toast("取得失敗:"+e.message); return []; } finally{ isFetching=false; }
+async function fetchRankingJSON() {
+  if (isFetching) return [];
+  try {
+    isFetching = true;
+    const url = new URL(GAS_URL);
+    url.searchParams.set("mode", "getRanking");
+    url.searchParams.set("secret", SECRET_KEY);
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const json = await res.json();
+    if (!json.ranking) throw new Error(json.error || "データなし");
+
+    return Object.entries(json.ranking).map(([playerId, [rate, bonus]]) => ({
+      playerId,
+      rate: Number(rate) || 0,
+      bonus: Number(bonus) || 0
+    }));
+  } catch (e) {
+    toast("ランキング取得失敗: " + e.message);
+    return [];
+  } finally {
+    isFetching = false;
+  }
 }
 
 async function refreshRanking() {
-  if (isFetching) return;
-  try {
-    isFetching = true;
-    const data = await fetchRankingJSON();
-    const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
-    lastProcessedRows = processRanking(filtered);
-    lastProcessedRows.forEach(player => assignTitles(player));
-    renderRankingTable(lastProcessedRows);
-    rankingHistory.push({ date:new Date().toISOString(), snapshot:lastProcessedRows.map(p=>({playerId:p.playerId,rate:p.rate,bonus:p.bonus})) });
-    saveRankingHistory();
-  } catch(e){ toast("ランキング更新に失敗しました: "+e.message); }
-  finally{ isFetching=false; }
+  const data = await fetchRankingJSON();
+  if (!data.length) return;
+
+  // 削除済みプレイヤー除外
+  const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
+
+  // ランキング処理
+  lastProcessedRows = processRanking(filtered);
+
+  // 称号付与
+  lastProcessedRows.forEach(player => assignTitles(player));
+
+  // 描画
+  renderRankingTable(lastProcessedRows);
+
+  // 履歴保存
+  rankingHistory.push({
+    date: new Date().toISOString(),
+    snapshot: lastProcessedRows.map(p => ({ playerId: p.playerId, rate: p.rate, bonus: p.bonus }))
+  });
+  saveRankingHistory();
+}
+
+// =========================
+// 自動更新制御
+// =========================
+function startAutoRefresh(intervalSec = AUTO_REFRESH_INTERVAL) {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(refreshRanking, intervalSec * 1000);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
 }
 
 /* =========================
