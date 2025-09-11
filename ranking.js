@@ -56,6 +56,7 @@ titleHistory = loadFromStorage(TITLE_HISTORY_KEY,[]);
 let titleFilter = "all"; // all / unlocked / locked
 let titleSearch = "";    // 検索文字列
 let chartInstance = null;
+let playerChartInstance = null;
 
 /* =========================
    Utility
@@ -282,17 +283,50 @@ function renderTitleFilterControls() {
    Chart.js 折れ線表示
 ========================= */
 function showPlayerChart(playerId){
-  const ctx=$("#playerChart").getContext("2d");
-  if(chartInstance){ chartInstance.destroy(); chartInstance=null; }
+  const modal = $("#chartModal");
+  if(!modal) return;
+  modal.querySelector(".modal-title").textContent = playerId;
+  modal.classList.remove("hidden");
 
-  const history=rankingHistory.filter(h=>h.playerId===playerId);
-  const labels=history.map(h=>new Date(h.date).toLocaleDateString());
-  const data=history.map(h=>h.rate);
+  const canvas = $("#playerChartCanvas");
+  if(!canvas) return;
 
-  chartInstance=new Chart(ctx,{
-    type:"line",
-    data:{labels, datasets:[{label:playerId, data, borderColor:"blue", backgroundColor:"rgba(0,0,255,0.1)"}]},
-    options:{responsive:true,plugins:{legend:{display:true}},scales:{y:{beginAtZero:false}}}
+  // 過去履歴を抽出
+  const historyData = rankingHistory.map(h => {
+    const p = h.snapshot.find(pl => pl.playerId === playerId);
+    return p ? { date: new Date(h.date), rate: p.rate, bonus: p.bonus } : null;
+  }).filter(x => x);
+
+  if(historyData.length === 0){
+    canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  const labels = historyData.map(h => h.date.toLocaleDateString());
+  const rates = historyData.map(h => h.rate);
+  const bonuses = historyData.map(h => h.bonus);
+
+  // 既存チャートを破棄
+  if(playerChartInstance) playerChartInstance.destroy();
+
+  playerChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '総合レート', data: rates, borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.1)', tension: 0.3 },
+        { label: '特別ポイント', data: bonuses, borderColor: 'green', backgroundColor: 'rgba(0,255,0,0.1)', tension: 0.3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      animation: { duration: window.innerWidth<768 ? 200 : 800 },
+      scales: {
+        y: { beginAtZero: true },
+        x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+      }
+    }
   });
 }
 
