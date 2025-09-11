@@ -176,22 +176,6 @@ th.admin-only, td.admin-only { display:none }
 .title-card strong{ font-size:1rem; display:block; margin-bottom:6px }
 .title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6) }
 .title-card::before{ content: "🏆"; position:absolute; top:10px; left:12px; font-size:1.4rem; opacity:0.9; transform:translateZ(0); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08)); }
-/* =========================
-   未取得称号の「？？？」演出
-========================= */
-.title-card.locked::after {
-  content: "？？？";           /* 表示する文字 */
-  position: absolute;         
-  top: 50%;                   
-  left: 50%;                  
-  transform: translate(-50%, -50%);
-  font-size: 1.2rem;         
-  font-weight: bold;          
-  color: #888;               
-  pointer-events: none;       /* クリック無効 */
-  opacity: 0.8;              
-  animation: pulse-lock 1.6s infinite alternate;
-}
 
 /* 徐々に光るパルスアニメーション */
 @keyframes pulse-lock {
