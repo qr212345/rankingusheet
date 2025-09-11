@@ -58,7 +58,6 @@ const assignedRandomTitles = new Set();
 let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
 let titleFilter = "all";
 let titleSearch = "";
-let autoRefreshTimer = null; // 自動更新タイマー
 let isFetching = false;      // フラグ二重取得防止
 
 /* =========================
@@ -407,27 +406,6 @@ function toggleAutoRefresh(enabled) {
   }
 }
 
-function attachEvents() {
-  // 既存のイベント登録に追加
-  const autoToggle = document.getElementById("autoRefreshToggle");
-  const secInput = document.getElementById("autoRefreshSec");
-
-  if (autoToggle) {
-    autoToggle.addEventListener("change", e => {
-      toggleAutoRefresh(e.target.checked);
-    });
-  }
-
-  if (secInput) {
-    secInput.addEventListener("input", () => {
-      // 自動更新ONの場合は間隔を更新
-      if (autoToggle && autoToggle.checked) {
-        toggleAutoRefresh(true); // 再設定
-      }
-    });
-  }
-}
-
 /* =========================
    管理者削除ボタン
 ========================= */
@@ -466,15 +444,54 @@ function showPlayerChart(playerId){
 /* =========================
    イベント登録
 ========================= */
-function attachEvents(){
-  $("#searchInput")?.addEventListener("input",debounce(e=>{const term=e.target.value.toLowerCase(); renderRankingTable(lastProcessedRows.filter(p=>p.playerId.toLowerCase().includes(term)));}));
-  $("#downloadCSVBtn")?.addEventListener("click",()=>downloadCSV());
-  $("#loadRankingBtn")?.addEventListener("click",()=>refreshRanking());
-  $("#adminToggleBtn")?.addEventListener("click",()=>{ const pwd=prompt("管理者パスワード"); setAdminMode(pwd===ADMIN_PASSWORD); });
-  $("#autoRefreshToggle")?.addEventListener("change",e=>{ if(e.target.checked){ const sec=$("#autoRefreshSec")?.value||30; autoRefreshTimer=setInterval(refreshRanking,sec*1000); } else clearInterval(autoRefreshTimer); });
-  $("#zoomInBtn")?.addEventListener("click",()=>{ fontSize+=2; $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
-  $("#zoomOutBtn")?.addEventListener("click",()=>{ fontSize=Math.max(10,fontSize-2); $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
-  $("#chartCloseBtn")?.addEventListener("click",()=>$("#chartModal")?.classList.add("hidden"));
+function attachEvents() {
+  // 検索
+  $("#searchInput")?.addEventListener("input", debounce(e => {
+    const term = e.target.value.toLowerCase();
+    renderRankingTable(lastProcessedRows.filter(p => p.playerId.toLowerCase().includes(term)));
+  }));
+
+  // CSVダウンロード
+  $("#downloadCSVBtn")?.addEventListener("click", downloadCSV);
+
+  // ランキング取得
+  $("#loadRankingBtn")?.addEventListener("click", refreshRanking);
+
+  // 管理者切替
+  $("#adminToggleBtn")?.addEventListener("click", () => {
+    const pwd = prompt("管理者パスワード");
+    setAdminMode(pwd === ADMIN_PASSWORD);
+  });
+
+  // 自動更新チェックボックス
+  const autoToggle = $("#autoRefreshToggle");
+  const secInput = $("#autoRefreshSec");
+
+  if (autoToggle) {
+    autoToggle.addEventListener("change", e => toggleAutoRefresh(e.target.checked));
+  }
+
+  if (secInput) {
+    secInput.addEventListener("input", () => {
+      // 自動更新ONの場合は間隔を再設定
+      if (autoToggle && autoToggle.checked) toggleAutoRefresh(true);
+    });
+  }
+
+  // 文字サイズ
+  $("#zoomInBtn")?.addEventListener("click", () => {
+    fontSize += 2;
+    $("#rankingTable").style.fontSize = fontSize + "px";
+    $("#zoomLevel").textContent = fontSize + "px";
+  });
+  $("#zoomOutBtn")?.addEventListener("click", () => {
+    fontSize = Math.max(10, fontSize - 2);
+    $("#rankingTable").style.fontSize = fontSize + "px";
+    $("#zoomLevel").textContent = fontSize + "px";
+  });
+
+  // チャートモーダル閉じる
+  $("#chartCloseBtn")?.addEventListener("click", () => $("#chartModal")?.classList.add("hidden"));
 }
 
 /* =========================
@@ -538,7 +555,6 @@ function init() {
   loadPlayerData();
   loadDeletedPlayers();
   loadRankingHistory();
-  attachEvents();
   dailyRandomCount = loadFromStorage("dailyRandomCount", {});
   loadTitleState();
 
