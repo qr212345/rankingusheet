@@ -377,52 +377,96 @@ function initTitleCatalog() {
 /* =========================
    称号図鑑描画
 ========================= */
-function renderTitleCatalog() {
-  const container = document.getElementById("titleCatalog");
-  if (!container) return;
-  container.innerHTML = "";
+document.addEventListener("DOMContentLoaded", () => {
+  const header = document.getElementById("titleCatalogHeader");
+  const content = document.getElementById("titleCatalogContent");
+  let isOpen = true;
+  content.style.maxHeight = content.scrollHeight + "px";
 
-  // カラム数：レスポンシブ対応（CSS grid で制御）
-  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
-  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-
-  ALL_TITLES.forEach(title => {
-    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
-
-    // フィルター
-    if ((titleFilter === "unlocked" && !unlocked) || 
-        (titleFilter === "locked" && unlocked)) return;
-    if (titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
-
-    // 最新取得日
-    const historyItems = titleHistory.filter(h => h.title === title.name);
-    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h=>new Date(h.date)))) : null;
-    const dateStr = latest ? latest.toLocaleDateString() : "";
-
-    // ランクアイコンやアニメーション分類をクラスに追加
-    const animationClass = getTitleAnimationClass(title.name);
-    const rankClass = title.name.includes("ババ") ? "title-medal" : "";
-
-    const div = document.createElement("div");
-    div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${animationClass} ${rankClass}`;
-
-    // 未取得は「？？？」表示、取得済みは通常表示
-    if (unlocked) {
-      div.innerHTML = `
-        <strong>${title.name}</strong>
-        <small>${title.desc}</small>
-        ${dateStr ? `<small>取得日: ${dateStr}</small>` : ""}
-      `;
+  // 開閉アニメーション
+  header.addEventListener("click", () => {
+    isOpen = !isOpen;
+    if (isOpen) {
+      content.style.maxHeight = content.scrollHeight + "px";
+      header.textContent = "🏅 称号図鑑 ▼";
     } else {
-      div.innerHTML = `
-        <strong>？？？</strong>
-        <small>？？？</small>
-      `;
+      content.style.maxHeight = "0";
+      header.textContent = "🏅 称号図鑑 ▶";
     }
-
-    container.appendChild(div);
   });
-}
+
+  // 検索とフィルター
+  const titleSearchInput = document.getElementById("titleSearchInput");
+  const filterButtons = document.querySelectorAll(".filter-buttons button");
+  window.titleFilter = "all";
+
+  function renderTitleCatalog() {
+    const container = document.getElementById("titleCatalog");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const titleSearch = titleSearchInput.value.toLowerCase();
+
+    // レスポンシブ列数
+    const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
+    container.style.display = "grid";
+    container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    container.style.gap = "6px";
+
+    ALL_TITLES.forEach(title => {
+      const unlocked = titleCatalog[title.name]?.unlocked ?? false;
+
+      // フィルター
+      if ((window.titleFilter === "unlocked" && !unlocked) ||
+          (window.titleFilter === "locked" && unlocked)) return;
+
+      // 検索
+      if (titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
+
+      // 最新取得日
+      const historyItems = titleHistory.filter(h => h.title === title.name);
+      const latest = historyItems.length
+        ? new Date(Math.max(...historyItems.map(h => new Date(h.date))))
+        : null;
+      const dateStr = latest ? latest.toLocaleDateString() : "";
+
+      // クラス設定
+      const animationClass = getTitleAnimationClass(title.name);
+      const rankClass = title.name.includes("ババ") ? "title-medal" : "";
+
+      const div = document.createElement("div");
+      div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${animationClass} ${rankClass}`;
+
+      if (unlocked) {
+        div.innerHTML = `
+          <strong>${title.name}</strong>
+          <small>${title.desc}</small>
+          ${dateStr ? `<small>取得日: ${dateStr}</small>` : ""}
+        `;
+      } else {
+        div.innerHTML = `
+          <strong>？？？</strong>
+          <small>？？？</small>
+        `;
+      }
+
+      container.appendChild(div);
+    });
+  }
+
+  // イベント
+  titleSearchInput.addEventListener("input", renderTitleCatalog);
+  filterButtons.forEach(btn => {
+    btn.addEventListener("click", e => {
+      window.titleFilter = e.target.dataset.filter;
+      renderTitleCatalog();
+    });
+  });
+
+  // ウィンドウリサイズで列数再計算
+  window.addEventListener("resize", renderTitleCatalog);
+});
+
 
 function initTitleCatalog() {
   const parent = document.getElementById("titleCatalog").parentElement;
@@ -535,10 +579,12 @@ function loadTitleState(){
 /* =========================
    初期化
 ========================= */
+function attachEvents(){ /* 検索・ダウンロード・管理者切替・自動更新・ズーム */ }
 function init(){
   loadPlayerData();
   loadDeletedPlayers();
   loadRankingHistory();
+  dailyRandomCount = loadFromStorage(STORAGE_KEYS.DAILY_RANDOM,{});
   loadTitleState();
   initTitleCatalog();
   attachEvents();
@@ -546,7 +592,7 @@ function init(){
   refreshRanking();
   toast("ランキングシステム初期化完了",1500);
 }
-window.addEventListener("DOMContentLoaded",init);
+window.addEventListener("DOMContentLoaded", init);
 
 /* =========================
    チャート描画
