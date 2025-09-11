@@ -58,6 +58,8 @@ let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
 let titleFilter = "all";
 let titleSearch = "";
 let isFetching = false;      // フラグ二重取得防止
+// state のところに追加
+let renderScheduled = false;
 
 /* =========================
    Utility
@@ -492,23 +494,6 @@ function attachEvents() {
   // チャートモーダル閉じる
   $("#chartCloseBtn")?.addEventListener("click", () => $("#chartModal")?.classList.add("hidden"));
 }
-
-  const header = document.getElementById("titleCatalogHeader");
-  const content = document.getElementById("titleCatalogContent");
-
-  if (header && content) {
-    header.addEventListener("click", () => {
-      const hidden = content.style.display === "none";
-
-      content.style.display = hidden ? "block" : "none";
-      header.textContent = hidden ? "🏅 称号図鑑 ▲" : "🏅 称号図鑑 ▼";
-    });
-
-    // 初期状態を非表示にしたい場合
-    content.style.display = "none";
-  }
-}
-
 /* =========================
    称号フィルター/検索UI
 ========================= */
@@ -530,39 +515,38 @@ function initTitleCatalog(){
 }
 
 function initTitleCatalogToggle() {
-  const wrapper = document.getElementById("titleCatalogWrapper");
   const header = document.getElementById("titleCatalogHeader");
   const content = document.getElementById("titleCatalogContent");
 
-  // localStorage で前回状態を保持
-  let isOpen = JSON.parse(localStorage.getItem("titleCatalogOpen") ?? "true");
+  if (!header || !content) return;
 
-  // 初期表示
-  setTimeout(() => {
-    content.style.maxHeight = isOpen ? content.scrollHeight + "px" : "0";
-    if (isOpen) content.classList.add("open");
-    header.textContent = isOpen ? "🏅 称号図鑑 ▼" : "🏅 称号図鑑 ▶";
-  }, 50);
+  // 初期設定
+  content.hidden = true;
+  header.setAttribute("aria-expanded", "false");
 
-  // クリックで開閉
+  // アイコン部分を動的に追加
+  if (!header.querySelector(".toggle-icon")) {
+    const icon = document.createElement("span");
+    icon.className = "toggle-icon";
+    icon.textContent = "▼";
+    icon.style.marginLeft = "6px";
+    header.appendChild(icon);
+  }
+
   header.addEventListener("click", () => {
-    isOpen = !isOpen;
-    if (isOpen) {
-      content.classList.add("open");
-      content.style.maxHeight = content.scrollHeight + "px";
-      header.textContent = "🏅 称号図鑑 ▼";
-    } else {
-      content.style.maxHeight = "0";
-      content.classList.remove("open");
-      header.textContent = "🏅 称号図鑑 ▶";
-    }
-    localStorage.setItem("titleCatalogOpen", JSON.stringify(isOpen));
-  });
+    const isHidden = content.hidden;
 
-  // ウィンドウリサイズ時に開いている場合は高さを更新
-  window.addEventListener("resize", () => {
-    if (isOpen) content.style.maxHeight = content.scrollHeight + "px";
-  });
+    // 表示切替
+    content.hidden = !isHidden;
+    header.setAttribute("aria-expanded", String(isHidden));
+
+    // アイコン切替
+    const icon = header.querySelector(".toggle-icon");
+    if (icon) icon.textContent = isHidden ? "▲" : "▼";
+
+    // アニメーション用クラス
+    content.classList.toggle("open", isHidden);
+  }, { once: false });
 }
 
 /* =========================
