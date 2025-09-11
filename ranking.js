@@ -332,7 +332,7 @@ function setDataLabelsForMobileTable(){
 /* =========================
    ランキング描画
 ========================= */
-ffunction renderRankingTable(data) {
+function renderRankingTable(data) {
   const tbody = document.querySelector("#rankingTable tbody");
   if (!tbody) return;
 
