@@ -229,10 +229,11 @@ function updateTitleCatalog(title){
 }
 
 function renderTitleCatalog() {
-  const container = $("#titleCatalog");
+  const container = document.querySelector("#titleCatalog");
   if (!container) return;
   container.innerHTML = "";
 
+  // カラム数調整
   const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
   container.style.display = "grid";
   container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
@@ -241,6 +242,7 @@ function renderTitleCatalog() {
   ALL_TITLES.forEach(title => {
     const unlocked = titleCatalog[title.name]?.unlocked ?? false;
 
+    // フィルター処理
     if (titleFilter === "unlocked" && !unlocked) return;
     if (titleFilter === "locked" && unlocked) return;
     if (titleSearch && !title.name.toLowerCase().includes(titleSearch.toLowerCase())) return;
@@ -250,7 +252,7 @@ function renderTitleCatalog() {
       ? new Date(historyEntries[historyEntries.length - 1].date).toLocaleDateString()
       : "";
 
-    // アイコンと色分け
+    // アイコン＆色分け
     let icon = "🏅";
     let colorClass = "bg-gray-200 text-gray-700";
     if (unlocked) {
@@ -267,20 +269,24 @@ function renderTitleCatalog() {
     div.className = `
       title-card p-5 rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center
       transform transition-transform duration-300 hover:scale-105 hover:shadow-3xl ${colorClass}
+      ${unlocked ? "unlocked" : ""}
     `;
 
-    // 3D回転マウスエフェクト
-    div.style.transformStyle = "preserve-3d";
-    div.addEventListener("mousemove", e => {
-      const rect = div.getBoundingClientRect();
-      const x = e.clientX - rect.left - rect.width / 2;
-      const y = e.clientY - rect.top - rect.height / 2;
-      div.style.transform = `rotateY(${x / 15}deg) rotateX(${-y / 15}deg) scale(1.05)`;
-    });
-    div.addEventListener("mouseleave", () => {
-      div.style.transform = "rotateY(0deg) rotateX(0deg) scale(1)";
-    });
+    // 3Dマウスエフェクト（PCのみ）
+    if (window.innerWidth >= 1024) {
+      div.style.transformStyle = "preserve-3d";
+      div.addEventListener("mousemove", e => {
+        const rect = div.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        div.style.transform = `rotateY(${x / 15}deg) rotateX(${-y / 15}deg) scale(1.05)`;
+      });
+      div.addEventListener("mouseleave", () => {
+        div.style.transform = "rotateY(0deg) rotateX(0deg) scale(1)";
+      });
+    }
 
+    // HTML内容
     div.innerHTML = `
       <div class="text-4xl mb-3 animate-bounce">${icon}</div>
       <strong class="text-xl mb-2 font-bold">${title.name}</strong>
