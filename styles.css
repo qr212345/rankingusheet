@@ -100,19 +100,31 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 ========================= */
 #titleCatalog {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-top: 16px;
-  padding: 8px;
+  gap: 20px; /* カード間の余白 */
+  margin-top: 20px;
+  padding: 12px;
 }
 
+/* 列数固定・レスポンシブ */
+@media (min-width: 1200px) {
+  #titleCatalog { grid-template-columns: repeat(5, 1fr); } /* PC：5列 */
+}
+@media (min-width: 768px) and (max-width: 1199px) {
+  #titleCatalog { grid-template-columns: repeat(4, 1fr); } /* タブレット：4列 */
+}
+@media (max-width: 767px) {
+  #titleCatalog { grid-template-columns: repeat(3, 1fr); } /* スマホ：3列 */
+}
+
+/* カード本体 */
 .title-card {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 24px;
-  border-radius: 20px;
+  aspect-ratio: 1/1; /* 正方形 */
+  padding: 28px;
+  border-radius: 22px;
   text-align: center;
   font-size: 18px;
   border: 2px solid #ccc;
@@ -121,16 +133,20 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-height: 160px;
+  min-height: 180px;
+  box-sizing: border-box;
+  user-select: none;
 }
 
+* 取得済カード */
 .title-card.unlocked {
   border-color: #27ae60;
   background: linear-gradient(145deg, #eafaf1, #d0f0e0);
-  box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+  box-shadow: 0 8px 20px rgba(39,174,96,0.4);
   animation: glowPulse 2s ease-in-out infinite alternate;
 }
 
+/* 未取得カード */
 .title-card.locked {
   border-color: #7f8c8d;
   background: linear-gradient(145deg, #e0e0e0, #cfcfcf);
@@ -138,27 +154,25 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   opacity: 0.5;
 }
 
+/* ホバー時 */
 .title-card:hover {
-  transform: scale(1.08);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  transform: scale(1.08) rotate(-1deg);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
 }
 
+/* タイトル・説明文字 */
 .title-card strong {
-  font-size: 20px;
+  font-size: 22px;
   margin-bottom: 6px;
   display: block;
 }
-
 .title-card small {
   font-size: 16px;
   color: #555;
   display: block;
   margin-top: 4px;
 }
-
-.title-card.unlocked small {
-  color: #333;
-}
+.title-card.unlocked small { color: #333; }
 
 /* =========================
    獲得エフェクトアニメーション
@@ -166,9 +180,8 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 .title-card.gain {
   animation: titleGain 1s ease forwards;
 }
-
 @keyframes titleGain {
-  0%   { transform: scale(1) rotate(0deg); box-shadow:0 6px 18px rgba(0,0,0,0.3); }
+  0%   { transform: scale(1) rotate(0deg); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
   25%  { transform: scale(1.25) rotate(-12deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
   50%  { transform: scale(1.35) rotate(12deg); box-shadow:0 18px 32px rgba(39,174,96,0.9); }
   75%  { transform: scale(1.25) rotate(-6deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
@@ -203,40 +216,37 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   animation-name: particleMove;
   animation-timing-function: ease-out;
 }
-
 @keyframes particleMove {
   0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-220px) scale(0.4); }
+  100% { opacity: 0; transform: translateY(-250px) scale(0.4); }
 }
 
 /* =========================
    レスポンシブ
 ========================= */
-@media(max-width:768px){
+/* =========================
+   レスポンシブ統合
+========================= */
+
+/* PC: 5列 */
+@media(min-width:1200px){
+  #titleCatalog { grid-template-columns: repeat(5, 1fr); gap:20px; }
+}
+
+/* タブレット: 4列 */
+@media(min-width:768px) and (max-width:1199px){
+  #titleCatalog { grid-template-columns: repeat(4, 1fr); gap:16px; }
+}
+
+/* スマホ: 3列 */
+@media(max-width:767px){
   body { font-size:14px; }
-  .title-card { padding:12px; font-size:14px; }
   #rankingTable th, #rankingTable td { padding:6px; font-size:14px; }
   .grid-container { flex-direction:column; }
   .sidebar { min-width:100%; }
-}
 
-@media (max-width: 1024px) {
-  #titleCatalog {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
-  }
-}
-
-@media (max-width: 768px) {
-  #titleCatalog {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-  }
-  .title-card {
-    padding: 18px;
-    min-height: 140px;
-    font-size: 16px;
-  }
-  .title-card strong { font-size: 18px; }
-  .title-card small { font-size: 14px; }
+  #titleCatalog { grid-template-columns: repeat(3, 1fr); gap:12px; }
+  .title-card { padding:16px; font-size:16px; min-height:150px; }
+  .title-card strong { font-size:18px; }
+  .title-card small { font-size:14px; }
 }
