@@ -286,7 +286,22 @@ function createParticles(target){
    ランキング処理
 ========================= */
 function processRanking(data){
-  data.forEach(p=>{ const prev=playerData.get(p.playerId)||{}; p.prevRate=prev.rate??p.rate; p.prevRank=prev.lastRank??0; p.prevRateRank=prev.prevRateRank??0; p.bonus=prev.bonus??p.bonus??0; });
+  data.forEach(p => {
+    const prev = playerData.get(p.playerId) || {};
+    p.prevRate = prev.rate ?? p.rate;        // 前回レート
+    p.prevRank = prev.lastRank ?? 0;        // 前回順位
+    p.prevRateRank = prev.prevRateRank ?? 0;
+
+    // rateGain 計算
+    p.rateGain = p.rate - p.prevRate;
+
+    // 特別ポイントを変更
+    if (p.rateGain === 0) {
+      p.bonus = p.rate; // 獲得レートそのまま
+    } else {
+      p.bonus = prev.bonus ?? p.bonus ?? 0; // それ以外は従来通り
+    }
+  });
   data.forEach(p=>p.rateGain=p.rate-p.prevRate);
   data.sort((a,b)=>b.rate-a.rate);
   let rank=1;
