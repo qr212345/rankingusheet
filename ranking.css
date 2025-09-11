@@ -9,38 +9,36 @@
 }
 
 /* =========================
-   表本体
+   ランキング表
 ========================= */
 #rankingTable {
-  width: 95%;
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   border-collapse: collapse;
-  font-size: 1.05rem;
+  font-size: 1rem;
   background: #fff;
   box-shadow: 0 0 15px rgba(0,0,0,0.12);
   min-width: 600px;
 }
 
 #rankingTable thead th {
-  background: linear-gradient(135deg, #333, #111);
-  color: #fff;
-  padding: 12px 14px;
-  letter-spacing: 0.5px;
-  font-weight: 700;
-  border: 2px solid #444;
-  text-align: center;
   position: sticky;
   top: 0;
-  z-index: 2;
+  background: linear-gradient(135deg, #333, #111);
+  color: #fff;
+  z-index: 10;
+  padding: 12px;
+  border: 2px solid #444;
+  text-align: center;
   box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3);
 }
 
 #rankingTable tbody td {
-  border: 1px solid #ccc;
   padding: 10px 14px;
   text-align: center;
   vertical-align: middle;
+  border: 1px solid #ccc;
   white-space: nowrap;
 }
 
@@ -54,23 +52,6 @@
   cursor: pointer;
 }
 
-/* CSS */
-#rankingTableWrapper { 
-  overflow-x: auto; 
-  max-width: 100%; 
-}
-#rankingTable thead th {
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 10;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-}
-#rankingTable tbody tr:hover { 
-  background: #f0f8ff; 
-  cursor: pointer; 
-}
-
 /* =========================
    上位3位強調
 ========================= */
@@ -79,7 +60,7 @@ tr.rank-2 td { background-color: silver !important; color: #000; font-weight: bo
 tr.rank-3 td { background-color: #cd7f32 !important; color: #000; font-weight: bold; }
 
 /* =========================
-   増減の視覚強調（矢印＋アニメ） 
+   増減矢印
 ========================= */
 .gain-up {
   background: linear-gradient(90deg, #e6ffed 0%, #c8ffd3 100%);
@@ -94,7 +75,6 @@ tr.rank-3 td { background-color: #cd7f32 !important; color: #000; font-weight: b
   color: green;
   animation: up-bounce 1s infinite alternate;
 }
-@keyframes up-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(-4px);} }
 
 .gain-down {
   background: linear-gradient(90deg, #ffecec 0%, #ffc9c9 100%);
@@ -109,18 +89,21 @@ tr.rank-3 td { background-color: #cd7f32 !important; color: #000; font-weight: b
   color: red;
   animation: down-bounce 1s infinite alternate;
 }
+
+@keyframes up-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(-4px);} }
 @keyframes down-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(4px);} }
 
 /* =========================
-   表彰台（3D＋アニメ） 
+   表彰台
 ========================= */
 #podium {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 1.5rem;
+  gap: 1rem;
   margin: 2rem 0;
   perspective: 800px;
+  overflow-x: auto;
 }
 
 .podium-player {
@@ -143,49 +126,77 @@ tr.rank-3 td { background-color: #cd7f32 !important; color: #000; font-weight: b
 .second { background: silver; height: 140px; }
 .third { background: #cd7f32; height: 120px; }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
 /* =========================
-   称号アニメーション（光沢＋揺れ＋炎） 
+   称号ポップアップ
 ========================= */
-.title-thunder {
-  animation: thunder-glow 1s infinite alternate;
-  color: gold;
-  text-shadow: 0 0 5px yellow, 0 0 15px orange;
+.title-popup {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  background: #fff;
+  color: #000;
+  padding: 1.2rem 2rem;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 1.4rem;
+  z-index: 9999;
+  text-align: center;
+  opacity: 0;
+  transition: all 0.6s cubic-bezier(.68,-0.55,.27,1.55);
+  box-shadow: 0 0 20px rgba(255,255,255,0.7), 0 0 40px rgba(255,255,0,0.5);
 }
-@keyframes thunder-glow {
-  0% { text-shadow: 0 0 5px yellow, 0 0 15px orange; }
-  50% { text-shadow: 0 0 20px white, 0 0 40px yellow; }
-  100% { text-shadow: 0 0 5px yellow, 0 0 15px orange; }
+.title-popup.show {
+  transform: translate(-50%, -50%) scale(1.2);
+  opacity: 1;
 }
 
-.title-wind {
-  animation: wind-sway 2s infinite linear;
-  background: linear-gradient(to right, #00f, #0ff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-@keyframes wind-sway {
-  0%,100% { transform: translateX(0) rotate(-1deg); }
-  50% { transform: translateX(3px) rotate(1deg); }
-}
+/* ===== アニメーションタイプ ===== */
+.title-medal{ animation: glow 1s infinite alternate; color: gold; text-shadow: 0 0 10px yellow, 0 0 20px orange; }
+.title-explosion{ animation: popup-scale 0.8s ease-out, shake 0.6s 0.1s; }
+.title-lucky{ animation: popup-scale 0.8s ease-out, sparkle 1s infinite; }
+.title-fire{ animation: popup-scale 0.8s ease-out, fire-flicker 0.8s infinite; }
+.title-generic{ animation: popup-scale 0.8s ease-out; }
 
-.title-fire {
-  animation: fire-flicker 1s infinite;
-  color: orangered;
-  text-shadow: 0 0 10px orangered, 0 0 20px orange, 0 0 30px yellow;
+/* =========================
+   パーティクル
+========================= */
+.particle-container {
+  position: fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+  pointer-events:none;
+  z-index:9998;
 }
-@keyframes fire-flicker {
-  0% { text-shadow: 0 0 10px orangered, 0 0 20px orange; transform: scale(1); }
-  50% { text-shadow: 0 0 15px red, 0 0 30px orange; transform: scale(1.05) rotate(-1deg); }
-  100% { text-shadow: 0 0 10px orangered, 0 0 20px orange; transform: scale(1); }
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0.9;
+  will-change: transform;
+  animation: particle-float linear infinite;
+}
+@keyframes particle-float {
+  0%{transform:translateY(0) scale(1);opacity:1;}
+  100%{transform:translateY(-120vh) scale(0.5);opacity:0;}
 }
 
 /* =========================
-   ボタン（グラデ＋シャドウ＋ホバー） 
+   共通キーフレーム
+========================= */
+@keyframes glow { 0%{text-shadow:0 0 5px gold;} 50%{text-shadow:0 0 20px yellow;} 100%{text-shadow:0 0 5px gold;} }
+@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
+@keyframes sparkle { 0%,100%{ text-shadow: 0 0 10px gold, 0 0 20px yellow;} 50%{ text-shadow: 0 0 20px white, 0 0 40px yellow;} }
+@keyframes fire-flicker {0%,100%{transform:scale(1);} 50%{transform:scale(1.1) rotate(-2deg);} }
+@keyframes popup-scale {0%{transform:translate(-50%,-50%) scale(0);}50%{transform:translate(-50%,-50%) scale(1.3);}100%{transform:translate(-50%,-50%) scale(1.2);} }
+@keyframes up-bounce {0%{transform:translateY(-50%) translateY(0);}100%{transform:translateY(-50%) translateY(-4px);}}
+@keyframes down-bounce {0%{transform:translateY(-50%) translateY(0);}100%{transform:translateY(-50%) translateY(4px);}}
+
+/* =========================
+   ボタン
 ========================= */
 button {
   font-size: 1em;
@@ -200,28 +211,17 @@ button {
   transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
   user-select: none;
 }
-button:hover, button:focus {
-  background: linear-gradient(135deg, #357ABD, #2a5c9e);
-  box-shadow: 0 5px 10px rgba(0,0,0,0.25);
-}
+button:hover, button:focus { background: linear-gradient(135deg, #357ABD, #2a5c9e); box-shadow: 0 5px 10px rgba(0,0,0,0.25); }
 button:active { transform: translateY(2px); }
-button:disabled { background: #ccc; color: #666; cursor: default; }
-
-/* =========================
-   拡大モーダル 
-========================= */
-.expand-overlay { display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 9999; overflow: auto; animation: fadeIn 0.3s; }
-.expanded-container { max-width: 90%; margin: 5% auto; background: white; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3); animation: zoomIn 0.3s; }
-.close-btn { position: fixed; top: 1rem; right: 1rem; background: #ff5c5c; border: none; color: white; font-size: 1.5rem; padding: 0.3rem 0.6rem; cursor: pointer; border-radius: 0.25rem; z-index: 10000; }
-@keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
-@keyframes zoomIn { from {transform: scale(0.9);} to {transform: scale(1);} }
+button:disabled { background:#ccc;color:#666;cursor:default; }
 
 /* =========================
    レスポンシブ対応
 ========================= */
-@media (max-width: 768px) {
-  #rankingTable { font-size: 0.9rem; min-width: auto; }
-  .podium-player { font-size: 1.2em; min-width: 120px; flex: 0 0 auto; }
-  #podium { gap: 0.5rem; overflow-x: auto; padding-bottom: 1rem; }
-  button { font-size: 0.85em; padding: 0.4em 0.8em; }
+@media (max-width:768px){
+  #rankingTable{font-size:0.9rem; min-width:auto;}
+  .podium-player{font-size:1.2em; min-width:120px;}
+  #podium{gap:0.5rem;overflow-x:auto;padding-bottom:1rem;}
+  button{font-size:0.85em;padding:0.4em 0.8em;}
+  .title-popup{font-size:1.1rem;padding:0.8rem 1.5rem;}
 }
