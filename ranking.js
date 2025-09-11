@@ -593,3 +593,4 @@ function setAdminMode(enabled) {
    DOMContentLoaded で初期化
 ========================= */
 window.addEventListener("DOMContentLoaded", init);
+も、修正して
