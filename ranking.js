@@ -1,7 +1,7 @@
 "use strict";
 
 /* =========================
-   設定
+   設定・定数
 ========================= */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxnqDdZJPE0BPN5TRpqR49ejScQKyKADygXzw5tcp6RdCauKbeTfeQTWpP6WAKYK7Ue/exec";
 const ADMIN_PASSWORD = "babanuki123";
@@ -9,13 +9,12 @@ const STORAGE_KEY = "rankingPlayerData_v3";
 const DELETED_KEY = "rankingDeletedPlayers";
 const HISTORY_KEY = "rankingHistory_v3";
 const TITLE_HISTORY_KEY = "titleHistory_v3";
+const SECRET_KEY = "your-secret-key";
+const AUTO_REFRESH_INTERVAL = 30;
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
 const RANDOM_TITLE_PROB = { "ミラクルババ":0.05, "ラッキーババ":0.10 };
 const RANDOM_TITLE_DAILY_LIMIT = 5;
-
-const SECRET_KEY = "your-secret-key";
-const AUTO_REFRESH_INTERVAL = 30; // 秒
 
 const ALL_TITLES = [
   {name:"キングババ", desc:"1位獲得！"},
@@ -54,10 +53,11 @@ let autoRefreshTimer = null;
 let fontSize = 14;
 const titleCatalog = {};
 const assignedRandomTitles = new Set();
-let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
+let dailyRandomCount = {};
 let titleFilter = "all";
 let titleSearch = "";
-let isFetching = false;      // フラグ二重取得防止
+let isFetching = false;
+let renderScheduled = false;
 
 /* =========================
    Utility
@@ -74,22 +74,23 @@ function escapeCSV(s){return `"${String(s).replace(/"/g,'""')}"`;}
 ========================= */
 function loadFromStorage(key,fallback){ try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback;}catch(e){return fallback;} }
 function saveToStorage(key,value){ try{ localStorage.setItem(key,JSON.stringify(value)); }catch(e){}}
-function loadPlayerData(){ const raw=loadFromStorage(STORAGE_KEY,null); if(raw) playerData=new Map(raw);}
-function savePlayerData(){ saveToStorage(STORAGE_KEY,Array.from(playerData.entries()));}
-function loadDeletedPlayers(){ deletedPlayers=new Set(loadFromStorage(DELETED_KEY,[]));}
-function saveDeletedPlayers(){ saveToStorage(DELETED_KEY,Array.from(deletedPlayers));}
-function loadRankingHistory(){ rankingHistory=loadFromStorage(HISTORY_KEY,[]);}
-function saveRankingHistory(){ saveToStorage(HISTORY_KEY,rankingHistory);}
-function saveTitleHistory(){ saveToStorage(TITLE_HISTORY_KEY,titleHistory);}
-function saveTitleState(){ saveToStorage("titleFilter", titleFilter); saveToStorage("titleSearch", titleSearch);}
-function loadTitleState(){ titleFilter = loadFromStorage("titleFilter", "all"); titleSearch = loadFromStorage("titleSearch", "");}
+function loadPlayerData(){ const raw=loadFromStorage(STORAGE_KEY,null); if(raw) playerData=new Map(raw); }
+function savePlayerData(){ saveToStorage(STORAGE_KEY,Array.from(playerData.entries())); }
+function loadDeletedPlayers(){ deletedPlayers=new Set(loadFromStorage(DELETED_KEY,[])); }
+function saveDeletedPlayers(){ saveToStorage(DELETED_KEY,Array.from(deletedPlayers)); }
+function loadRankingHistory(){ rankingHistory=loadFromStorage(HISTORY_KEY,[]); }
+function saveRankingHistory(){ saveToStorage(HISTORY_KEY,rankingHistory); }
+function saveTitleHistory(){ saveToStorage(TITLE_HISTORY_KEY,titleHistory); }
+function saveTitleState(){ saveToStorage("titleFilter", titleFilter); saveToStorage("titleSearch", titleSearch); }
+function loadTitleState(){ titleFilter = loadFromStorage("titleFilter", "all"); titleSearch = loadFromStorage("titleSearch", ""); }
 
 /* =========================
    管理者モード
 ========================= */
 function setAdminMode(enabled){
-  isAdmin=Boolean(enabled);
-  $$("th.admin-only,td.admin-only").forEach(el=>el.style.display=isAdmin?"table-cell":"none");
+  isAdmin = Boolean(enabled);
+  $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin?"table-cell":"none");
+  localStorage.setItem("isAdmin", JSON.stringify(isAdmin));
 }
 
 /* =========================
@@ -109,7 +110,7 @@ function registerRandomAssign(playerId){
 }
 
 /* =========================
-   称号ポップアップ・アニメーション
+   称号ポップアップ・アニメ
 ========================= */
 const TITLE_SOUNDS = {
   "キングババ":"sounds/gold.mp3","シルバーババ":"sounds/silver.mp3","ブロンズババ":"sounds/bronze.mp3",
@@ -225,23 +226,19 @@ function assignTitles(player){
 /* =========================
    称号カタログ描画
 ========================= */
-
 function updateTitleCatalog(title){
   if(!titleCatalog[title.name]) titleCatalog[title.name]={unlocked:true,desc:title.desc};
   else titleCatalog[title.name].unlocked=true;
-  // 描画をまとめてスケジュール
   scheduleRenderTitleCatalog();
 }
-
 function scheduleRenderTitleCatalog(){
   if(renderScheduled) return;
-  renderScheduled = true;
+  renderScheduled=true;
   requestAnimationFrame(()=>{
     renderTitleCatalog();
-    renderScheduled = false;
+    renderScheduled=false;
   });
 }
-
 function renderTitleCatalog(){
   const container=$("#titleCatalog"); if(!container) return;
   container.innerHTML="";
@@ -278,13 +275,13 @@ function processRanking(data){
     p.rankChange=(p.prevRank??p.rank)-p.rank;
     p.rateRankChange=(p.prevRateRank??p.rateRank)-p.rateRank;
   });
-  data.forEach(p=>playerData.set(p.playerId,{rate:p.rate,lastRank:p.rank,prevRateRank:p.rateRank,bonus:p.bonus,titles:p.titles||[]}));
+  data.forEach(p=>playerData.set(p.playerId,{rate:p.rate,lastRank:p.rank,prevRateRank:p.rateRank,bonus:p.bonus,titles:p.titles||[]})); 
   savePlayerData();
   return data.map(p=>({...p,gain:p.rateGain>=0?`+${p.rateGain}`:p.rateGain,rankChangeStr:fmtChange(p.rankChange),rateRankChangeStr:fmtChange(p.rateRankChange)}));
 }
 
 /* =========================
-   ランキングテーブル描画
+   ランキング描画
 ========================= */
 function renderRankingTable(data){
   const tbody=$("#rankingTable tbody"); if(!tbody) return;
@@ -295,17 +292,7 @@ function renderRankingTable(data){
     if(p.rank<=3) tr.classList.add(`rank-${p.rank}`);
     if(p.rateGain>0) tr.classList.add("gain-up");
     else if(p.rateGain<0) tr.classList.add("gain-down");
-    tr.innerHTML=`
-      <td>${p.rank}</td>
-      <td>${p.playerId}</td>
-      <td>${p.rate}</td>
-      <td>${p.gain}</td>
-      <td>${p.bonus}</td>
-      <td>${p.rankChangeStr}</td>
-      <td>${p.prevRank??'—'}</td>
-      <td class="${p.rank<=3?'title-podium':''}">${p.title||''}</td>
-      <td class="admin-only"><button data-playerid="${p.playerId}">削除</button></td>
-    `;
+    tr.innerHTML=`<td>${p.rank}</td><td>${p.playerId}</td><td>${p.rate}</td><td>${p.gain}</td><td>${p.bonus}</td><td>${p.rankChangeStr}</td><td>${p.prevRank??'—'}</td><td class="${p.rank<=3?'title-podium':''}">${p.title||''}</td><td class="admin-only"><button data-playerid="${p.playerId}">削除</button></td>`;
     tr.addEventListener("click",e=>{if(!e.target.closest("button")) showPlayerChart(p.playerId)});
     frag.appendChild(tr);
   });
@@ -357,52 +344,28 @@ async function refreshRanking() {
   const data = await fetchRankingJSON();
   if (!data.length) return;
 
-  // 削除済みプレイヤー除外
   const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
-
-  // ランキング処理
   lastProcessedRows = processRanking(filtered);
-
-  // 称号付与
   lastProcessedRows.forEach(player => assignTitles(player));
-
-  // 描画
   renderRankingTable(lastProcessedRows);
-
-  // 履歴保存
-  rankingHistory.push({
-    date: new Date().toISOString(),
-    snapshot: lastProcessedRows.map(p => ({ playerId: p.playerId, rate: p.rate, bonus: p.bonus }))
-  });
+  rankingHistory.push({date: new Date().toISOString(), snapshot: lastProcessedRows.map(p => ({playerId: p.playerId, rate: p.rate, bonus: p.bonus}))});
   saveRankingHistory();
 }
 
-// =========================
-// 自動更新制御
-// =========================
-function startAutoRefresh(intervalSec = AUTO_REFRESH_INTERVAL) {
-  stopAutoRefresh();
-  autoRefreshTimer = setInterval(refreshRanking, intervalSec * 1000);
-}
-
-function stopAutoRefresh() {
-  if (autoRefreshTimer) {
-    clearInterval(autoRefreshTimer);
-    autoRefreshTimer = null;
-  }
-}
-
-function toggleAutoRefresh(enabled) {
+/* =========================
+   自動更新制御
+========================= */
+function startAutoRefresh(intervalSec = AUTO_REFRESH_INTERVAL){ stopAutoRefresh(); autoRefreshTimer=setInterval(refreshRanking, intervalSec*1000); }
+function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; } }
+function toggleAutoRefresh(enabled){
   clearInterval(autoRefreshTimer);
-  if (enabled) {
-    const secInput = document.getElementById("autoRefreshSec");
-    let intervalSec = parseInt(secInput.value, 10);
-    if (isNaN(intervalSec) || intervalSec < 5) intervalSec = 5; // 最低5秒
-    autoRefreshTimer = setInterval(refreshRanking, intervalSec * 1000);
-    toast(`自動更新ON（${intervalSec}秒間隔）`, 1500);
-  } else {
-    toast("自動更新OFF", 1500);
-  }
+  if(enabled){
+    const secInput=$("#autoRefreshSec");
+    let intervalSec = parseInt(secInput.value,10);
+    if(isNaN(intervalSec)||intervalSec<5) intervalSec=5;
+    autoRefreshTimer=setInterval(refreshRanking, intervalSec*1000);
+    toast(`自動更新ON（${intervalSec}秒間隔）`,1500);
+  }else{ toast("自動更新OFF",1500); }
 }
 
 /* =========================
@@ -416,7 +379,7 @@ function attachDeleteButtons(){
       if(confirm(`本当に ${pid} を削除しますか？`)){
         deletedPlayers.add(pid);
         saveDeletedPlayers();
-        lastProcessedRows = lastProcessedRows.filter(p=>p.playerId!==pid);
+        lastProcessedRows=lastProcessedRows.filter(p=>p.playerId!==pid);
         renderRankingTable(lastProcessedRows);
         toast(`${pid} を削除しました`);
       }
@@ -436,158 +399,53 @@ function showPlayerChart(playerId){
   const rates=history.map(h=>h.rate);
   if(canvas.chartInstance) canvas.chartInstance.destroy();
   canvas.chartInstance=new Chart(canvas,{type:'line',data:{labels,datasets:[{label:playerId+' のレート推移',data:rates,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',tension:0.3,fill:true,pointRadius:3} ] }, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true},tooltip:{mode:'index',intersect:false}}, scales:{x:{display:true,title:{display:true,text:'日付'}},y:{display:true,title:{display:true,text:'レート'},beginAtZero:false}} }});
-  canvas.parentElement.style.overflowX = window.innerWidth < 768?"scroll":"visible";
+  canvas.parentElement.style.overflowX = window.innerWidth<768?"scroll":"visible";
   modal.classList.remove("hidden");
 }
 
 /* =========================
    イベント登録
 ========================= */
-function attachEvents() {
-  // 検索
-  $("#searchInput")?.addEventListener("input", debounce(e => {
-    const term = e.target.value.toLowerCase();
-    renderRankingTable(lastProcessedRows.filter(p => p.playerId.toLowerCase().includes(term)));
-  }));
-
-  // CSVダウンロード
+function attachEvents(){
+  $("#searchInput")?.addEventListener("input", debounce(e => { const term=e.target.value.toLowerCase(); renderRankingTable(lastProcessedRows.filter(p => p.playerId.toLowerCase().includes(term))); }));
   $("#downloadCSVBtn")?.addEventListener("click", downloadCSV);
-
-  // ランキング取得
   $("#loadRankingBtn")?.addEventListener("click", refreshRanking);
-
-  // 管理者切替
-  $("#adminToggleBtn")?.addEventListener("click", () => {
-    const pwd = prompt("管理者パスワード");
-    setAdminMode(pwd === ADMIN_PASSWORD);
-  });
-
-  // 自動更新チェックボックス
-  const autoToggle = $("#autoRefreshToggle");
-  const secInput = $("#autoRefreshSec");
-
-  if (autoToggle) {
-    autoToggle.addEventListener("change", e => toggleAutoRefresh(e.target.checked));
-  }
-
-  if (secInput) {
-    secInput.addEventListener("input", () => {
-      // 自動更新ONの場合は間隔を再設定
-      if (autoToggle && autoToggle.checked) toggleAutoRefresh(true);
-    });
-  }
-
-  // 文字サイズ
-  $("#zoomInBtn")?.addEventListener("click", () => {
-    fontSize += 2;
-    $("#rankingTable").style.fontSize = fontSize + "px";
-    $("#zoomLevel").textContent = fontSize + "px";
-  });
-  $("#zoomOutBtn")?.addEventListener("click", () => {
-    fontSize = Math.max(10, fontSize - 2);
-    $("#rankingTable").style.fontSize = fontSize + "px";
-    $("#zoomLevel").textContent = fontSize + "px";
-  });
-
-  // チャートモーダル閉じる
-  $("#chartCloseBtn")?.addEventListener("click", () => $("#chartModal")?.classList.add("hidden"));
+  $("#adminToggleBtn")?.addEventListener("click",()=>{ const pwd=prompt("管理者パスワード"); setAdminMode(pwd===ADMIN_PASSWORD); });
+  const autoToggle=$("#autoRefreshToggle"), secInput=$("#autoRefreshSec");
+  if(autoToggle) autoToggle.addEventListener("change", e=>toggleAutoRefresh(e.target.checked));
+  if(secInput) secInput.addEventListener("input", ()=>{ if(autoToggle && autoToggle.checked) toggleAutoRefresh(true); });
+  $("#zoomInBtn")?.addEventListener("click",()=>{ fontSize+=2; $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
+  $("#zoomOutBtn")?.addEventListener("click",()=>{ fontSize=Math.max(10,fontSize-2); $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
+  $("#chartCloseBtn")?.addEventListener("click",()=>$("#chartModal")?.classList.add("hidden"));
 }
+
 /* =========================
    称号フィルター/検索UI
 ========================= */
-function renderTitleFilterControls() {
+function renderTitleFilterControls(){
   const container = document.getElementById("titleCatalogControls"); if(!container) return;
-  container.innerHTML = `<input type="text" id="titleSearchInput" placeholder="称号名で検索"><div><button class="filter-btn" data-filter="all">全て</button><button class="filter-btn" data-filter="unlocked">取得済み</button><button class="filter-btn" data-filter="locked">未取得</button></div>`;
+  container.innerHTML=`<input type="text" id="titleSearchInput" placeholder="称号名で検索"><div><button class="filter-btn" data-filter="all">全て</button><button class="filter-btn" data-filter="unlocked">取得済み</button><button class="filter-btn" data-filter="locked">未取得</button></div>`;
   container.querySelectorAll(".filter-btn").forEach(btn=>btn.addEventListener("click",e=>{ titleFilter=e.target.dataset.filter; saveTitleState(); renderTitleCatalog(); }));
   document.getElementById("titleSearchInput")?.addEventListener("input",debounce(e=>{ titleSearch=e.target.value.toLowerCase(); saveTitleState(); renderTitleCatalog(); },200));
 }
-
-function initTitleCatalog(){
-  const parent = document.getElementById("titleCatalog").parentElement;
-  const controls = document.createElement("div"); controls.id="titleCatalogControls"; controls.className="mb-2";
-  parent.insertBefore(controls, document.getElementById("titleCatalog"));
-  loadTitleState();
-  renderTitleFilterControls();
-  renderTitleCatalog();
-  window.addEventListener("resize", renderTitleCatalog);
-}
-
-function initTitleCatalogToggle() {
-  const header = document.getElementById("titleCatalogHeader");
-  const content = document.getElementById("titleCatalogContent");
-
-  if (!header || !content) return;
-
-  // 初期設定
-  content.hidden = true;
-  header.setAttribute("aria-expanded", "false");
-
-  // アイコン部分を動的に追加
-  if (!header.querySelector(".toggle-icon")) {
-    const icon = document.createElement("span");
-    icon.className = "toggle-icon";
-    icon.textContent = "▼";
-    icon.style.marginLeft = "6px";
-    header.appendChild(icon);
-  }
-
-  header.addEventListener("click", () => {
-    const isHidden = content.hidden;
-
-    // 表示切替
-    content.hidden = !isHidden;
-    header.setAttribute("aria-expanded", String(isHidden));
-
-    // アイコン切替
-    const icon = header.querySelector(".toggle-icon");
-    if (icon) icon.textContent = isHidden ? "▲" : "▼";
-
-    // アニメーション用クラス
-    content.classList.toggle("open", isHidden);
-  }, { once: false });
-}
+function initTitleCatalog(){ const parent=document.getElementById("titleCatalog").parentElement; const controls=document.createElement("div"); controls.id="titleCatalogControls"; controls.className="mb-2"; parent.insertBefore(controls, document.getElementById("titleCatalog")); loadTitleState(); renderTitleFilterControls(); renderTitleCatalog(); window.addEventListener("resize", renderTitleCatalog); }
+function initTitleCatalogToggle(){ const header=document.getElementById("titleCatalogHeader"); const content=document.getElementById("titleCatalogContent"); if(!header||!content) return; content.hidden=true; header.setAttribute("aria-expanded","false"); if(!header.querySelector(".toggle-icon")){ const icon=document.createElement("span"); icon.className="toggle-icon"; icon.textContent="▼"; icon.style.marginLeft="6px"; header.appendChild(icon); } header.addEventListener("click",()=>{ const isHidden=content.hidden; content.hidden=!isHidden; header.setAttribute("aria-expanded",String(!isHidden)); const icon=header.querySelector(".toggle-icon"); if(icon) icon.textContent=isHidden?"▲":"▼"; content.classList.toggle("open",isHidden); },{once:false}); }
 
 /* =========================
    初期化
 ========================= */
-function init() {
-  // データ読み込み
+function init(){
   loadPlayerData();
   loadDeletedPlayers();
   loadRankingHistory();
   dailyRandomCount = loadFromStorage("dailyRandomCount", {});
   loadTitleState();
-
-  // 称号図鑑初期化（開閉・フィルター・検索・描画）
   initTitleCatalogToggle();
   initTitleCatalog();
-
-  // 管理者モード状態を localStorage から復元
-  const savedAdmin = JSON.parse(localStorage.getItem("isAdmin") ?? "false");
+  const savedAdmin=JSON.parse(localStorage.getItem("isAdmin")??"false");
   setAdminMode(savedAdmin);
-
-  // イベント登録
   attachEvents();
-
-  // ランキング初回取得
   refreshRanking();
-
-  // 完了通知
-  toast("ランキングシステム初期化完了", 1500);
+  toast("ランキングシステム初期化完了",1500);
 }
-
-/* =========================
-   管理者モード切替（保存対応）
-========================= */
-function setAdminMode(enabled) {
-  isAdmin = Boolean(enabled);
-  $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin ? "table-cell" : "none");
-
-  // 状態を localStorage に保存
-  localStorage.setItem("isAdmin", JSON.stringify(isAdmin));
-}
-
-/* =========================
-   DOMContentLoaded で初期化
-========================= */
 window.addEventListener("DOMContentLoaded", init);
