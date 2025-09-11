@@ -1,13 +1,12 @@
 /* =========================
-   BABAランキング — 完全統合CSS
-========================= */
-
-/* =========================
-   共通
+   共通設定
 ========================= */
 :root{
   --accent-1: #4a90e2;
   --accent-2: #357ABD;
+  --accent-success: #10b981;
+  --accent-info: #06b6d4;
+  --accent-danger: #ef4444;
   --muted: #9ca3af;
   --bg: #f8fafc;
   --card-shadow: 0 8px 20px rgba(0,0,0,0.12);
@@ -25,7 +24,9 @@ body {
   -moz-osx-font-smoothing:grayscale;
 }
 
-/* Buttons / Inputs base */
+/* =========================
+   Buttons / Inputs
+========================= */
 button{
   font-family:inherit;
   cursor:pointer;
@@ -39,6 +40,7 @@ button{
 }
 button:hover{ transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.14) }
 button:active{ transform: translateY(0) }
+
 input,textarea,select{
   font-family:inherit;
   font-size: 14px;
@@ -49,7 +51,9 @@ input,textarea,select{
   color: #111827;
 }
 
-/* Utility (minimal subset) */
+/* =========================
+   Utility
+========================= */
 .flex{display:flex}.inline-flex{display:inline-flex}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}
 .items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}
 .gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}
@@ -59,7 +63,7 @@ input,textarea,select{
 .shadow{box-shadow:0 6px 12px rgba(0,0,0,0.08)}
 
 /* =========================
-   レイアウト・コア
+   レイアウト
 ========================= */
 .header-bar{
   position: sticky;
@@ -74,15 +78,11 @@ input,textarea,select{
   justify-content:space-between;
   gap:10px;
 }
-.header-left{display:flex;align-items:center;gap:8px}
-.header-right{display:flex;align-items:center;gap:8px}
-
 .container {
   max-width: 1200px;
   margin: 18px auto;
   padding: 0 14px;
 }
-
 .main-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -93,7 +93,7 @@ input,textarea,select{
 }
 
 /* =========================
-   ランキングテーブル（カード風縦リスト優先）
+   ランキングテーブル
 ========================= */
 .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 #rankingTable {
@@ -146,7 +146,7 @@ th.admin-only, td.admin-only { display:none }
 }
 
 /* =========================
-   表彰台（podium）
+   表彰台
 ========================= */
 #podium{ display:flex; gap:12px; align-items:flex-end; justify-content:center; overflow-x:auto; padding: 8px 4px; }
 .podium-player{ min-width:120px; text-align:center; border-radius:12px; padding:12px; color:#fff; font-weight:700; box-shadow:0 10px 24px rgba(2,6,23,0.08); transition: transform .18s ease; }
@@ -177,13 +177,7 @@ th.admin-only, td.admin-only { display:none }
 .title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6) }
 .title-card::before{ content: "🏆"; position:absolute; top:10px; left:12px; font-size:1.4rem; opacity:0.9; transform:translateZ(0); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08)); }
 
-/* 徐々に光るパルスアニメーション */
-@keyframes pulse-lock {
-  0%   { transform: translate(-50%, -50%) scale(1); opacity:0.6; }
-  50%  { transform: translate(-50%, -50%) scale(1.05); opacity:1; }
-  100% { transform: translate(-50%, -50%) scale(1); opacity:0.6; }
-}
-
+/* 光るアニメーション */
 @keyframes glow-card{ 0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } 50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16) } 100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } }
 
 /* =========================
@@ -191,8 +185,6 @@ th.admin-only, td.admin-only { display:none }
 ========================= */
 .title-popup { position: fixed; top: 18%; left: 50%; transform: translateX(-50%) scale(.95); padding: 12px 18px; background: linear-gradient(180deg,#ffffff,#fff8e6); border-radius: 10px; border: 1px solid rgba(0,0,0,0.06); z-index: 9999; opacity: 0; transition: all .36s cubic-bezier(.2,.9,.2,1); box-shadow: 0 18px 46px rgba(2,6,23,0.12); text-align:center; min-width:220px; }
 .title-popup.show{ opacity:1; transform: translateX(-50%) scale(1) }
-@keyframes explosionAnim { 0%{ transform:scale(.85); opacity:0} 60%{ transform:scale(1.05); opacity:1 } 100%{ transform:scale(1); opacity:1 } }
-@keyframes fireAnim { 0%{ box-shadow:0 0 6px rgba(255,110,110,0.25) } 50%{ box-shadow:0 0 22px rgba(255,70,70,0.4) } 100%{ box-shadow:0 0 6px rgba(255,110,110,0.25) } }
 
 /* =========================
    パーティクル
@@ -202,7 +194,7 @@ th.admin-only, td.admin-only { display:none }
 @keyframes particle-float{ 0%{ transform: translateY(0) scale(1); opacity:1 } 100%{ transform: translateY(-120vh) scale(.5); opacity:0 } }
 
 /* =========================
-   モーダル（チャート）
+   モーダル
 ========================= */
 #chartModal{ position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(2,6,23,0.5); z-index:9995; padding:16px; }
 #chartModal.hidden{ display:none }
@@ -219,7 +211,7 @@ th.admin-only, td.admin-only { display:none }
   opacity: 0;
 }
 #titleCatalogContent.open {
-  max-height: 1000px; /* 十分に大きい値 */
+  max-height: 1000px; 
   opacity: 1;
 }
 .catalog-header {
@@ -230,13 +222,12 @@ th.admin-only, td.admin-only { display:none }
   align-items: center;
 }
 
-
 /* =========================
-   CSV / Buttons色分け
+   ボタン色分け
 ========================= */
-#downloadCSVBtn{ background: linear-gradient(135deg,#10b981,#059669) }
-#loadRankingBtn{ background: linear-gradient(135deg,#06b6d4,#0891b2) }
-#adminToggleBtn{ background: linear-gradient(135deg,#ef4444,#dc2626) }
+#downloadCSVBtn{ background: linear-gradient(135deg,var(--accent-success),#059669) }
+#loadRankingBtn{ background: linear-gradient(135deg,var(--accent-info),#0891b2) }
+#adminToggleBtn{ background: linear-gradient(135deg,var(--accent-danger),#dc2626) }
 
 /* =========================
    レスポンシブ調整
