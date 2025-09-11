@@ -234,7 +234,9 @@ function renderTitleCatalog() {
   container.innerHTML = "";
 
   const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
-  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
+  container.style.display = "grid";
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  container.style.gap = "1rem";
 
   ALL_TITLES.forEach(title => {
     const unlocked = titleCatalog[title.name]?.unlocked ?? false;
@@ -248,26 +250,46 @@ function renderTitleCatalog() {
       ? new Date(historyEntries[historyEntries.length - 1].date).toLocaleDateString()
       : "";
 
-    // アイコンと色
+    // アイコンと色分け
     let icon = "🏅";
     let colorClass = "bg-gray-200 text-gray-700";
     if (unlocked) {
-      if (/キング/.test(title.name)) { colorClass = "bg-yellow-400 text-black"; icon = "👑"; }
-      else if (/シルバ/.test(title.name)) { colorClass = "bg-gray-300 text-black"; icon = "🥈"; }
-      else if (/ブロンズ/.test(title.name)) { colorClass = "bg-orange-500 text-white"; icon = "🥉"; }
-      else if (/逆転|サプライズ/.test(title.name)) { colorClass = "bg-red-400 text-white"; icon = "⚡"; }
-      else if (/幸運|ラッキー/.test(title.name)) { colorClass = "bg-green-400 text-black"; icon = "🍀"; }
-      else if (/不屈|連勝/.test(title.name)) { colorClass = "bg-pink-400 text-white"; icon = "🔥"; }
+      if (/キング/.test(title.name)) { colorClass = "bg-gradient-to-br from-yellow-400 to-yellow-300 text-black"; icon = "👑"; }
+      else if (/シルバ/.test(title.name)) { colorClass = "bg-gradient-to-br from-gray-300 to-gray-400 text-black"; icon = "🥈"; }
+      else if (/ブロンズ/.test(title.name)) { colorClass = "bg-gradient-to-br from-orange-400 to-orange-500 text-white"; icon = "🥉"; }
+      else if (/逆転|サプライズ/.test(title.name)) { colorClass = "bg-gradient-to-br from-red-400 to-red-500 text-white"; icon = "⚡"; }
+      else if (/幸運|ラッキー/.test(title.name)) { colorClass = "bg-gradient-to-br from-green-400 to-green-500 text-black"; icon = "🍀"; }
+      else if (/不屈|連勝/.test(title.name)) { colorClass = "bg-gradient-to-br from-pink-400 to-pink-500 text-white"; icon = "🔥"; }
     }
 
+    // カード作成
     const div = document.createElement("div");
-    div.className = `title-card p-4 rounded-xl shadow-lg flex flex-col items-center justify-center text-center transform transition hover:scale-105 hover:shadow-2xl ${colorClass}`;
-    div.innerHTML = `
-      <div class="text-3xl mb-2 animate-bounce">${icon}</div>
-      <strong class="text-lg mb-1">${title.name}</strong>
-      <p class="text-sm mb-1">${title.desc}</p>
-      ${latest ? `<p class="text-xs text-gray-800">取得日: ${latest}</p>` : `<p class="text-xs text-gray-400">未取得</p>`}
+    div.className = `
+      title-card p-5 rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center
+      transform transition-transform duration-300 hover:scale-105 hover:shadow-3xl ${colorClass}
     `;
+
+    // 3D回転マウスエフェクト
+    div.style.transformStyle = "preserve-3d";
+    div.addEventListener("mousemove", e => {
+      const rect = div.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      div.style.transform = `rotateY(${x / 15}deg) rotateX(${-y / 15}deg) scale(1.05)`;
+    });
+    div.addEventListener("mouseleave", () => {
+      div.style.transform = "rotateY(0deg) rotateX(0deg) scale(1)";
+    });
+
+    div.innerHTML = `
+      <div class="text-4xl mb-3 animate-bounce">${icon}</div>
+      <strong class="text-xl mb-2 font-bold">${title.name}</strong>
+      <p class="text-sm mb-2">${title.desc}</p>
+      <p class="text-xs ${unlocked ? "text-gray-800" : "text-gray-400"}">
+        ${latest ? `取得日: ${latest}` : "未取得"}
+      </p>
+    `;
+
     container.appendChild(div);
   });
 }
