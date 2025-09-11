@@ -1,108 +1,107 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>🔥 ババ抜きランキング 🔥</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>🔥 ババ抜きランキング 🔥</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-
-  <!-- CSS -->
-  <link rel="stylesheet" href="ranking.css">
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- CSS -->
+<link rel="stylesheet" href="ranking.css">
 </head>
 <body>
 
-  <!-- 操作パネル -->
-  <div class="top-panel">
-    <div class="left-controls">
-      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
-      <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
-      <input id="autoRefreshSec" type="number" min="5" value="30">
-    </div>
-    <div class="right-controls">
-      <button id="downloadCSVBtn">💽 CSV</button>
-      <button id="loadRankingBtn">🔄 更新</button>
-      <button id="adminToggleBtn">管理者モード</button>
-      <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
+<!-- 操作パネル -->
+<div class="top-panel">
+  <div class="left-controls">
+    <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
+    <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
+    <input id="autoRefreshSec" type="number" min="5" value="30">
+  </div>
+  <div class="right-controls">
+    <button id="downloadCSVBtn">💽 CSV</button>
+    <button id="loadRankingBtn">🔄 更新</button>
+    <button id="adminToggleBtn">管理者モード</button>
+    <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
+  </div>
+</div>
+
+<!-- 表彰台 -->
+<div id="podium" class="table-wrapper"></div>
+
+<!-- メインレイアウト -->
+<div class="grid-container">
+  <!-- ランキングテーブル -->
+  <div class="ranking-wrapper table-wrapper">
+    <table id="rankingTable">
+      <thead>
+        <tr>
+          <th>順位</th>
+          <th>生徒ID</th>
+          <th>総合レート</th>
+          <th>獲得レート</th>
+          <th>特別ポイント🔥</th>
+          <th>順位変動</th>
+          <th>前回の試合順位</th>
+          <th>称号</th>
+          <th class="admin-only">削除</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="zoom-controls">
+      <button id="zoomInBtn">拡大</button>
+      <button id="zoomOutBtn">縮小</button>
+      <span id="zoomLevel">14px</span>
     </div>
   </div>
 
-  <!-- 表彰台 -->
-  <div id="podium" class="table-wrapper"></div>
+  <!-- サイドバー：称号図鑑 -->
+  <aside class="sidebar">
+    <h3>🏆 変動ランキング</h3>
+    <h4>📈 上昇TOP3</h4>
+    <ul id="awardUp"></ul>
+    <h4>📉 下降TOP3</h4>
+    <ul id="awardDown"></ul>
 
-  <!-- メインレイアウト -->
-  <div class="grid-container">
-    <!-- ランキングテーブル -->
-    <div class="ranking-wrapper table-wrapper">
-      <table id="rankingTable">
-        <thead>
-          <tr>
-            <th>順位</th>
-            <th>生徒ID</th>
-            <th>総合レート</th>
-            <th>獲得レート</th>
-            <th>特別ポイント🔥</th>
-            <th>順位変動</th>
-            <th>前回の試合順位</th>
-            <th>称号</th>
-            <th class="admin-only">削除</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="zoom-controls">
-        <button id="zoomInBtn">拡大</button>
-        <button id="zoomOutBtn">縮小</button>
-        <span id="zoomLevel">14px</span>
-      </div>
+    <h4>🏅 称号図鑑</h4>
+    <input type="text" id="titleSearchInput" placeholder="称号名で検索">
+    <div class="filter-buttons">
+      <button data-filter="all">全て</button>
+      <button data-filter="unlocked">取得済み</button>
+      <button data-filter="locked">未取得</button>
     </div>
+    <div id="titleCatalog" class="title-grid"></div>
+  </aside>
+</div>
 
-    <!-- サイドバー -->
-    <aside class="sidebar">
-      <h3>🏆 変動ランキング</h3>
-      <h4>📈 上昇TOP3</h4>
-      <ul id="awardUp"></ul>
-      <h4>📉 下降TOP3</h4>
-      <ul id="awardDown"></ul>
-
-      <h4>🏅 称号図鑑</h4>
-      <input type="text" id="titleSearchInput" placeholder="称号名で検索">
-      <div class="filter-buttons">
-        <button data-filter="all">全て</button>
-        <button data-filter="unlocked">取得済み</button>
-        <button data-filter="locked">未取得</button>
-      </div>
-      <div id="titleCatalog" class="title-grid"></div>
-    </aside>
+<!-- モーダル -->
+<div id="chartModal" class="modal hidden">
+  <div class="modal-content">
+    <button id="chartCloseBtn">✖️</button>
+    <h3>📊 レート推移</h3>
+    <canvas id="chartCanvas"></canvas>
   </div>
+</div>
 
-  <!-- モーダル -->
-  <div id="chartModal" class="modal">
-    <div class="modal-content">
-      <button id="chartCloseBtn">✖️</button>
-      <h3>📊 レート推移</h3>
-      <canvas id="chartCanvas"></canvas>
-    </div>
-  </div>
+<!-- トースト通知 -->
+<div id="toast"></div>
 
-  <!-- トースト通知 -->
-  <div id="toast"></div>
+<script src="ranking.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // 称号検索/フィルター
+  const titleSearchInput = document.getElementById("titleSearchInput");
+  titleSearchInput.addEventListener("input", () => window.renderTitleCatalog?.());
 
-  <script src="ranking.js"></script>
-  <script>
-    // 称号フィルターと検索初期化
-    document.addEventListener("DOMContentLoaded", () => {
-      const titleSearchInput = document.getElementById("titleSearchInput");
-      titleSearchInput.addEventListener("input", () => window.renderTitleCatalog?.());
-
-      document.querySelectorAll(".filter-buttons button").forEach(btn => {
-        btn.addEventListener("click", e => {
-          window.titleFilter = e.target.dataset.filter;
-          window.renderTitleCatalog?.();
-        });
-      });
+  document.querySelectorAll(".filter-buttons button").forEach(btn => {
+    btn.addEventListener("click", e => {
+      window.titleFilter = e.target.dataset.filter;
+      window.renderTitleCatalog?.();
     });
-  </script>
+  });
+});
+</script>
 </body>
 </html>
