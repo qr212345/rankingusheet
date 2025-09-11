@@ -100,8 +100,8 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 ========================= */
 #titleCatalog {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* 幅を拡大 */
-  gap: 16px; /* 間隔を広げる */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
   margin-top: 16px;
   padding: 8px;
 }
@@ -111,38 +111,40 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 24px; /* 内側の余白を増やす */
-  border-radius: 20px; /* 少し丸める */
+  padding: 24px;
+  border-radius: 20px;
   text-align: center;
-  font-size: 18px; /* 文字を大きめに */
+  font-size: 18px;
   border: 2px solid #ccc;
   background: #fdfdfd;
   transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  min-height: 160px; /* 高さを増やして見やすく */
+  min-height: 160px;
 }
 
 .title-card.unlocked {
   border-color: #27ae60;
   background: linear-gradient(145deg, #eafaf1, #d0f0e0);
   box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+  animation: glowPulse 2s ease-in-out infinite alternate;
 }
 
 .title-card.locked {
-  border-color: #c0392b;
-  background: linear-gradient(145deg, #f9eaea, #f4dada);
-  box-shadow: 0 8px 20px rgba(192, 57, 43, 0.4);
+  border-color: #7f8c8d;
+  background: linear-gradient(145deg, #e0e0e0, #cfcfcf);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  opacity: 0.5;
 }
 
 .title-card:hover {
-  transform: scale(1.07);
+  transform: scale(1.08);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
 }
 
 .title-card strong {
-  font-size: 20px; /* タイトル文字を大きめに */
+  font-size: 20px;
   margin-bottom: 6px;
   display: block;
 }
@@ -174,6 +176,15 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 }
 
 /* =========================
+   獲得時の光るグラデーションアニメーション
+========================= */
+@keyframes glowPulse {
+  0% { box-shadow: 0 8px 20px rgba(39,174,96,0.4), 0 0 10px rgba(39,174,96,0.3); }
+  50% { box-shadow: 0 12px 30px rgba(39,174,96,0.6), 0 0 20px rgba(39,174,96,0.5); }
+  100% { box-shadow: 0 8px 20px rgba(39,174,96,0.4), 0 0 10px rgba(39,174,96,0.3); }
+}
+
+/* =========================
    パーティクルエフェクト
 ========================= */
 .particle-container {
@@ -187,7 +198,7 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 
 .particle {
   position: absolute;
-  width: 8px; height: 8px; /* パーティクルを少し大きく */
+  width: 8px; height: 8px;
   border-radius: 50%;
   animation-name: particleMove;
   animation-timing-function: ease-out;
@@ -197,6 +208,7 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-220px) scale(0.4); }
 }
+
 /* =========================
    レスポンシブ
 ========================= */
@@ -208,13 +220,20 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   .sidebar { min-width:100%; }
 }
 
+@media (max-width: 1024px) {
+  #titleCatalog {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+  }
+}
+
 @media (max-width: 768px) {
   #titleCatalog {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
   }
   .title-card {
-    padding: 16px;
+    padding: 18px;
     min-height: 140px;
     font-size: 16px;
   }
