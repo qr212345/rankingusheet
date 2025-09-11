@@ -228,29 +228,45 @@ function updateTitleCatalog(title){
   renderTitleCatalog();
 }
 
-function renderTitleCatalog(){
-  const container=$("#titleCatalog");
-  if(!container) return;
-  container.innerHTML="";
+function renderTitleCatalog() {
+  const container = $("#titleCatalog");
+  if (!container) return;
+  container.innerHTML = "";
 
-  const cols=window.innerWidth<768?1:window.innerWidth<1024?2:3;
-  container.style.gridTemplateColumns=`repeat(${cols},minmax(0,1fr))`;
+  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
 
-  ALL_TITLES.forEach(title=>{
-    const unlocked = titleCatalog[title.name]?.unlocked??false;
-    if(titleFilter==="unlocked" && !unlocked) return;
-    if(titleFilter==="locked" && unlocked) return;
-    if(titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
+  ALL_TITLES.forEach(title => {
+    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
 
-    const historyEntries=titleHistory.filter(h=>h.title===title.name);
-    const latest=historyEntries.length?new Date(historyEntries[historyEntries.length-1].date).toLocaleDateString():"";
+    if (titleFilter === "unlocked" && !unlocked) return;
+    if (titleFilter === "locked" && unlocked) return;
+    if (titleSearch && !title.name.toLowerCase().includes(titleSearch.toLowerCase())) return;
 
-    const div=document.createElement("div");
-    div.className=`title-card p-3 rounded flex flex-col items-center justify-center ${unlocked?'bg-green-100':'bg-gray-200'} text-center`;
-    div.innerHTML=`
-      <strong>${title.name}</strong>
-      <small>${title.desc}</small>
-      ${latest?`<small class="text-xs mt-1">取得日: ${latest}</small>`:""}
+    const historyEntries = titleHistory.filter(h => h.title === title.name);
+    const latest = historyEntries.length
+      ? new Date(historyEntries[historyEntries.length - 1].date).toLocaleDateString()
+      : "";
+
+    // アイコンと色
+    let icon = "🏅";
+    let colorClass = "bg-gray-200 text-gray-700";
+    if (unlocked) {
+      if (/キング/.test(title.name)) { colorClass = "bg-yellow-400 text-black"; icon = "👑"; }
+      else if (/シルバ/.test(title.name)) { colorClass = "bg-gray-300 text-black"; icon = "🥈"; }
+      else if (/ブロンズ/.test(title.name)) { colorClass = "bg-orange-500 text-white"; icon = "🥉"; }
+      else if (/逆転|サプライズ/.test(title.name)) { colorClass = "bg-red-400 text-white"; icon = "⚡"; }
+      else if (/幸運|ラッキー/.test(title.name)) { colorClass = "bg-green-400 text-black"; icon = "🍀"; }
+      else if (/不屈|連勝/.test(title.name)) { colorClass = "bg-pink-400 text-white"; icon = "🔥"; }
+    }
+
+    const div = document.createElement("div");
+    div.className = `title-card p-4 rounded-xl shadow-lg flex flex-col items-center justify-center text-center transform transition hover:scale-105 hover:shadow-2xl ${colorClass}`;
+    div.innerHTML = `
+      <div class="text-3xl mb-2 animate-bounce">${icon}</div>
+      <strong class="text-lg mb-1">${title.name}</strong>
+      <p class="text-sm mb-1">${title.desc}</p>
+      ${latest ? `<p class="text-xs text-gray-800">取得日: ${latest}</p>` : `<p class="text-xs text-gray-400">未取得</p>`}
     `;
     container.appendChild(div);
   });
