@@ -12,17 +12,9 @@
   --card-shadow: 0 8px 20px rgba(0,0,0,0.12);
   --glass: rgba(255,255,255,0.6);
 }
+
 *{box-sizing:border-box}
-html,body{height:100%}
-body {
-  font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
-  font-size: 14px;
-  margin: 0;
-  background: var(--bg);
-  color: #111827;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
+html,body{height:100%; margin:0; font-family:"Inter", "Segoe UI", Roboto, Arial, sans-serif; font-size:14px; background:var(--bg); color:#111827; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
 
 /* =========================
    Buttons / Inputs
@@ -38,8 +30,8 @@ button{
   box-shadow: 0 4px 10px rgba(0,0,0,0.12);
   transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
 }
-button:hover{ transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.14) }
-button:active{ transform: translateY(0) }
+button:hover{ transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.14); }
+button:active{ transform: translateY(0); }
 
 input,textarea,select{
   font-family:inherit;
@@ -52,20 +44,9 @@ input,textarea,select{
 }
 
 /* =========================
-   Utility
-========================= */
-.flex{display:flex}.inline-flex{display:inline-flex}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}
-.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}
-.gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}
-.w-full{width:100%}.min-w-full{min-width:100%}.mx-auto{margin-left:auto;margin-right:auto}
-.text-sm{font-size:.875rem}.text-xs{font-size:.75rem}.text-lg{font-size:1.125rem}.text-xl{font-size:1.25rem}
-.rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}
-.shadow{box-shadow:0 6px 12px rgba(0,0,0,0.08)}
-
-/* =========================
    レイアウト
 ========================= */
-.header-bar{
+.top-panel{
   position: sticky;
   top: 0;
   z-index: 60;
@@ -74,36 +55,33 @@ input,textarea,select{
   border-bottom: 1px solid rgba(15,23,42,0.04);
   padding: 12px 16px;
   display:flex;
-  align-items:center;
   justify-content:space-between;
   gap:10px;
+  flex-wrap:wrap;
 }
-.container {
+
+.grid-container{
   max-width: 1200px;
   margin: 18px auto;
   padding: 0 14px;
-}
-.main-grid {
-  display: grid;
+  display:grid;
   grid-template-columns: 1fr;
-  gap: 16px;
-}
-@media(min-width:1100px){
-  .main-grid { grid-template-columns: 1fr 320px; align-items: start; }
+  gap:16px;
 }
 
-/* =========================
-   ランキングテーブル
-========================= */
-.table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-#rankingTable {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 12px 30px rgba(13, 27, 46, 0.06);
-  min-width: 640px;
+@media(min-width:1100px){
+  .grid-container{ grid-template-columns: 1fr 320px; }
+}
+
+.ranking-wrapper{ overflow-x:auto; -webkit-overflow-scrolling: touch; }
+
+#rankingTable{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border-radius:12px;
+  min-width:640px;
+  box-shadow:0 12px 30px rgba(13,27,46,0.06);
 }
 #rankingTable thead th{
   background: linear-gradient(135deg,#0f1724,#0b1220);
@@ -111,35 +89,35 @@ input,textarea,select{
   padding:12px 10px;
   text-align:center;
   font-weight:600;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  font-size: .95rem;
+  position:sticky;
+  top:0;
+  font-size:.95rem;
 }
-#rankingTable tbody tr { transition: transform .18s ease, box-shadow .18s ease, background .18s ease; vertical-align: middle; }
-#rankingTable tbody tr:hover{ transform: translateY(-3px); box-shadow: 0 12px 30px rgba(2,6,23,0.07) }
-#rankingTable td { padding: 12px; text-align:center; border-bottom:1px solid #eef2f6; font-size: .95rem; white-space:nowrap; }
-#rankingTable tbody tr:nth-child(odd){ background:#ffffff }
-#rankingTable tbody tr:nth-child(even){ background:#fbfdff }
+#rankingTable tbody tr{ transition: transform .18s ease, box-shadow .18s ease, background .18s ease; vertical-align: middle; }
+#rankingTable tbody tr:hover{ transform: translateY(-3px); box-shadow: 0 12px 30px rgba(2,6,23,0.07); }
+#rankingTable td{ padding:12px; text-align:center; border-bottom:1px solid #eef2f6; font-size:.95rem; white-space:nowrap; }
+
+#rankingTable tbody tr:nth-child(odd){ background:#fff; }
+#rankingTable tbody tr:nth-child(even){ background:#fbfdff; }
 
 /* top3 styling */
-tr.rank-1 td { background: linear-gradient(135deg,#FFD700,#FFEA70) !important; color:#000; font-weight:700; font-size:1.05rem; }
-tr.rank-2 td { background: linear-gradient(135deg,#C0C0C0,#E6E6E6) !important; color:#000; font-weight:700; }
-tr.rank-3 td { background: linear-gradient(135deg,#CD7F32,#E7A66D) !important; color:#000; font-weight:700; }
+tr.rank-1 td{ background: linear-gradient(135deg,#FFD700,#FFEA70) !important; color:#111; font-weight:700; font-size:1.05rem; }
+tr.rank-2 td{ background: linear-gradient(135deg,#C0C0C0,#E6E6E6) !important; color:#111; font-weight:700; }
+tr.rank-3 td{ background: linear-gradient(135deg,#CD7F32,#E7A66D) !important; color:#111; font-weight:700; }
 
 /* rate change badges */
 .gain-up{ background: linear-gradient(90deg,#e6ffed,#c8ffd3); position:relative; }
-.gain-up::after{ content:"⬆"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:green; font-weight:700 }
+.gain-up::after{ content:"⬆"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:green; font-weight:700; }
 .gain-down{ background: linear-gradient(90deg,#ffecec,#ffc9c9); position:relative; }
-.gain-down::after{ content:"⬇"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:red; font-weight:700 }
+.gain-down::after{ content:"⬇"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:red; font-weight:700; }
 
 /* Admin column hidden by default */
-th.admin-only, td.admin-only { display:none }
+th.admin-only, td.admin-only{ display:none; }
 
-/* Mobile: stacked card rows */
+/* モバイル: スタック表示 */
 @media(max-width:900px){
-  #rankingTable thead{ display:none }
-  #rankingTable, #rankingTable tbody, #rankingTable tr, #rankingTable td { display:block; width:100% }
+  #rankingTable thead{ display:none; }
+  #rankingTable, #rankingTable tbody, #rankingTable tr, #rankingTable td{ display:block; width:100%; }
   #rankingTable td{ display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(15,23,42,0.04); }
   #rankingTable tr{ margin-bottom:12px; background:#fff; border-radius:12px; box-shadow: var(--card-shadow); overflow:hidden; }
   #rankingTable td::before{ content: attr(data-label); font-weight:600; color:var(--muted); margin-right:8px; width:40%; text-align:left; display:inline-block; font-size:.85rem; }
@@ -148,94 +126,64 @@ th.admin-only, td.admin-only { display:none }
 /* =========================
    表彰台
 ========================= */
-#podium{ display:flex; gap:12px; align-items:flex-end; justify-content:center; overflow-x:auto; padding: 8px 4px; }
+#podium{ display:flex; gap:12px; align-items:flex-end; justify-content:center; overflow-x:auto; padding:8px 4px; }
 .podium-player{ min-width:120px; text-align:center; border-radius:12px; padding:12px; color:#fff; font-weight:700; box-shadow:0 10px 24px rgba(2,6,23,0.08); transition: transform .18s ease; }
-.podium-player:hover{ transform: translateY(-6px) }
-.podium-player.first{ height:160px; background: linear-gradient(135deg,#FFD700,#FFCF33); color:#111 }
-.podium-player.second{ height:140px; background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
-.podium-player.third{ height:120px; background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
+.podium-player:hover{ transform: translateY(-6px); }
+.podium-player.first{ height:160px; background: linear-gradient(135deg,#FFD700,#FFCF33); color:#111; }
+.podium-player.second{ height:140px; background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111; }
+.podium-player.third{ height:120px; background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111; }
 
 /* =========================
    称号図鑑カード
 ========================= */
-#titleCatalog { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 8px; }
-@media(min-width:640px){ #titleCatalog { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-@media(min-width:1100px){ #titleCatalog { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+#titleCatalog{ display:grid; gap:12px; margin-top:8px; }
+@media(min-width:640px){ #titleCatalog{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(min-width:1100px){ #titleCatalog{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
 
-.title-card { background: linear-gradient(135deg,#fff6e6,#fff9f0); padding: 14px; border-radius: 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:92px; box-shadow: 0 12px 28px rgba(2,6,23,0.06); transition: transform .22s ease, box-shadow .22s ease, background .22s ease; position:relative; overflow:hidden; }
-.title-card:hover{ transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,6,23,0.10) }
-.title-card.unlocked{ animation: glow-card 2s ease-in-out infinite alternate; box-shadow: 0 14px 36px rgba(255,200,20,0.12) }
-.title-card.locked{ background: linear-gradient(180deg,#f3f4f6,#eef2f7); color:#657085 }
-.title-card.king{ background: linear-gradient(135deg,#FFD700,#FFEA70); color:#111 }
-.title-card.silver{ background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
-.title-card.bronze{ background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
-.title-card.lucky{ background: linear-gradient(135deg,#dff7e6,#bfeecf); color:#083 }
-.title-card.fire{ background: linear-gradient(135deg,#ff7b7b,#ff4d4d); color:#fff }
-.title-card.surprise{ background: linear-gradient(135deg,#ffe29a,#ffb86b); color:#111 }
+.title-card{ background: linear-gradient(135deg,#fff6e6,#fff9f0); padding:14px; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:92px; box-shadow:0 12px 28px rgba(2,6,23,0.06); transition: transform .22s ease, box-shadow .22s ease, background .22s ease; position:relative; overflow:hidden; }
+.title-card:hover{ transform: translateY(-6px); box-shadow:0 20px 40px rgba(2,6,23,0.10); }
+.title-card.unlocked{ animation: glow-card 2s ease-in-out infinite alternate; box-shadow: 0 14px 36px rgba(255,200,20,0.12); }
+.title-card.locked{ background: linear-gradient(180deg,#f3f4f6,#eef2f7); color:#657085; }
+.title-card strong{ font-size:1rem; display:block; margin-bottom:6px; }
+.title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6); }
 
-.title-card strong{ font-size:1rem; display:block; margin-bottom:6px }
-.title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6) }
-.title-card::before{ content: "🏆"; position:absolute; top:10px; left:12px; font-size:1.4rem; opacity:0.9; transform:translateZ(0); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08)); }
-
-/* 光るアニメーション */
-@keyframes glow-card{ 0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } 50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16) } 100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } }
+@keyframes glow-card{ 0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08); } 50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16); } 100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08); } }
 
 /* =========================
    ポップアップ
 ========================= */
-.title-popup { position: fixed; top: 18%; left: 50%; transform: translateX(-50%) scale(.95); padding: 12px 18px; background: linear-gradient(180deg,#ffffff,#fff8e6); border-radius: 10px; border: 1px solid rgba(0,0,0,0.06); z-index: 9999; opacity: 0; transition: all .36s cubic-bezier(.2,.9,.2,1); box-shadow: 0 18px 46px rgba(2,6,23,0.12); text-align:center; min-width:220px; }
-.title-popup.show{ opacity:1; transform: translateX(-50%) scale(1) }
+.title-popup{ position: fixed; top:18%; left:50%; transform: translateX(-50%) scale(.95); padding:12px 18px; background: linear-gradient(180deg,#ffffff,#fff8e6); border-radius:10px; border:1px solid rgba(0,0,0,0.06); z-index:9999; opacity:0; transition: all .36s cubic-bezier(.2,.9,.2,1); box-shadow:0 18px 46px rgba(2,6,23,0.12); text-align:center; min-width:220px; }
+.title-popup.show{ opacity:1; transform: translateX(-50%) scale(1); }
 
 /* =========================
    パーティクル
 ========================= */
 .particle-container{ position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:9998; }
 .particle{ position:absolute; width:8px; height:8px; border-radius:50%; opacity:0.95; animation: particle-float linear forwards; }
-@keyframes particle-float{ 0%{ transform: translateY(0) scale(1); opacity:1 } 100%{ transform: translateY(-120vh) scale(.5); opacity:0 } }
+@keyframes particle-float{ 0%{ transform: translateY(0) scale(1); opacity:1; } 100%{ transform: translateY(-120vh) scale(.5); opacity:0; } }
 
 /* =========================
    モーダル
 ========================= */
 #chartModal{ position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(2,6,23,0.5); z-index:9995; padding:16px; }
-#chartModal.hidden{ display:none }
-.chart-panel{ width: 100%; max-width: 980px; height: 520px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.16); display:flex; flex-direction:column; }
+#chartModal.hidden{ display:none; }
+.chart-panel, .modal-content{ width:100%; max-width:980px; height:520px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.16); display:flex; flex-direction:column; }
 #chartCanvas{ width:100%; height:100%; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff); }
-
-/* =========================
-   称号図鑑折りたたみ
-========================= */
-#titleCatalogContent {
-  overflow: hidden;
-  transition: max-height 0.35s ease, opacity 0.35s ease;
-  max-height: 0;
-  opacity: 0;
-}
-#titleCatalogContent.open {
-  max-height: 1000px; 
-  opacity: 1;
-}
-.catalog-header {
-  cursor: pointer;
-  user-select: none;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-}
 
 /* =========================
    ボタン色分け
 ========================= */
-#downloadCSVBtn{ background: linear-gradient(135deg,var(--accent-success),#059669) }
-#loadRankingBtn{ background: linear-gradient(135deg,var(--accent-info),#0891b2) }
-#adminToggleBtn{ background: linear-gradient(135deg,var(--accent-danger),#dc2626) }
+#downloadCSVBtn{ background: linear-gradient(135deg,var(--accent-success),#059669); }
+#loadRankingBtn{ background: linear-gradient(135deg,var(--accent-info),#0891b2); }
+#adminToggleBtn{ background: linear-gradient(135deg,var(--accent-danger),#dc2626); }
 
 /* =========================
    レスポンシブ調整
 ========================= */
 @media(max-width:640px){
-  .container{ padding: 0 10px }
-  .header-bar{ padding:10px }
-  .chart-panel{ height: 420px; max-width: 92% }
-  #chartCanvas{ height: 360px }
-  .title-card{ padding: 12px; min-height:84px }
+  .grid-container{ padding:0 10px; }
+  .top-panel{ padding:10px; }
+  .chart-panel, .modal-content{ height:420px; max-width:92%; }
+  #chartCanvas{ height:360px; }
+  .title-card{ padding:12px; min-height:84px; }
 }
