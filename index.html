@@ -22,20 +22,33 @@
       <button id="adminToggleBtn">管理者モード</button>
       <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
       <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
-      <button id="btnOpenFullscreen">🔍 大きく表示</button>
+      <!-- 総合ランキング拡大ボタン -->
+　　　<button id="btnOpenFullscreenRanking">📊 総合ランキングを大きく表示</button>
+
+　　　<!-- 変動ランキング拡大ボタン -->
+　　　<button id="btnOpenFullscreenChange">📈 変動ランキングを大きく表示</button>
     </div>
   </header>
 
   <main class="grid-container">
 
-    <div id="fullscreenRanking" class="fullscreen-container hidden">
-      <div class="fullscreen-header">
-        <button id="btnCloseFullscreen">❌ 閉じる</button>
-      </div>
-      <div class="fullscreen-content">
-        <table id="fullscreenRankingTable"></table>
-      </div>
-    </div>
+    <!-- 総合ランキングモーダル -->
+<div id="fullscreenRanking" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <button id="btnCloseFullscreenRanking">✖ 閉じる</button>
+    <table id="fullscreenRankingTable"></table>
+  </div>
+</div>
+
+<!-- 変動ランキングモーダル -->
+<div id="fullscreenChangeRanking" class="modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <button id="btnCloseFullscreenChange">✖ 閉じる</button>
+    <table id="fullscreenChangeRankingTable"></table>
+  </div>
+</div>
 
     <!-- ランキング画面 -->
     <section id="rankingSection">
