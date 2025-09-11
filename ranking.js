@@ -379,15 +379,29 @@ async function fetchRankingJSON(){
 }
 
 async function refreshRanking(){
-  const data=await fetchRankingJSON();
-  if(!data.length) return;
-  const filtered=data.filter(p=>!deletedPlayers.has(p.playerId));
-  lastProcessedRows=processRanking(filtered);
-  lastProcessedRows.forEach(p=>assignTitles(p));
+  const data = await fetchRankingJSON();
+  if (!data.length) return;
+  const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
+  lastProcessedRows = processRanking(filtered);
+  lastProcessedRows.forEach(p => assignTitles(p));
+  
+  // 総合ランキング描画
   renderRankingTable(lastProcessedRows);
-  rankingHistory.push({date:new Date().toISOString(),snapshot:lastProcessedRows.map(p=>({playerId:p.playerId,rate:p.rate,bonus:p.bonus}))});
+
+  // 変動ランキング描画
+  renderChangeRankingTable(lastProcessedRows);
+
+  rankingHistory.push({
+    date: new Date().toISOString(),
+    snapshot: lastProcessedRows.map(p => ({
+      playerId: p.playerId,
+      rate: p.rate,
+      bonus: p.bonus
+    }))
+  });
   saveRankingHistory();
 }
+
 
 /* =========================
    自動更新制御
