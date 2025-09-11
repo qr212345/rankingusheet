@@ -439,6 +439,14 @@ function showPlayerChart(playerId){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  /**
+   * 任意のテーブルをフルスクリーンで表示する共通処理
+   * @param {string} openBtnId - 開くボタンID
+   * @param {string} closeBtnId - 閉じるボタンID
+   * @param {string} modalId - モーダル全体ID
+   * @param {string} modalTableId - モーダル内のテーブルID
+   * @param {string} sourceTableId - 元テーブルID
+   */
   function setupFullscreen(openBtnId, closeBtnId, modalId, modalTableId, sourceTableId) {
     const btnOpen = document.getElementById(openBtnId);
     const btnClose = document.getElementById(closeBtnId);
