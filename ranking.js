@@ -11,7 +11,7 @@ const HISTORY_KEY = "rankingHistory_v3";
 const TITLE_HISTORY_KEY = "titleHistory_v3";
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
-const RANDOM_TITLE_PROB = 0.1;
+const RANDOM_TITLE_PROB = { "ミラクルババ":0.05, "ラッキーババ":0.10 }; // 日ごと5回まで
 const RANDOM_TITLE_DAILY_LIMIT = 5;
 
 const ALL_TITLES = [
@@ -40,6 +40,7 @@ const ALL_TITLES = [
 /* =========================
    State
 ========================= */
+let players = [];
 let playerData = new Map();
 let deletedPlayers = new Set();
 let lastProcessedRows = [];
@@ -284,6 +285,7 @@ function renderRankingTable(data){
     frag.appendChild(tr);
   });
   tbody.appendChild(frag);
+  attachDeleteButtons(); 
 }
 
 
@@ -305,12 +307,14 @@ function renderTitleFilterControls() {
   container.querySelectorAll(".filter-btn").forEach(btn=>{
     btn.addEventListener("click", e=>{
       titleFilter = e.target.dataset.filter;
+      saveTitleState();
       renderTitleCatalog();
     });
   });
 
   document.getElementById("titleSearchInput").addEventListener("input", debounce(e=>{
     titleSearch = e.target.value.toLowerCase();
+    saveTitleState();
     renderTitleCatalog();
   }, 200));
 }
@@ -320,7 +324,16 @@ function initTitleCatalog() {
   const controls = document.createElement("div");
   controls.id = "titleCatalogControls";
   parent.insertBefore(controls, document.getElementById("titleCatalog"));
+
+  // ここで保存状態を読み込む
+  loadTitleState();
+
   renderTitleFilterControls();
+
+  // 検索入力に保存値を反映
+  const searchInput = document.getElementById("titleSearchInput");
+  if (searchInput) searchInput.value = titleSearch;
+
   renderTitleCatalog();
   window.addEventListener("resize", renderTitleCatalog);
 }
@@ -416,6 +429,25 @@ async function refreshRanking() {
 }
 
 /* =========================
+   管理者削除ボタン機能
+========================= */
+function attachDeleteButtons(){
+  document.querySelectorAll("#rankingTable button[data-playerid]").forEach(btn=>{
+    btn.addEventListener("click",e=>{
+      const pid = btn.dataset.playerid;
+      if(!pid) return;
+      if(confirm(`本当に ${pid} を削除しますか？`)){
+        deletedPlayers.add(pid);
+        saveDeletedPlayers();
+        lastProcessedRows = lastProcessedRows.filter(p=>p.playerId!==pid);
+        renderRankingTable(lastProcessedRows);
+        toast(`${pid} を削除しました`);
+      }
+    });
+  });
+}
+
+/* =========================
    モーダル・イベント
 ========================= */
 function attachModalControls(){
@@ -443,13 +475,26 @@ function attachEvents(){
 }
 
 /* =========================
+   検索・フィルター状態の保持
+========================= */
+function saveTitleState(){
+  saveToStorage("titleFilter", titleFilter);
+  saveToStorage("titleSearch", titleSearch);
+}
+function loadTitleState(){
+  titleFilter = loadFromStorage("titleFilter", "all");
+  titleSearch = loadFromStorage("titleSearch", "");
+}
+
+/* =========================
    初期化
 ========================= */
 function init(){
   loadPlayerData();
   loadDeletedPlayers();
   loadRankingHistory();
-  renderTitleCatalog();
+  loadTitleState();
+  initTitleCatalog();
   attachEvents();
   attachModalControls();
   refreshRanking();
