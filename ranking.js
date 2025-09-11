@@ -332,21 +332,108 @@ function setDataLabelsForMobileTable(){
 /* =========================
    ランキング描画
 ========================= */
-function renderRankingTable(data){
-  const tbody=$("#rankingTable tbody"); if(!tbody) return;
-  tbody.innerHTML="";
-  const frag=document.createDocumentFragment();
-  data.forEach(p=>{
-    const tr=document.createElement("tr"); tr.dataset.playerId=p.playerId;
-    if(p.rank<=3) tr.classList.add(`rank-${p.rank}`);
-    if(p.rateGain>0) tr.classList.add("gain-up"); else if(p.rateGain<0) tr.classList.add("gain-down");
-    tr.innerHTML=`<td>${p.rank}</td><td>${p.playerId}</td><td>${p.rate}</td><td>${p.gain}</td><td>${p.bonus}</td><td>${p.rankChangeStr}</td><td>${p.prevRank??'—'}</td><td class="${p.rank<=3?'title-podium':''}">${p.title||''}</td><td class="admin-only"><button data-playerid="${p.playerId}">削除</button></td>`;
-    tr.addEventListener("click",e=>{if(!e.target.closest("button")) showPlayerChart(p.playerId)});
+ffunction renderRankingTable(data) {
+  const tbody = document.querySelector("#rankingTable tbody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+  const frag = document.createDocumentFragment();
+
+  data.forEach(player => {
+    const tr = document.createElement("tr");
+    tr.dataset.playerId = player.playerId;
+    tr.tabIndex = 0; // キーボードでも選択可能
+
+    // 順位ごとの強調
+    if (player.rank <= 3) tr.classList.add(`rank-${player.rank}`);
+    // レート増減ごとの色分け
+    if (player.rateGain > 0) {
+      tr.classList.add("gain-up");
+    } else if (player.rateGain < 0) {
+      tr.classList.add("gain-down");
+    }
+
+    // 行HTML
+    tr.innerHTML = `
+      <td class="col-rank">${player.rank}</td>
+      <td class="col-id">${player.playerId}</td>
+      <td class="col-rate">${player.rate}</td>
+      <td class="col-gain">${player.rateGain}</td>
+      <td class="col-bonus">${player.bonus ?? 0}</td>
+      <td class="col-change">${player.rankChangeStr ?? "—"}</td>
+      <td class="col-prev">${player.prevRank ?? "—"}</td>
+      <td class="col-title ${player.rank <= 3 ? "title-podium" : ""}">
+        ${player.title || ""}
+      </td>
+      <td class="col-admin admin-only">
+        <button data-playerid="${player.playerId}" aria-label="削除">
+          削除
+        </button>
+      </td>
+    `;
+
+    // 行クリックでプレイヤーチャート表示
+    tr.addEventListener("click", e => {
+      if (!e.target.closest("button")) {
+        showPlayerChart(player.playerId);
+      }
+    });
+
     frag.appendChild(tr);
   });
+
   tbody.appendChild(frag);
+
+  // 管理者向け削除ボタン機能
   attachDeleteButtons();
+
+  // モバイル表示のためのラベル付与
   setDataLabelsForMobileTable();
+}
+
+/* =========================
+   変動ランキング 上昇/下降TOP3（同率なら全員）
+========================= */
+function renderChangeAwards(data) {
+  const upList = document.getElementById("awardUp");
+  const downList = document.getElementById("awardDown");
+  if (!upList || !downList) return;
+
+  // 順位変動ありの人を抽出
+  const upPlayers = data.filter(p => p.rankChange > 0).sort((a, b) => b.rankChange - a.rankChange);
+  const downPlayers = data.filter(p => p.rankChange < 0).sort((a, b) => a.rankChange - b.rankChange);
+
+  // 上昇TOP3（同率なら全員）
+  const upTop = [];
+  let cutoffUp = null;
+  upPlayers.forEach(p => {
+    if (upTop.length < 3) {
+      upTop.push(p);
+      cutoffUp = p.rankChange;
+    } else if (p.rankChange === cutoffUp) {
+      upTop.push(p);
+    }
+  });
+
+  // 下降TOP3（同率なら全員）
+  const downTop = [];
+  let cutoffDown = null;
+  downPlayers.forEach(p => {
+    if (downTop.length < 3) {
+      downTop.push(p);
+      cutoffDown = p.rankChange;
+    } else if (p.rankChange === cutoffDown) {
+      downTop.push(p);
+    }
+  });
+
+  // HTML 描画
+  upList.innerHTML = upTop
+    .map(p => `<li>⬆️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`)
+    .join("");
+  downList.innerHTML = downTop
+    .map(p => `<li>⬇️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`)
+    .join("");
 }
 
 /* =========================
@@ -453,58 +540,41 @@ function showPlayerChart(playerId){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  /**
-   * 任意のテーブルをフルスクリーンで表示する共通処理
-   * @param {string} openBtnId - 開くボタンID
-   * @param {string} closeBtnId - 閉じるボタンID
-   * @param {string} modalId - モーダル全体ID
-   * @param {string} modalTableId - モーダル内のテーブルID
-   * @param {string} sourceTableId - 元テーブルID
-   */
-  function setupFullscreen(openBtnId, closeBtnId, modalId, modalTableId, sourceTableId) {
-    const btnOpen = document.getElementById(openBtnId);
-    const btnClose = document.getElementById(closeBtnId);
-    const modal = document.getElementById(modalId);
-    const modalTable = document.getElementById(modalTableId);
+  // 総合ランキング拡大
+  const btnOpenOverall = document.getElementById("btnOpenOverall");
+  const btnCloseOverall = document.getElementById("btnCloseOverall");
+  const modalOverall = document.getElementById("modalOverall");
+  const modalOverallTable = document.getElementById("modalOverallTable");
 
-    if (!btnOpen || !btnClose || !modal || !modalTable) return;
+  btnOpenOverall?.addEventListener("click", () => {
+    const mainTable = document.getElementById("rankingTable");
+    if (!mainTable) return;
+    modalOverallTable.innerHTML = mainTable.innerHTML;
+    modalOverall.classList.remove("hidden");
+  });
+  btnCloseOverall?.addEventListener("click", () => modalOverall.classList.add("hidden"));
+  modalOverall.querySelector(".modal-overlay")?.addEventListener("click", () => modalOverall.classList.add("hidden"));
 
-    // 開く処理
-    btnOpen.addEventListener("click", () => {
-      const sourceTable = document.getElementById(sourceTableId);
-      if (!sourceTable) return;
-      modalTable.innerHTML = sourceTable.innerHTML;
-      modal.classList.remove("hidden");
-    });
+  // 変動ランキング拡大
+  const btnOpenChange = document.getElementById("btnOpenChange");
+  const btnCloseChange = document.getElementById("btnCloseChange");
+  const modalChange = document.getElementById("modalChange");
+  const modalChangeContent = document.getElementById("modalChangeContent");
 
-    // 閉じる処理
-    btnClose.addEventListener("click", () => {
-      modal.classList.add("hidden");
-    });
-
-    // 背景クリックで閉じる
-    modal.querySelector(".modal-overlay")?.addEventListener("click", () => {
-      modal.classList.add("hidden");
-    });
-  }
-
-  // 総合ランキング用
-  setupFullscreen(
-    "btnOpenFullscreenRanking",
-    "btnCloseFullscreenRanking",
-    "fullscreenRanking",
-    "fullscreenRankingTable",
-    "rankingTable"
-  );
-
-  // 変動ランキング用
-  setupFullscreen(
-    "btnOpenFullscreenChange",
-    "btnCloseFullscreenChange",
-    "fullscreenChangeRanking",
-    "fullscreenChangeRankingTable",
-    "changeRankingTable"
-  );
+  btnOpenChange?.addEventListener("click", () => {
+    const upList = document.getElementById("awardUp");
+    const downList = document.getElementById("awardDown");
+    if (!upList || !downList) return;
+    modalChangeContent.innerHTML = `
+      <h4>📈 上昇TOP</h4>
+      <ul>${upList.innerHTML}</ul>
+      <h4>📉 下降TOP</h4>
+      <ul>${downList.innerHTML}</ul>
+    `;
+    modalChange.classList.remove("hidden");
+  });
+  btnCloseChange?.addEventListener("click", () => modalChange.classList.add("hidden"));
+  modalChange.querySelector(".modal-overlay")?.addEventListener("click", () => modalChange.classList.add("hidden"));
 });
 
 /* =========================
