@@ -281,6 +281,22 @@ function processRanking(data){
 }
 
 /* =========================
+   モバイル用 data-label 自動設定
+========================= */
+function setDataLabelsForMobileTable(){
+  const table = document.getElementById("rankingTable");
+  if(!table) return;
+  const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
+  table.querySelectorAll("tbody tr").forEach(tr=>{
+    tr.querySelectorAll("td").forEach((td,index)=>{
+      if(index < headers.length){
+        td.setAttribute("data-label", headers[index]);
+      }
+    });
+  });
+}
+
+/* =========================
    ランキング描画
 ========================= */
 function renderRankingTable(data){
@@ -298,8 +314,9 @@ function renderRankingTable(data){
   });
   tbody.appendChild(frag);
   attachDeleteButtons();
-}
 
+ setDataLabelsForMobileTable();
+}
 /* =========================
    CSVダウンロード
 ========================= */
