@@ -213,13 +213,23 @@ th.admin-only, td.admin-only { display:none }
    称号図鑑折りたたみ
 ========================= */
 #titleCatalogContent {
-  overflow: hidden;           /* 中身を隠す */
-  max-height: 0;              /* 初期は閉じる */
-  transition: max-height 0.36s ease; /* スムーズに開閉 */
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.35s ease;
+  max-height: 0;
+  opacity: 0;
 }
 #titleCatalogContent.open {
-  max-height: 2000px; /* JSでもscrollHeightを使う場合はここでもOK */
+  max-height: 1000px; /* 十分に大きい値 */
+  opacity: 1;
 }
+.catalog-header {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
 
 /* =========================
    CSV / Buttons色分け
