@@ -519,15 +519,17 @@ function initTitleCatalogToggle() {
   const header = document.getElementById("titleCatalogHeader");
   const content = document.getElementById("titleCatalogContent");
 
+  // localStorage で前回状態を保持
   let isOpen = JSON.parse(localStorage.getItem("titleCatalogOpen") ?? "true");
 
-  // 描画後に高さ設定
+  // 初期表示
   setTimeout(() => {
     content.style.maxHeight = isOpen ? content.scrollHeight + "px" : "0";
-    if(isOpen) content.classList.add("open");
+    if (isOpen) content.classList.add("open");
     header.textContent = isOpen ? "🏅 称号図鑑 ▼" : "🏅 称号図鑑 ▶";
   }, 50);
 
+  // クリックで開閉
   header.addEventListener("click", () => {
     isOpen = !isOpen;
     if (isOpen) {
@@ -542,8 +544,9 @@ function initTitleCatalogToggle() {
     localStorage.setItem("titleCatalogOpen", JSON.stringify(isOpen));
   });
 
+  // ウィンドウリサイズ時に開いている場合は高さを更新
   window.addEventListener("resize", () => {
-    if(isOpen) content.style.maxHeight = content.scrollHeight + "px";
+    if (isOpen) content.style.maxHeight = content.scrollHeight + "px";
   });
 }
 
