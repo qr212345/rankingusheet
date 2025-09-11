@@ -23,30 +23,31 @@
       <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
       <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
       <!-- 総合ランキング拡大ボタン -->
-　　　<button id="btnOpenFullscreenRanking">📊 総合ランキングを大きく表示</button>
-
+　　　<button id="btnOpenOverall">📊 総合ランキングを大きく表示</button>
 　　　<!-- 変動ランキング拡大ボタン -->
-　　　<button id="btnOpenFullscreenChange">📈 変動ランキングを大きく表示</button>
+　　　<button id="btnOpenChange">📈 変動ランキングを大きく表示</button>
     </div>
   </header>
 
   <main class="grid-container">
 
     <!-- 総合ランキングモーダル -->
-<div id="fullscreenRanking" class="modal hidden">
+<div id="modalOverall" class="modal hidden">
   <div class="modal-overlay"></div>
   <div class="modal-content">
-    <button id="btnCloseFullscreenRanking">✖ 閉じる</button>
-    <table id="fullscreenRankingTable"></table>
+    <button id="btnCloseOverall" class="close-btn">✖</button>
+    <h2>📊 総合ランキング（フルスクリーン）</h2>
+    <table id="modalOverallTable" class="ranking-table"></table>
   </div>
 </div>
 
 <!-- 変動ランキングモーダル -->
-<div id="fullscreenChangeRanking" class="modal hidden">
+<div id="modalChange" class="modal hidden">
   <div class="modal-overlay"></div>
   <div class="modal-content">
-    <button id="btnCloseFullscreenChange">✖ 閉じる</button>
-    <table id="fullscreenChangeRankingTable"></table>
+    <button id="btnCloseChange" class="close-btn">✖</button>
+    <h2>📈 変動ランキング（フルスクリーン）</h2>
+    <div id="modalChangeContent"></div>
   </div>
 </div>
 
@@ -64,6 +65,20 @@
           </thead>
           <tbody></tbody>
         </table>
+  <table id="changeRankingTable" class="styled-table">
+  <thead>
+    <tr>
+      <th>順位変動</th>
+      <th>生徒ID</th>
+      <th>総合レート</th>
+      <th>獲得レート</th>
+      <th>特別ポイント</th>
+      <th>前回順位</th>
+      <th>称号</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
       </div>
       <aside class="sidebar">
         <h3>🏆 変動ランキング</h3>
