@@ -222,11 +222,23 @@ function assignTitles(player){
 /* =========================
    称号カタログ描画
 ========================= */
+
 function updateTitleCatalog(title){
   if(!titleCatalog[title.name]) titleCatalog[title.name]={unlocked:true,desc:title.desc};
   else titleCatalog[title.name].unlocked=true;
-  renderTitleCatalog();
+  // 描画をまとめてスケジュール
+  scheduleRenderTitleCatalog();
 }
+
+function scheduleRenderTitleCatalog(){
+  if(renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(()=>{
+    renderTitleCatalog();
+    renderScheduled = false;
+  });
+}
+
 function renderTitleCatalog(){
   const container=$("#titleCatalog"); if(!container) return;
   container.innerHTML="";
@@ -406,6 +418,39 @@ function initTitleCatalog(){
   window.addEventListener("resize", renderTitleCatalog);
 }
 
+function initTitleCatalogToggle() {
+  const wrapper = document.getElementById("titleCatalogWrapper");
+  const header = document.getElementById("titleCatalogHeader");
+  const content = document.getElementById("titleCatalogContent");
+
+  let isOpen = JSON.parse(localStorage.getItem("titleCatalogOpen") ?? "true");
+
+  // 描画後に高さ設定
+  setTimeout(() => {
+    content.style.maxHeight = isOpen ? content.scrollHeight + "px" : "0";
+    if(isOpen) content.classList.add("open");
+    header.textContent = isOpen ? "🏅 称号図鑑 ▼" : "🏅 称号図鑑 ▶";
+  }, 50);
+
+  header.addEventListener("click", () => {
+    isOpen = !isOpen;
+    if (isOpen) {
+      content.classList.add("open");
+      content.style.maxHeight = content.scrollHeight + "px";
+      header.textContent = "🏅 称号図鑑 ▼";
+    } else {
+      content.style.maxHeight = "0";
+      content.classList.remove("open");
+      header.textContent = "🏅 称号図鑑 ▶";
+    }
+    localStorage.setItem("titleCatalogOpen", JSON.stringify(isOpen));
+  });
+
+  window.addEventListener("resize", () => {
+    if(isOpen) content.style.maxHeight = content.scrollHeight + "px";
+  });
+}
+
 /* =========================
    初期化
 ========================= */
@@ -415,9 +460,15 @@ function init(){
   loadRankingHistory();
   dailyRandomCount = loadFromStorage("dailyRandomCount", {});
   loadTitleState();
-  initTitleCatalog();
+
+  setAdminMode(isAdmin); // 管理者モード反映
+
+  initTitleCatalogToggle();  // 開閉機能
+  initTitleCatalog();        // フィルター・検索・描画
+
   attachEvents();
   refreshRanking();
   toast("ランキングシステム初期化完了",1500);
 }
+
 window.addEventListener("DOMContentLoaded", init);
