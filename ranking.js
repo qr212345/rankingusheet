@@ -55,8 +55,6 @@ let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
 titleHistory = loadFromStorage(TITLE_HISTORY_KEY,[]);
 let titleFilter = "all"; // all / unlocked / locked
 let titleSearch = "";    // 検索文字列
-let chartInstance = null;
-let playerChartInstance = null;
 
 /* =========================
    Utility
@@ -106,7 +104,7 @@ function registerRandomAssign(playerId){
 }
 
 /* =========================
-   ポップアップ
+   ポップアップ・称号管理
 ========================= */
 const TITLE_SOUNDS = {
   "キングババ":"sounds/gold.mp3","シルバーババ":"sounds/silver.mp3","ブロンズババ":"sounds/bronze.mp3",
@@ -114,13 +112,15 @@ const TITLE_SOUNDS = {
   "ラッキーババ":"sounds/lucky.mp3","不屈の挑戦者":"sounds/fire.mp3","連勝街道":"sounds/fire.mp3",
   "default":"sounds/popup.mp3"
 };
-const popupQueue=[]; let popupActive=false;
-
-function enqueueTitlePopup(playerId,titleObj){ 
-  popupQueue.push({playerId,titleObj}); 
-  if(!popupActive) processPopupQueue(); 
+function getTitleAnimationClass(titleName){
+  if(/雷|銀|火/.test(titleName)) return "title-medal";
+  if(/逆転|サプライズ/.test(titleName)) return "title-explosion";
+  if(/幸運|ラッキー/.test(titleName)) return "title-lucky";
+  if(/不屈|連勝/.test(titleName)) return "title-fire";
+  return "title-generic";
 }
-
+const popupQueue=[]; let popupActive=false;
+function enqueueTitlePopup(playerId,titleObj){ popupQueue.push({playerId,titleObj}); if(!popupActive) processPopupQueue(); }
 function processPopupQueue(){
   if(popupQueue.length===0){ popupActive=false; return; }
   popupActive=true;
@@ -128,36 +128,27 @@ function processPopupQueue(){
   showTitlePopup(playerId,titleObj);
   setTimeout(processPopupQueue, window.innerWidth<768?1000:window.innerWidth<1200?700:500);
 }
-
 function showTitlePopup(playerId,titleObj){
   const popup=document.createElement("div");
-  popup.className="title-popup";
+  popup.className="title-popup "+getTitleAnimationClass(titleObj.name);
   popup.innerHTML=`<strong>${playerId}</strong><br><strong>${titleObj.name}</strong><br><small>${titleObj.desc}</small>`;
   document.body.appendChild(popup);
   new Audio(TITLE_SOUNDS[titleObj.name]||TITLE_SOUNDS.default).play();
-
-  // パーティクル
   const particleContainer=document.createElement("div");
   particleContainer.className="particle-container";
   document.body.appendChild(particleContainer);
-
-  const particleCount = window.innerWidth<768 ? 10 : window.innerWidth<1200 ? 20 : 30;
+  let particleCount=window.innerWidth<768?10:window.innerWidth<1200?20:30;
   for(let i=0;i<particleCount;i++){
     const p=document.createElement("div");
     p.className="particle";
     p.style.left=Math.random()*100+"vw";
     p.style.top=Math.random()*100+"vh";
-    p.style.animationDuration=(window.innerWidth<768?0.5:0.5+Math.random()*1.5)+"s";
+    p.style.animationDuration=(0.5+Math.random()*1.5)+"s";
     p.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;
     particleContainer.appendChild(p);
   }
-
   setTimeout(()=>popup.classList.add("show"),50);
-  setTimeout(()=>{ 
-    popup.classList.remove("show"); 
-    particleContainer.remove(); 
-    setTimeout(()=>popup.remove(),600); 
-  },1400);
+  setTimeout(()=>{ popup.classList.remove("show"); particleContainer.remove(); setTimeout(()=>popup.remove(),600); },1400);
 }
 
 /* =========================
@@ -220,188 +211,306 @@ function assignTitles(player){
 }
 
 /* =========================
-   称号図鑑（統一）
+   称号カタログ
 ========================= */
 function updateTitleCatalog(title){
   if(!titleCatalog[title.name]) titleCatalog[title.name]={unlocked:true,desc:title.desc};
   else titleCatalog[title.name].unlocked=true;
   renderTitleCatalog();
 }
-
-function renderTitleCatalog() {
-  const container = document.querySelector("#titleCatalog");
-  if (!container) return;
-  container.innerHTML = "";
-
-  // カラム数調整
-  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
-  container.style.display = "grid";
-  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-  container.style.gap = "1rem";
-
-  ALL_TITLES.forEach(title => {
-    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
-
-    // フィルター処理
-    if (titleFilter === "unlocked" && !unlocked) return;
-    if (titleFilter === "locked" && unlocked) return;
-    if (titleSearch && !title.name.toLowerCase().includes(titleSearch.toLowerCase())) return;
-
-    const historyEntries = titleHistory.filter(h => h.title === title.name);
-    const latest = historyEntries.length
-      ? new Date(historyEntries[historyEntries.length - 1].date).toLocaleDateString()
-      : "";
-
-    // アイコン＆色分け
-    let icon = "🏅";
-    let colorClass = "bg-gray-200 text-gray-700";
-    if (unlocked) {
-      if (/キング/.test(title.name)) { colorClass = "bg-gradient-to-br from-yellow-400 to-yellow-300 text-black"; icon = "👑"; }
-      else if (/シルバ/.test(title.name)) { colorClass = "bg-gradient-to-br from-gray-300 to-gray-400 text-black"; icon = "🥈"; }
-      else if (/ブロンズ/.test(title.name)) { colorClass = "bg-gradient-to-br from-orange-400 to-orange-500 text-white"; icon = "🥉"; }
-      else if (/逆転|サプライズ/.test(title.name)) { colorClass = "bg-gradient-to-br from-red-400 to-red-500 text-white"; icon = "⚡"; }
-      else if (/幸運|ラッキー/.test(title.name)) { colorClass = "bg-gradient-to-br from-green-400 to-green-500 text-black"; icon = "🍀"; }
-      else if (/不屈|連勝/.test(title.name)) { colorClass = "bg-gradient-to-br from-pink-400 to-pink-500 text-white"; icon = "🔥"; }
-    }
-
-    // カード作成
-    const div = document.createElement("div");
-    div.className = `
-      title-card p-5 rounded-2xl shadow-2xl flex flex-col items-center justify-center text-center
-      transform transition-transform duration-300 hover:scale-105 hover:shadow-3xl ${colorClass}
-      ${unlocked ? "unlocked" : ""}
-    `;
-
-    // 3Dマウスエフェクト（PCのみ）
-    if (window.innerWidth >= 1024) {
-      div.style.transformStyle = "preserve-3d";
-      div.addEventListener("mousemove", e => {
-        const rect = div.getBoundingClientRect();
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
-        div.style.transform = `rotateY(${x / 15}deg) rotateX(${-y / 15}deg) scale(1.05)`;
-      });
-      div.addEventListener("mouseleave", () => {
-        div.style.transform = "rotateY(0deg) rotateX(0deg) scale(1)";
-      });
-    }
-
-    // HTML内容
-    div.innerHTML = `
-      <div class="text-4xl mb-3 animate-bounce">${icon}</div>
-      <strong class="text-xl mb-2 font-bold">${title.name}</strong>
-      <p class="text-sm mb-2">${title.desc}</p>
-      <p class="text-xs ${unlocked ? "text-gray-800" : "text-gray-400"}">
-        ${latest ? `取得日: ${latest}` : "未取得"}
-      </p>
-    `;
-
+function renderTitleCatalog(){
+  const container=$("#titleCatalog"); if(!container) return;
+  container.innerHTML="";
+  Object.entries(titleCatalog).forEach(([name,info])=>{
+    const div=document.createElement("div");
+    div.className="title-card "+(info.unlocked?"unlocked":"locked");
+    div.textContent=info.unlocked?`${name} - ${info.desc}`:"？？？";
     container.appendChild(div);
   });
 }
 
+/* =========================
+   ランキング処理
+========================= */
+function processRanking(data){
+  data.forEach(p=>{ const prev=playerData.get(p.playerId)||{}; p.prevRate=prev.rate??p.rate; p.prevRank=prev.lastRank??0; p.prevRateRank=prev.prevRateRank??0; p.bonus=prev.bonus??p.bonus??0; });
+  data.forEach(p=>p.rateGain=p.rate-p.prevRate);
+  data.sort((a,b)=>b.rate-a.rate);
+  let rank=1;
+  data.forEach((p,i)=>{ 
+    p.rateRank=i>0&&p.rate===data[i-1].rate?data[i-1].rateRank:rank++;
+    p.rank=p.rateRank;
+    p.rankChange=(p.prevRank??p.rank)-p.rank;
+    p.rateRankChange=(p.prevRateRank??p.rateRank)-p.rateRank;
+  });
+
+  data.forEach(p=>playerData.set(p.playerId,{rate:p.rate,lastRank:p.rank,prevRateRank:p.rateRank,bonus:p.bonus,titles:p.titles||[]}));
+
+  savePlayerData();
+  return data.map(p=>({...p,gain:p.rateGain>=0?`+${p.rateGain}`:p.rateGain,rankChangeStr:fmtChange(p.rankChange),rateRankChangeStr:fmtChange(p.rateRankChange)}));
+}
+
+/* =========================
+   ランキングテーブル描画
+========================= */
+function renderRankingTable(data){
+  const tbody = document.querySelector("#rankingTable tbody");
+  if(!tbody) return;
+  tbody.innerHTML="";
+  const frag = document.createDocumentFragment();
+  data.forEach(p=>{
+    const tr = document.createElement("tr");
+    tr.dataset.playerId = p.playerId;
+
+    if(p.rank <= 3) tr.classList.add(`rank-${p.rank}`);
+    if(p.rateGain > 0) tr.classList.add("gain-up");
+    else if(p.rateGain < 0) tr.classList.add("gain-down");
+
+    tr.innerHTML = `
+      <td>${p.rank}</td>
+      <td>${p.playerId}</td>
+      <td>${p.rate}</td>
+      <td>${p.gain}</td>
+      <td>${p.bonus}</td>
+      <td>${p.rankChangeStr}</td>
+      <td>${p.prevRank ?? '—'}</td>
+      <td class="${p.rank<=3?'title-podium':''}">${p.title||''}</td>
+      <td class="admin-only"><button data-playerid="${p.playerId}">削除</button></td>
+    `;
+
+    tr.addEventListener("click", e=>{
+      if(!e.target.closest("button")) showPlayerChart(p.playerId);
+    });
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+}
+
+
+/* =========================
+   フィルター・検索コントロール
+========================= */
 function renderTitleFilterControls() {
-  const container=$("#titleCatalogControls");
-  if(!container) return;
-  container.innerHTML=`
-    <input type="text" id="titleSearchInput" placeholder="称号名で検索" class="border rounded px-2 py-1 w-full mb-2">
-    <div class="flex gap-2 flex-wrap">
-      <button class="filter-btn px-2 py-1 rounded border" data-filter="all">全て</button>
-      <button class="filter-btn px-2 py-1 rounded border" data-filter="unlocked">取得済み</button>
-      <button class="filter-btn px-2 py-1 rounded border" data-filter="locked">未取得</button>
+  const container = document.getElementById("titleCatalogControls");
+  if (!container) return;
+  container.innerHTML = `
+    <input type="text" id="titleSearchInput" placeholder="称号名で検索">
+    <div>
+      <button class="filter-btn" data-filter="all">全て</button>
+      <button class="filter-btn" data-filter="unlocked">取得済み</button>
+      <button class="filter-btn" data-filter="locked">未取得</button>
     </div>
   `;
+
   container.querySelectorAll(".filter-btn").forEach(btn=>{
     btn.addEventListener("click", e=>{
-      titleFilter=e.target.dataset.filter;
+      titleFilter = e.target.dataset.filter;
       renderTitleCatalog();
     });
   });
-  $("#titleSearchInput").addEventListener("input", debounce(e=>{
-    titleSearch=e.target.value.toLowerCase();
+
+  document.getElementById("titleSearchInput").addEventListener("input", debounce(e=>{
+    titleSearch = e.target.value.toLowerCase();
     renderTitleCatalog();
-  },200));
+  }, 200));
+}
+
+function initTitleCatalog() {
+  const parent = document.getElementById("titleCatalog").parentElement;
+  const controls = document.createElement("div");
+  controls.id = "titleCatalogControls";
+  parent.insertBefore(controls, document.getElementById("titleCatalog"));
+  renderTitleFilterControls();
+  renderTitleCatalog();
+  window.addEventListener("resize", renderTitleCatalog);
 }
 
 /* =========================
-   Chart.js 折れ線表示
+   称号図鑑描画
+========================= */
+function renderTitleCatalog() {
+  const container = document.getElementById("titleCatalog");
+  if (!container) return;
+  container.innerHTML = "";
+
+  // カラム数：レスポンシブ対応（CSS grid で制御）
+  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+
+  ALL_TITLES.forEach(title => {
+    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
+
+    // フィルター
+    if ((titleFilter === "unlocked" && !unlocked) || 
+        (titleFilter === "locked" && unlocked)) return;
+    if (titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
+
+    // 最新取得日
+    const historyItems = titleHistory.filter(h => h.title === title.name);
+    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h=>new Date(h.date)))) : null;
+    const dateStr = latest ? latest.toLocaleDateString() : "";
+
+    // ランクアイコンやアニメーション分類をクラスに追加
+    const animationClass = getTitleAnimationClass(title.name);
+    const rankClass = title.name.includes("ババ") ? "title-medal" : "";
+
+    const div = document.createElement("div");
+    div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${animationClass} ${rankClass}`;
+    div.innerHTML = `
+      <strong>${title.name}</strong>
+      <small>${title.desc}</small>
+      ${dateStr ? `<small>取得日: ${dateStr}</small>` : ""}
+    `;
+    container.appendChild(div);
+  });
+}
+
+function initTitleCatalog() {
+  const parent = document.getElementById("titleCatalog").parentElement;
+  const controls = document.createElement("div");
+  controls.id = "titleCatalogControls";
+  controls.className = "mb-2";
+  parent.insertBefore(controls, document.getElementById("titleCatalog"));
+  renderTitleFilterControls();
+  renderTitleCatalog();
+  window.addEventListener("resize", renderTitleCatalog);
+}
+
+/* =========================
+   CSV
+========================= */
+function downloadCSV(){
+  const csv=["順位,生徒ID,総合レート,獲得レート,特別ポイント,順位変動,前回順位,称号"];
+  lastProcessedRows.forEach(p=>csv.push([p.rank,escapeCSV(p.playerId),p.rate,p.gain,p.bonus,p.rankChangeStr,p.prevRank??"",escapeCSV(p.title)].join(",")));
+  const blob=new Blob([csv.join("\n")],{type:"text/csv"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="ranking.csv"; a.click();
+}
+
+/* =========================
+   データ取得・更新
+========================= */
+async function fetchRankingJSON(){
+  try{
+    isFetching=true;
+    const res=await fetch(`${GAS_URL}?mode=getRanking`,{cache:"no-store"});
+    if(!res.ok) throw new Error(res.status);
+    const json=await res.json();
+    if(!json.ranking) throw new Error("データなし");
+    return Object.entries(json.ranking).map(([id,[rate,bonus]])=>({playerId:id,rate:Number(rate)||0,bonus:Number(bonus)||0}));
+  }catch(e){ toast("取得失敗:"+e.message); return []; } finally{ isFetching=false; }
+}
+
+async function refreshRanking() {
+  if (isFetching) return;
+  try {
+    isFetching = true;
+    const data = await fetchRankingJSON();
+    const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
+    lastProcessedRows = processRanking(filtered);
+    lastProcessedRows.forEach(player => assignTitles(player));
+    renderRankingTable(lastProcessedRows);
+    rankingHistory.push({ date:new Date().toISOString(), snapshot:lastProcessedRows.map(p=>({playerId:p.playerId,rate:p.rate,bonus:p.bonus})) });
+    saveRankingHistory();
+  } catch(e){ toast("ランキング更新に失敗しました: "+e.message); }
+  finally{ isFetching=false; }
+}
+
+/* =========================
+   モーダル・イベント
+========================= */
+function attachModalControls(){
+  const modal=$("#chartModal");
+  const close=$("#chartCloseBtn");
+  if(modal && close) close.addEventListener("click",()=>modal.classList.add("hidden"));
+}
+function attachEvents(){
+  $("#searchInput")?.addEventListener("input",debounce(e=>{
+    const term=e.target.value.toLowerCase();
+    renderRankingTable(lastProcessedRows.filter(p=>p.playerId.toLowerCase().includes(term)));
+  }));
+  $("#downloadCSVBtn")?.addEventListener("click",()=>downloadCSV());
+  $("#loadRankingBtn")?.addEventListener("click",()=>refreshRanking());
+  $("#adminToggleBtn")?.addEventListener("click",()=>{
+    const pwd=prompt("管理者パスワード");
+    setAdminMode(pwd===ADMIN_PASSWORD);
+  });
+  $("#autoRefreshToggle")?.addEventListener("change",e=>{
+    if(e.target.checked){ const sec=$("#autoRefreshSec")?.value||30; autoRefreshTimer=setInterval(refreshRanking,sec*1000); }
+    else clearInterval(autoRefreshTimer);
+  });
+  $("#zoomInBtn")?.addEventListener("click",()=>{ fontSize+=2; $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
+  $("#zoomOutBtn")?.addEventListener("click",()=>{ fontSize=Math.max(10,fontSize-2); $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
+}
+
+/* =========================
+   初期化
+========================= */
+function init(){
+  loadPlayerData();
+  loadDeletedPlayers();
+  loadRankingHistory();
+  renderTitleCatalog();
+  attachEvents();
+  attachModalControls();
+  refreshRanking();
+  toast("ランキングシステム初期化完了",1500);
+}
+window.addEventListener("DOMContentLoaded",init);
+
+/* =========================
+   チャート描画
 ========================= */
 function showPlayerChart(playerId){
   const modal = $("#chartModal");
-  if(!modal) return;
-  modal.querySelector(".modal-title").textContent = playerId;
-  modal.classList.remove("hidden");
+  const canvas = $("#chartCanvas");
+  if(!modal || !canvas) return;
 
-  const canvas = $("#playerChartCanvas");
-  if(!canvas) return;
+  // 過去履歴からデータ抽出
+  const history = rankingHistory.map(h => {
+    const entry = h.snapshot.find(p => p.playerId === playerId);
+    return entry ? { date: new Date(h.date), rate: entry.rate } : null;
+  }).filter(x => x !== null);
 
-  // 過去履歴を抽出
-  const historyData = rankingHistory.map(h => {
-    const p = h.snapshot.find(pl => pl.playerId === playerId);
-    return p ? { date: new Date(h.date), rate: p.rate, bonus: p.bonus } : null;
-  }).filter(x => x);
-
-  if(historyData.length === 0){
-    canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+  if(history.length === 0){
+    toast("履歴データなし");
     return;
   }
 
-  const labels = historyData.map(h => h.date.toLocaleDateString());
-  const rates = historyData.map(h => h.rate);
-  const bonuses = historyData.map(h => h.bonus);
+  // 日付ラベルとレートデータ
+  const labels = history.map(h => h.date.toLocaleDateString()+" "+h.date.toLocaleTimeString());
+  const rates = history.map(h => h.rate);
 
-  // 既存チャートを破棄
-  if(playerChartInstance) playerChartInstance.destroy();
-
-  playerChartInstance = new Chart(canvas, {
+  // Chart.js 初期化
+  if(canvas.chartInstance) canvas.chartInstance.destroy(); // 既存チャートがあれば破棄
+  canvas.chartInstance = new Chart(canvas, {
     type: 'line',
     data: {
-      labels,
-      datasets: [
-        { label: '総合レート', data: rates, borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.1)', tension: 0.3 },
-        { label: '特別ポイント', data: bonuses, borderColor: 'green', backgroundColor: 'rgba(0,255,0,0.1)', tension: 0.3 }
-      ]
+      labels: labels,
+      datasets: [{
+        label: playerId + ' のレート推移',
+        data: rates,
+        borderColor: 'rgba(75,192,192,1)',
+        backgroundColor: 'rgba(75,192,192,0.2)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 3,
+      }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'top' } },
-      animation: { duration: window.innerWidth<768 ? 200 : 800 },
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true },
+        tooltip: { mode: 'index', intersect: false }
+      },
       scales: {
-        y: { beginAtZero: true },
-        x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+        x: { display: true, title: { display: true, text: '日付' } },
+        y: { display: true, title: { display: true, text: 'レート' }, beginAtZero: false }
       }
     }
   });
+  // 横スクロール対応（モバイル用）
+  canvas.parentElement.style.overflowX = window.innerWidth < 768 ? "scroll" : "visible";
+  // モーダル表示
+  modal.classList.remove("hidden");
 }
-
-/* =========================
-   CSV出力
-========================= */
-function exportCSV(){
-  let rows=[["順位","ID","レート","レート差","称号"]];
-  lastProcessedRows.forEach(p=>{
-    rows.push([p.rank,p.playerId,p.rate,p.rateGain,p.titles.join(",")]);
-  });
-  const csvContent=rows.map(r=>r.map(escapeCSV).join(",")).join("\n");
-  const blob=new Blob([csvContent],{type:"text/csv"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url; a.download="ranking.csv"; a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* =========================
-   オート更新
-========================= */
-function startAutoRefresh(intervalMs){
-  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
-  autoRefreshTimer=setInterval(fetchRankingData, intervalMs);
-}
-
-function stopAutoRefresh(){
-  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
-}
-
-/* =========================
-   ランキング処理・表示は既存コードで統合可能
-========================= */
