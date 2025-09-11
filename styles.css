@@ -35,23 +35,61 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
    ランキングテーブル
 ========================= */
 .ranking-wrapper { overflow-x:auto; flex:1 1 600px; }
-#rankingTable {
+#rankingTable,
+#fullscreenRankingTable,
+#fullscreenChangeRankingTable {
   width:100%;
   border-collapse:collapse;
   font-size:16px;
   min-width:800px;
 }
-#rankingTable th, #rankingTable td {
-  padding:10px 8px;
+#rankingTable th, #rankingTable td,
+#fullscreenRankingTable th, #fullscreenRankingTable td,
+#fullscreenChangeRankingTable th, #fullscreenChangeRankingTable td {
+  padding:10px 12px;
   text-align:center;
   border-bottom:2px solid #ccc;
+  border-right:1px solid #ccc; /* 列区切り */
 }
-#rankingTable th { background:#e0e0e0; font-weight:bold; }
-#rankingTable tr.rank-1 { background: linear-gradient(90deg, #ffd700, #ffe680); font-weight:bold; }
-#rankingTable tr.rank-2 { background: linear-gradient(90deg, #c0c0c0, #d9d9d9); font-weight:bold; }
-#rankingTable tr.rank-3 { background: linear-gradient(90deg, #cd7f32, #deb887); font-weight:bold; }
-#rankingTable tr.gain-up { color:#27ae60; }
-#rankingTable tr.gain-down { color:#e74c3c; }
+#rankingTable th:last-child, #rankingTable td:last-child,
+#fullscreenRankingTable th:last-child, #fullscreenRankingTable td:last-child,
+#fullscreenChangeRankingTable th:last-child, #fullscreenChangeRankingTable td:last-child {
+  border-right:none;
+}
+
+/* ヘッダー背景色 */
+#rankingTable th,
+#fullscreenRankingTable th,
+#fullscreenChangeRankingTable th {
+  background:#f0f0f0;
+  font-weight:bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 上位ランカー強調 */
+#rankingTable tr.rank-1 td,
+#fullscreenRankingTable tr.rank-1 td { background: linear-gradient(90deg,#ffd700,#ffe680); font-weight:bold; }
+#rankingTable tr.rank-2 td,
+#fullscreenRankingTable tr.rank-2 td { background: linear-gradient(90deg,#c0c0c0,#d9d9d9); }
+#rankingTable tr.rank-3 td,
+#fullscreenRankingTable tr.rank-3 td { background: linear-gradient(90deg,#cd7f32,#deb887); }
+
+/* レート増減 */
+#rankingTable tr.gain-up td,
+#fullscreenRankingTable tr.gain-up td { color:#27ae60; font-weight:bold; }
+#rankingTable tr.gain-down td,
+#fullscreenRankingTable tr.gain-down td { color:#e74c3c; font-weight:bold; }
+
+/* 列幅固定（重要度順） */
+#rankingTable .col-rank { width: 60px; }
+#rankingTable .col-id { width: 100px; }
+#rankingTable .col-rate { width: 80px; }
+#rankingTable .col-gain { width: 80px; }
+#rankingTable .col-bonus { width: 80px; }
+#rankingTable .col-title { width: 120px; }
+#rankingTable .col-change { width: 80px; }
 
 /* =========================
    サイドバー 変動ランキング
@@ -68,187 +106,101 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
 /*********************************************
  モーダル共通スタイル
 *********************************************/
-.modal {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal.hidden {
-  display: none;
-}
-
-.modal-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  transition: opacity 0.3s ease;
-}
-
+.modal { position: fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:1000; }
+.modal.hidden { display:none; }
+.modal-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.55); backdrop-filter:blur(2px); transition: opacity 0.3s ease; }
 .modal-content {
-  position: relative;
-  background: #fff;
-  color: #222;
-  border-radius: 12px;
-  max-width: 90vw;
-  max-height: 85vh;
-  width: 1200px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  overflow-y: auto;
-  z-index: 1001;
+  position:relative;
+  background:#fff;
+  color:#222;
+  border-radius:12px;
+  max-width:90vw;
+  max-height:85vh;
+  width:1200px;
+  padding:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  overflow-y:auto;
+  z-index:1001;
   animation: modalFadeIn 0.25s ease-out;
 }
-
-@keyframes modalFadeIn {
-  from { opacity: 0; transform: translateY(-15px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+@keyframes modalFadeIn { from{opacity:0;transform:translateY(-15px) scale(0.95);} to{opacity:1;transform:translateY(0) scale(1);} }
+.modal-content>button { position:absolute; top:12px; right:12px; background:#f44336; color:#fff; font-size:1.2rem; line-height:1; padding:8px 12px; border-radius:6px; cursor:pointer; transition:background 0.2s ease; }
+.modal-content>button:hover, .modal-content>button:focus { background:#d32f2f; outline:none; }
 
 /*********************************************
- 閉じるボタン
+ 変動ランキングモーダル・サイドバー
 *********************************************/
-.modal-content > button {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: #f44336;
-  color: #fff;
-  border: none;
-  font-size: 1.2rem;
-  line-height: 1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
+#awardUp, #awardDown { list-style:none; padding:0; margin:6px 0 16px; }
+#awardUp li, #awardDown li { background:#f9f9f9; border:1px solid #e0e0e0; border-radius:6px; padding:8px 10px; margin:4px 0; font-size:0.95rem; display:flex; align-items:center; gap:6px; }
+#awardUp li::before { content:"⬆"; color:#2e7d32; font-weight:bold; }
+#awardDown li::before { content:"⬇"; color:#c62828; font-weight:bold; }
 
-.modal-content > button:hover,
-.modal-content > button:focus {
-  background: #d32f2f;
-  outline: none;
-}
-
-/*********************************************
- 総合ランキングモーダル
-*********************************************/
-#fullscreenRankingTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-#fullscreenRankingTable th,
-#fullscreenRankingTable td {
-  padding: 10px 12px;
-  border: 1px solid #e0e0e0;
-}
-
-#fullscreenRankingTable th {
-  background: #1976d2;
-  color: #fff;
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-#fullscreenRankingTable tr:nth-child(even) {
-  background: #fafafa;
-}
-
-/* 上位ランカーの強調 */
-#fullscreenRankingTable tr.rank-1 td { background: #fff9c4; font-weight: bold; }
-#fullscreenRankingTable tr.rank-2 td { background: #e1f5fe; }
-#fullscreenRankingTable tr.rank-3 td { background: #fce4ec; }
-
-/* レート増減 */
-#fullscreenRankingTable tr.gain-up td { color: #2e7d32; font-weight: bold; }
-#fullscreenRankingTable tr.gain-down td { color: #c62828; font-weight: bold; }
-
-/*********************************************
- 変動ランキングモーダル
-*********************************************/
-#fullscreenChangeRankingTable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-#fullscreenChangeRankingTable th,
-#fullscreenChangeRankingTable td {
-  padding: 10px 12px;
-  border: 1px solid #e0e0e0;
-}
-
-#fullscreenChangeRankingTable th {
-  background: #388e3c;
-  color: #fff;
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-#fullscreenChangeRankingTable tr:nth-child(even) {
-  background: #f9f9f9;
-}
-
-/*********************************************
- サイドバー変動ランキング（上昇/下降リスト）
-*********************************************/
-#awardUp, #awardDown {
-  list-style: none;
-  padding: 0;
-  margin: 6px 0 16px;
-}
-
-#awardUp li,
-#awardDown li {
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin: 4px 0;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-#awardUp li::before {
-  content: "⬆";
-  color: #2e7d32;
-  font-weight: bold;
-}
-
-#awardDown li::before {
-  content: "⬇";
-  color: #c62828;
-  font-weight: bold;
-}
-
-/*********************************************
- レスポンシブ対応
-*********************************************/
+/* =========================
+   レスポンシブ統合
+========================= */
 @media (max-width: 768px) {
-  .modal-content {
-    width: 95vw;
-    padding: 16px;
-    border-radius: 10px;
-  }
-
-  #fullscreenRankingTable,
-  #fullscreenChangeRankingTable {
-    font-size: 0.85rem;
-  }
+  body { font-size:14px; }
+  #rankingTable th, #rankingTable td { padding:6px; font-size:14px; }
+  .grid-container { flex-direction:column; }
+  .sidebar { min-width:100%; }
 }
+
+/* =========================
+   称号図鑑カード
+========================= */
+#titleCatalog {
+  display:grid;
+  gap:20px;
+  margin-top:20px;
+  padding:12px;
+}
+@media (min-width:1200px){ #titleCatalog { grid-template-columns: repeat(5, 1fr); } }
+@media (min-width:768px) and (max-width:1199px){ #titleCatalog { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width:767px){ #titleCatalog { grid-template-columns: repeat(3, 1fr); gap:12px; } }
+
+.title-card {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  aspect-ratio:1/1;
+  padding:28px;
+  border-radius:22px;
+  text-align:center;
+  font-size:18px;
+  border:2px solid #ccc;
+  background:#fdfdfd;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  min-height:180px;
+  box-sizing:border-box;
+  user-select:none;
+}
+.title-card.unlocked { border-color:#27ae60; background:linear-gradient(145deg,#eafaf1,#d0f0e0); box-shadow:0 8px 20px rgba(39,174,96,0.4); animation:glowPulse 2s ease-in-out infinite alternate; }
+.title-card.locked { border-color:#7f8c8d; background:linear-gradient(145deg,#e0e0e0,#cfcfcf); box-shadow:0 6px 18px rgba(0,0,0,0.1); opacity:0.5; }
+.title-card:hover { transform: scale(1.08) rotate(-1deg); box-shadow:0 12px 28px rgba(0,0,0,0.28); }
+.title-card strong { font-size:22px; margin-bottom:6px; display:block; }
+.title-card small { font-size:16px; color:#555; display:block; margin-top:4px; }
+.title-card.unlocked small { color:#333; }
+
+.title-card.gain { animation:titleGain 1s ease forwards; }
+@keyframes titleGain {
+  0% { transform: scale(1) rotate(0deg); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
+  25% { transform: scale(1.25) rotate(-12deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
+  50% { transform: scale(1.35) rotate(12deg); box-shadow:0 18px 32px rgba(39,174,96,0.9); }
+  75% { transform: scale(1.25) rotate(-6deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
+  100% { transform: scale(1) rotate(0deg); box-shadow:0 8px 20px rgba(39,174,96,0.4); }
+}
+@keyframes glowPulse { 0% { box-shadow:0 8px 20px rgba(39,174,96,0.4),0 0 10px rgba(39,174,96,0.3);} 50% { box-shadow:0 12px 30px rgba(39,174,96,0.6),0 0 20px rgba(39,174,96,0.5);} 100% { box-shadow:0 8px 20px rgba(39,174,96,0.4),0 0 10px rgba(39,174,96,0.3);} }
+
+/* =========================
+   パーティクルエフェクト
+========================= */
+.particle-container { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:hidden; z-index:1500; }
+.particle { position:absolute; width:8px; height:8px; border-radius:50%; animation-name:particleMove; animation-timing-function:ease-out; }
+@keyframes particleMove { 0%{opacity:1;transform:translateY(0) scale(1);} 100%{opacity:0;transform:translateY(-250px) scale(0.4);} }
 
 /* =========================
    トースト通知
@@ -260,215 +212,3 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   opacity:0; transition:opacity 0.3s ease;
 }
 #toast.show { opacity:1; }
-
-/*表拡大*/
-#rankingFullscreen {
-  position: fixed;
-  top:0; left:0;
-  width:100%;
-  height:100%;
-  background: white;
-  overflow: auto;
-  z-index: 9999;
-  display: none;
-  padding: 20px;
-}
-#rankingFullscreen table {
-  width: 100%;
-  font-size: 18px; /* 表を大きく表示 */
-}
-
-.ranking-controls button {
-  margin-right: 6px;
-  padding: 6px 12px;
-  font-size: 14px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #f8f8f8;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.ranking-controls button:hover { background-color: #e0e0e0; }
-
-.modal.hidden {
-  display: none;
-}
-
-.modal {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-.modal-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-}
-
-.modal-content {
-  position: relative;
-  background: white;
-  padding: 20px;
-  max-height: 90%;
-  max-width: 95%;
-  overflow: auto;
-  border-radius: 8px;
-}
-
-/* =========================
-   称号図鑑カード
-========================= */
-#titleCatalog {
-  display: grid;
-  gap: 20px; /* カード間の余白 */
-  margin-top: 20px;
-  padding: 12px;
-}
-
-/* 列数固定・レスポンシブ */
-@media (min-width: 1200px) {
-  #titleCatalog { grid-template-columns: repeat(5, 1fr); } /* PC：5列 */
-}
-@media (min-width: 768px) and (max-width: 1199px) {
-  #titleCatalog { grid-template-columns: repeat(4, 1fr); } /* タブレット：4列 */
-}
-@media (max-width: 767px) {
-  #titleCatalog { grid-template-columns: repeat(3, 1fr); } /* スマホ：3列 */
-}
-
-/* カード本体 */
-.title-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  aspect-ratio: 1/1; /* 正方形 */
-  padding: 28px;
-  border-radius: 22px;
-  text-align: center;
-  font-size: 18px;
-  border: 2px solid #ccc;
-  background: #fdfdfd;
-  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  min-height: 180px;
-  box-sizing: border-box;
-  user-select: none;
-}
-
-* 取得済カード */
-.title-card.unlocked {
-  border-color: #27ae60;
-  background: linear-gradient(145deg, #eafaf1, #d0f0e0);
-  box-shadow: 0 8px 20px rgba(39,174,96,0.4);
-  animation: glowPulse 2s ease-in-out infinite alternate;
-}
-
-/* 未取得カード */
-.title-card.locked {
-  border-color: #7f8c8d;
-  background: linear-gradient(145deg, #e0e0e0, #cfcfcf);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-  opacity: 0.5;
-}
-
-/* ホバー時 */
-.title-card:hover {
-  transform: scale(1.08) rotate(-1deg);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
-}
-
-/* タイトル・説明文字 */
-.title-card strong {
-  font-size: 22px;
-  margin-bottom: 6px;
-  display: block;
-}
-.title-card small {
-  font-size: 16px;
-  color: #555;
-  display: block;
-  margin-top: 4px;
-}
-.title-card.unlocked small { color: #333; }
-
-/* =========================
-   獲得エフェクトアニメーション
-========================= */
-.title-card.gain {
-  animation: titleGain 1s ease forwards;
-}
-@keyframes titleGain {
-  0%   { transform: scale(1) rotate(0deg); box-shadow:0 8px 20px rgba(0,0,0,0.3); }
-  25%  { transform: scale(1.25) rotate(-12deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
-  50%  { transform: scale(1.35) rotate(12deg); box-shadow:0 18px 32px rgba(39,174,96,0.9); }
-  75%  { transform: scale(1.25) rotate(-6deg); box-shadow:0 14px 28px rgba(39,174,96,0.7); }
-  100% { transform: scale(1) rotate(0deg); box-shadow:0 8px 20px rgba(39,174,96,0.4); }
-}
-
-/* =========================
-   獲得時の光るグラデーションアニメーション
-========================= */
-@keyframes glowPulse {
-  0% { box-shadow: 0 8px 20px rgba(39,174,96,0.4), 0 0 10px rgba(39,174,96,0.3); }
-  50% { box-shadow: 0 12px 30px rgba(39,174,96,0.6), 0 0 20px rgba(39,174,96,0.5); }
-  100% { box-shadow: 0 8px 20px rgba(39,174,96,0.4), 0 0 10px rgba(39,174,96,0.3); }
-}
-
-/* =========================
-   パーティクルエフェクト
-========================= */
-.particle-container {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 1500;
-}
-
-.particle {
-  position: absolute;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  animation-name: particleMove;
-  animation-timing-function: ease-out;
-}
-@keyframes particleMove {
-  0% { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-250px) scale(0.4); }
-}
-
-/* =========================
-   レスポンシブ統合
-========================= */
-
-/* PC: 5列 */
-@media(min-width:1200px){
-  #titleCatalog { grid-template-columns: repeat(5, 1fr); gap:20px; }
-}
-
-/* タブレット: 4列 */
-@media(min-width:768px) and (max-width:1199px){
-  #titleCatalog { grid-template-columns: repeat(4, 1fr); gap:16px; }
-}
-
-/* スマホ: 3列 */
-@media(max-width:767px){
-  body { font-size:14px; }
-  #rankingTable th, #rankingTable td { padding:6px; font-size:14px; }
-  .grid-container { flex-direction:column; }
-  .sidebar { min-width:100%; }
-
-  #titleCatalog { grid-template-columns: repeat(3, 1fr); gap:12px; }
-  .title-card { padding:16px; font-size:16px; min-height:150px; }
-  .title-card strong { font-size:18px; }
-  .title-card small { font-size:14px; }
-}
