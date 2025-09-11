@@ -24,8 +24,7 @@
       <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
       <!-- 総合ランキング拡大ボタン -->
 　　　<button id="btnOpenOverall">📊 総合ランキングを大きく表示</button>
-　　　<!-- 変動ランキング拡大ボタン -->
-　　　<button id="btnOpenChange">📈 変動ランキングを大きく表示</button>
+    
     </div>
   </header>
 
@@ -38,16 +37,6 @@
     <button id="btnCloseOverall" class="close-btn">✖</button>
     <h2>📊 総合ランキング（フルスクリーン）</h2>
     <table id="modalOverallTable" class="ranking-table"></table>
-  </div>
-</div>
-
-<!-- 変動ランキングモーダル -->
-<div id="modalChange" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button id="btnCloseChange" class="close-btn">✖</button>
-    <h2>📈 変動ランキング（フルスクリーン）</h2>
-    <div id="modalChangeContent"></div>
   </div>
 </div>
 
@@ -64,27 +53,8 @@
             </tr>
           </thead>
           <tbody></tbody>
-        </table>
-  <table id="changeRankingTable" class="styled-table">
-  <thead>
-    <tr>
-      <th>順位変動</th>
-      <th>生徒ID</th>
-      <th>総合レート</th>
-      <th>獲得レート</th>
-      <th>特別ポイント</th>
-      <th>前回順位</th>
-      <th>称号</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
+        </table> 
       </div>
-      <aside class="sidebar">
-        <h3>🏆 変動ランキング</h3>
-        <h4>📈 上昇TOP3</h4><ul id="awardUp"></ul>
-        <h4>📉 下降TOP3</h4><ul id="awardDown"></ul>
-      </aside>
     </section>
 
     <!-- 称号図鑑画面 -->
