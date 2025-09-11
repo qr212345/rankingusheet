@@ -394,6 +394,40 @@ function stopAutoRefresh() {
   }
 }
 
+function toggleAutoRefresh(enabled) {
+  clearInterval(autoRefreshTimer);
+  if (enabled) {
+    const secInput = document.getElementById("autoRefreshSec");
+    let intervalSec = parseInt(secInput.value, 10);
+    if (isNaN(intervalSec) || intervalSec < 5) intervalSec = 5; // 最低5秒
+    autoRefreshTimer = setInterval(refreshRanking, intervalSec * 1000);
+    toast(`自動更新ON（${intervalSec}秒間隔）`, 1500);
+  } else {
+    toast("自動更新OFF", 1500);
+  }
+}
+
+function attachEvents() {
+  // 既存のイベント登録に追加
+  const autoToggle = document.getElementById("autoRefreshToggle");
+  const secInput = document.getElementById("autoRefreshSec");
+
+  if (autoToggle) {
+    autoToggle.addEventListener("change", e => {
+      toggleAutoRefresh(e.target.checked);
+    });
+  }
+
+  if (secInput) {
+    secInput.addEventListener("input", () => {
+      // 自動更新ONの場合は間隔を更新
+      if (autoToggle && autoToggle.checked) {
+        toggleAutoRefresh(true); // 再設定
+      }
+    });
+  }
+}
+
 /* =========================
    管理者削除ボタン
 ========================= */
@@ -499,21 +533,45 @@ function initTitleCatalogToggle() {
 /* =========================
    初期化
 ========================= */
-function init(){
+function init() {
+  // データ読み込み
   loadPlayerData();
   loadDeletedPlayers();
   loadRankingHistory();
+  attachEvents();
   dailyRandomCount = loadFromStorage("dailyRandomCount", {});
   loadTitleState();
 
-  setAdminMode(isAdmin); // 管理者モード反映
+  // 称号図鑑初期化（開閉・フィルター・検索・描画）
+  initTitleCatalogToggle();
+  initTitleCatalog();
 
-  initTitleCatalogToggle();  // 開閉機能
-  initTitleCatalog();        // フィルター・検索・描画
+  // 管理者モード状態を localStorage から復元
+  const savedAdmin = JSON.parse(localStorage.getItem("isAdmin") ?? "false");
+  setAdminMode(savedAdmin);
 
+  // イベント登録
   attachEvents();
+
+  // ランキング初回取得
   refreshRanking();
-  toast("ランキングシステム初期化完了",1500);
+
+  // 完了通知
+  toast("ランキングシステム初期化完了", 1500);
 }
 
+/* =========================
+   管理者モード切替（保存対応）
+========================= */
+function setAdminMode(enabled) {
+  isAdmin = Boolean(enabled);
+  $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin ? "table-cell" : "none");
+
+  // 状態を localStorage に保存
+  localStorage.setItem("isAdmin", JSON.stringify(isAdmin));
+}
+
+/* =========================
+   DOMContentLoaded で初期化
+========================= */
 window.addEventListener("DOMContentLoaded", init);
