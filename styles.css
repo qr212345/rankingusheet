@@ -65,24 +65,190 @@ input, select { font-size:16px; padding:6px; border-radius:6px; border:1px solid
   min-width:200px;
 }
 
-/* =========================
-   モーダル チャート
-========================= */
+/*********************************************
+ モーダル共通スタイル
+*********************************************/
 .modal {
-  position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5);
-  display:flex; justify-content:center; align-items:center; z-index:1000;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  transition: opacity 0.3s ease;
+}
+
 .modal-content {
-  background:#fff;
-  padding:20px;
-  border-radius:12px;
-  width:90%;
-  max-width:800px;
-  max-height:90%;
-  overflow:auto;
-  position:relative;
+  position: relative;
+  background: #fff;
+  color: #222;
+  border-radius: 12px;
+  max-width: 90vw;
+  max-height: 85vh;
+  width: 1200px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  overflow-y: auto;
+  z-index: 1001;
+  animation: modalFadeIn 0.25s ease-out;
 }
-#chartCloseBtn { position:absolute; top:10px; right:10px; font-size:20px; background:#e74c3c; color:#fff; }
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translateY(-15px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/*********************************************
+ 閉じるボタン
+*********************************************/
+.modal-content > button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #f44336;
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.modal-content > button:hover,
+.modal-content > button:focus {
+  background: #d32f2f;
+  outline: none;
+}
+
+/*********************************************
+ 総合ランキングモーダル
+*********************************************/
+#fullscreenRankingTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+#fullscreenRankingTable th,
+#fullscreenRankingTable td {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+}
+
+#fullscreenRankingTable th {
+  background: #1976d2;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+#fullscreenRankingTable tr:nth-child(even) {
+  background: #fafafa;
+}
+
+/* 上位ランカーの強調 */
+#fullscreenRankingTable tr.rank-1 td { background: #fff9c4; font-weight: bold; }
+#fullscreenRankingTable tr.rank-2 td { background: #e1f5fe; }
+#fullscreenRankingTable tr.rank-3 td { background: #fce4ec; }
+
+/* レート増減 */
+#fullscreenRankingTable tr.gain-up td { color: #2e7d32; font-weight: bold; }
+#fullscreenRankingTable tr.gain-down td { color: #c62828; font-weight: bold; }
+
+/*********************************************
+ 変動ランキングモーダル
+*********************************************/
+#fullscreenChangeRankingTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+#fullscreenChangeRankingTable th,
+#fullscreenChangeRankingTable td {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+}
+
+#fullscreenChangeRankingTable th {
+  background: #388e3c;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+#fullscreenChangeRankingTable tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+/*********************************************
+ サイドバー変動ランキング（上昇/下降リスト）
+*********************************************/
+#awardUp, #awardDown {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 16px;
+}
+
+#awardUp li,
+#awardDown li {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#awardUp li::before {
+  content: "⬆";
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+#awardDown li::before {
+  content: "⬇";
+  color: #c62828;
+  font-weight: bold;
+}
+
+/*********************************************
+ レスポンシブ対応
+*********************************************/
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95vw;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  #fullscreenRankingTable,
+  #fullscreenChangeRankingTable {
+    font-size: 0.85rem;
+  }
+}
 
 /* =========================
    トースト通知
