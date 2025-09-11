@@ -38,7 +38,7 @@
   <div id="podium" class="flex flex-wrap justify-center gap-4 mt-4"></div>
 
   <!-- メインレイアウト -->
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 p-4">
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 p-4">
 
     <!-- ランキングテーブル -->
     <div id="rankingTableWrapper" class="overflow-x-auto bg-white rounded shadow">
@@ -58,17 +58,19 @@
         </thead>
         <tbody></tbody>
       </table>
+
+      <!-- ズーム操作 -->
+      <div class="flex items-center gap-2 p-2">
+        <button id="zoomInBtn" class="bg-gray-200 px-2 py-1 rounded">拡大</button>
+        <button id="zoomOutBtn" class="bg-gray-200 px-2 py-1 rounded">縮小</button>
+        <span id="zoomLevel">14px</span>
+      </div>
     </div>
 
-    <!-- ズームボタン -->
-    <div id="tableControls" class="mt-2">
-      <button id="zoomInBtn">拡大</button>
-      <button id="zoomOutBtn">縮小</button>
-      <span id="zoomLevel">14px</span>
-    </div>
-
-    <!-- サイド：変動ランキング -->
+    <!-- サイドバー -->
     <aside class="bg-white p-4 rounded shadow">
+
+      <!-- 変動ランキング -->
       <h3 class="font-bold mb-2">🏆 変動ランキング</h3>
       <section>
         <h4 class="font-semibold mb-1">📈 上昇TOP3</h4>
@@ -82,6 +84,14 @@
       <!-- 称号図鑑 -->
       <section class="mt-4">
         <h4 class="font-semibold mb-1">🏅 称号図鑑</h4>
+        <div id="titleCatalogControls" class="mb-2">
+          <input type="text" id="titleSearchInput" placeholder="称号名で検索" class="border rounded px-2 py-1 w-full mb-2">
+          <div class="flex gap-2 flex-wrap">
+            <button class="filter-btn px-2 py-1 rounded border" data-filter="all">全て</button>
+            <button class="filter-btn px-2 py-1 rounded border" data-filter="unlocked">取得済み</button>
+            <button class="filter-btn px-2 py-1 rounded border" data-filter="locked">未取得</button>
+          </div>
+        </div>
         <div id="titleCatalog" class="grid grid-cols-2 gap-2"></div>
       </section>
     </aside>
@@ -101,5 +111,19 @@
 
   <!-- JS -->
   <script src="ranking.js"></script>
+  <script>
+    // 称号フィルターと検索初期化
+    document.addEventListener("DOMContentLoaded", () => {
+      const titleSearchInput = document.getElementById("titleSearchInput");
+      titleSearchInput.addEventListener("input", () => window.renderTitleCatalog?.());
+
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.addEventListener("click", e => {
+          window.titleFilter = e.target.dataset.filter;
+          window.renderTitleCatalog?.();
+        });
+      });
+    });
+  </script>
 </body>
 </html>
