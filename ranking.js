@@ -493,6 +493,22 @@ function attachEvents() {
   $("#chartCloseBtn")?.addEventListener("click", () => $("#chartModal")?.classList.add("hidden"));
 }
 
+  const header = document.getElementById("titleCatalogHeader");
+  const content = document.getElementById("titleCatalogContent");
+
+  if (header && content) {
+    header.addEventListener("click", () => {
+      const hidden = content.style.display === "none";
+
+      content.style.display = hidden ? "block" : "none";
+      header.textContent = hidden ? "🏅 称号図鑑 ▲" : "🏅 称号図鑑 ▼";
+    });
+
+    // 初期状態を非表示にしたい場合
+    content.style.display = "none";
+  }
+}
+
 /* =========================
    称号フィルター/検索UI
 ========================= */
