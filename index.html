@@ -65,16 +65,16 @@
     <h4>📉 下降TOP3</h4>
     <ul id="awardDown"></ul>
 
-    <h4>🏅 称号図鑑</h4>
-    <input type="text" id="titleSearchInput" placeholder="称号名で検索">
-    <div class="filter-buttons">
-      <button data-filter="all">全て</button>
-      <button data-filter="unlocked">取得済み</button>
-      <button data-filter="locked">未取得</button>
+    <h4 id="titleCatalogHeader" style="cursor:pointer;">🏅 称号図鑑 ▼</h4>
+    <div id="titleCatalogContent" style="overflow:hidden; transition: max-height 0.3s ease;">
+      <div class="filter-buttons">
+        <button data-filter="all">全て</button>
+        <button data-filter="unlocked">取得済み</button>
+        <button data-filter="locked">未取得</button>
+      </div>
+      <div id="titleCatalog" class="title-grid"></div>
     </div>
-    <div id="titleCatalog" class="title-grid"></div>
   </aside>
-</div>
 
 <!-- モーダル -->
 <div id="chartModal" class="modal hidden">
@@ -90,6 +90,24 @@
 
 <script src="ranking.js"></script>
 <script>
+const header = document.getElementById("titleCatalogHeader");
+  const content = document.getElementById("titleCatalogContent");
+
+  // 初期状態を開いた状態に設定
+  let isOpen = true;
+  content.style.maxHeight = content.scrollHeight + "px";
+
+  header.addEventListener("click", () => {
+    isOpen = !isOpen;
+    if (isOpen) {
+      content.style.maxHeight = content.scrollHeight + "px"; // 内容の高さに合わせる
+      header.textContent = "🏅 称号図鑑 ▼";
+    } else {
+      content.style.maxHeight = "0";
+      header.textContent = "🏅 称号図鑑 ▶";
+    }
+  });
+  
 document.addEventListener("DOMContentLoaded", () => {
   // 称号検索/フィルター
   const titleSearchInput = document.getElementById("titleSearchInput");
