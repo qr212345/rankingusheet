@@ -58,8 +58,6 @@ let dailyRandomCount = loadFromStorage("dailyRandomCount", {});
 let titleFilter = "all";
 let titleSearch = "";
 let isFetching = false;      // フラグ二重取得防止
-// state のところに追加
-let renderScheduled = false;
 
 /* =========================
    Utility
