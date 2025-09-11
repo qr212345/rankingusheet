@@ -1,312 +1,395 @@
 /* =========================
-   表全体（スクロール対応）
+   BABAランキング — 完全統合CSS
+   - Tailwind補完ユーティリティ（最小限）
+   - テーブル、カード、ポップアップ、パーティクル等
+   - スマホは縦リスト（カード縦積み）、PCは横幅にゆったり表示
+========================= */
+
+/* =========================
+   共通
+========================= */
+:root{
+  --accent-1: #4a90e2;
+  --accent-2: #357ABD;
+  --muted: #9ca3af;
+  --bg: #f8fafc;
+  --card-shadow: 0 8px 20px rgba(0,0,0,0.12);
+  --glass: rgba(255,255,255,0.6);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body {
+  font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  margin: 0;
+  background: var(--bg);
+  color: #111827;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* Buttons / Inputs base */
+button{
+  font-family:inherit;
+  cursor:pointer;
+  border:0;
+  padding:0.55rem 0.9rem;
+  border-radius:8px;
+  background: linear-gradient(135deg,var(--accent-1),var(--accent-2));
+  color:#fff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  transition: transform .12s ease, box-shadow .18s ease, background .18s ease;
+}
+button:hover{ transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.14) }
+button:active{ transform: translateY(0) }
+input,textarea,select{
+  font-family:inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border:1px solid #e5e7eb;
+  border-radius:6px;
+  background: #fff;
+  color: #111827;
+}
+
+/* Utility (minimal subset) */
+.flex{display:flex}.inline-flex{display:inline-flex}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}
+.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}
+.gap-1{gap:.25rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}
+.w-full{width:100%}.min-w-full{min-width:100%}.mx-auto{margin-left:auto;margin-right:auto}
+.text-sm{font-size:.875rem}.text-xs{font-size:.75rem}.text-lg{font-size:1.125rem}.text-xl{font-size:1.25rem}
+.rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}
+.shadow{box-shadow:0 6px 12px rgba(0,0,0,0.08)}
+
+/* =========================
+   レイアウト・コア
+========================= */
+.header-bar{
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: #ffffffcc;
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(15,23,42,0.04);
+  padding: 12px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.header-left{display:flex;align-items:center;gap:8px}
+.header-right{display:flex;align-items:center;gap:8px}
+
+/* 表全体ラッパー */
+.container {
+  max-width: 1200px;
+  margin: 18px auto;
+  padding: 0 14px;
+}
+
+/* グリッドレイアウト：縦リストメイン（全デバイス共通縦） */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* サイドエリアはコンテンツ下に回る（縦リスト方針） */
+@media(min-width:1100px){
+  .main-grid {
+    grid-template-columns: 1fr 320px; /* メインとサイド */
+    align-items: start;
+  }
+}
+
+/* =========================
+   ランキングテーブル（カード風縦リスト優先）
 ========================= */
 .table-wrapper {
   width: 100%;
   overflow-x: auto;
-  margin: 1.5em auto;
   -webkit-overflow-scrolling: touch;
 }
 
-/* =========================
-   ランキング表
-========================= */
+/* For wide screens we still show table, but rows are card-like */
 #rankingTable {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
   border-collapse: collapse;
-  font-size: 1rem;
   background: #fff;
-  box-shadow: 0 0 20px rgba(0,0,0,0.15);
-  min-width: 600px;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 12px 30px rgba(13, 27, 46, 0.06);
+  min-width: 640px;
 }
 
-#rankingTable thead th {
+/* header */
+#rankingTable thead th{
+  background: linear-gradient(135deg,#0f1724,#0b1220);
+  color:#fff;
+  padding:12px 10px;
+  text-align:center;
+  font-weight:600;
   position: sticky;
   top: 0;
-  background: linear-gradient(135deg, #1e293b, #111827);
-  color: #fff;
   z-index: 10;
-  padding: 12px;
-  border-bottom: 2px solid #444;
-  text-align: center;
-  box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3);
+  font-size: .95rem;
 }
 
-#rankingTable tbody td {
-  padding: 10px 14px;
-  text-align: center;
+/* rows as cards on narrow devices and regular rows on wide */
+#rankingTable tbody tr {
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
   vertical-align: middle;
-  border-bottom: 1px solid #ccc;
-  white-space: nowrap;
-  transition: background 0.3s, transform 0.2s;
+}
+#rankingTable tbody tr:hover{ transform: translateY(-3px); box-shadow: 0 12px 30px rgba(2,6,23,0.07) }
+
+#rankingTable td {
+  padding: 12px;
+  text-align:center;
+  border-bottom:1px solid #eef2f6;
+  font-size: .95rem;
+  white-space:nowrap;
 }
 
-#rankingTable tbody tr:nth-child(odd) {
-  background-color: #fafafa;
-}
+/* highlight alternating */
+#rankingTable tbody tr:nth-child(odd){ background:#ffffff }
+#rankingTable tbody tr:nth-child(even){ background:#fbfdff }
 
-#rankingTable tbody tr:hover {
-  background: linear-gradient(to right, #f0f9ff, #d0f0ff);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  cursor: pointer;
-}
+/* top3 styling (strong emphasis) */
+tr.rank-1 td { background: linear-gradient(135deg,#FFD700,#FFEA70) !important; color:#000; font-weight:700; font-size:1.05rem; }
+tr.rank-2 td { background: linear-gradient(135deg,#C0C0C0,#E6E6E6) !important; color:#000; font-weight:700; }
+tr.rank-3 td { background: linear-gradient(135deg,#CD7F32,#E7A66D) !important; color:#000; font-weight:700; }
 
-/* =========================
-   上位3位強調
-========================= */
-tr.rank-1 td { 
-  background: linear-gradient(135deg, #FFD700, #FFEA70) !important; 
-  color: #000; font-weight: bold; font-size: 1.3em; 
-  text-shadow: 0 0 4px #fff;
-}
-tr.rank-2 td { 
-  background: linear-gradient(135deg, #C0C0C0, #E0E0E0) !important; 
-  color: #000; font-weight: bold; 
-}
-tr.rank-3 td { 
-  background: linear-gradient(135deg, #CD7F32, #E7A66D) !important; 
-  color: #000; font-weight: bold; 
-}
+/* rate change badges */
+.gain-up{ background: linear-gradient(90deg,#e6ffed,#c8ffd3); position:relative; }
+.gain-up::after{ content:"⬆"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:green; font-weight:700 }
+.gain-down{ background: linear-gradient(90deg,#ffecec,#ffc9c9); position:relative; }
+.gain-down::after{ content:"⬇"; position:absolute; right:8px; top:50%; transform:translateY(-50%); color:red; font-weight:700 }
 
-/* =========================
-   増減矢印
-========================= */
-.gain-up {
-  background: linear-gradient(90deg, #e6ffed 0%, #c8ffd3 100%);
-  position: relative;
-}
-.gain-up::after {
-  content: "⬆";
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: green;
-  font-weight: bold;
-  animation: up-bounce 1s ease-in-out infinite alternate;
-}
+/* Admin column hidden by default */
+th.admin-only, td.admin-only { display:none }
 
-.gain-down {
-  background: linear-gradient(90deg, #ffecec 0%, #ffc9c9 100%);
-  position: relative;
+/* Mobile: convert each row into a stacked card for readability */
+@media(max-width:900px){
+  /* hide thead and treat each row as card */
+  #rankingTable thead{ display:none }
+  #rankingTable, #rankingTable tbody, #rankingTable tr, #rankingTable td { display:block; width:100% }
+  #rankingTable td{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px;
+    border-bottom:1px solid rgba(15,23,42,0.04);
+  }
+  #rankingTable tr{
+    margin-bottom:12px;
+    background:#fff;
+    border-radius:12px;
+    box-shadow: var(--card-shadow);
+    overflow:hidden;
+  }
+  /* key label inside each cell (simulate two-column) */
+  #rankingTable td::before{
+    content: attr(data-label);
+    font-weight:600;
+    color:var(--muted);
+    margin-right:8px;
+    width:40%;
+    text-align:left;
+    display:inline-block;
+    font-size:.85rem;
+  }
 }
-.gain-down::after {
-  content: "⬇";
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: red;
-  font-weight: bold;
-  animation: down-bounce 1s ease-in-out infinite alternate;
-}
-
-@keyframes up-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(-5px);} }
-@keyframes down-bounce { 0%{ transform: translateY(-50%) translateY(0);} 100%{ transform: translateY(-50%) translateY(5px);} }
 
 /* =========================
-   表彰台
+   表彰台（podium）
 ========================= */
-#podium {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin: 2rem 0;
-  perspective: 1000px;
-  overflow-x: auto;
+#podium{
+  display:flex;
+  gap:12px;
+  align-items:flex-end;
+  justify-content:center;
+  overflow-x:auto;
+  padding: 8px 4px;
 }
-
-.podium-player {
-  font-weight: bold;
-  padding: 1rem 1.5rem;
-  border-radius: 16px;
-  color: white;
-  min-width: 140px;
-  text-align: center;
-  transform-style: preserve-3d;
-  transition: transform 0.4s ease, box-shadow 0.4s ease;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
+.podium-player{
+  min-width:120px;
+  text-align:center;
+  border-radius:12px;
+  padding:12px;
+  color:#fff;
+  font-weight:700;
+  box-shadow:0 10px 24px rgba(2,6,23,0.08);
+  transition: transform .18s ease;
 }
-.podium-player:hover {
-  transform: rotateY(15deg) translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.35);
-}
-
-.first { background: linear-gradient(135deg, gold, #FFD700); height: 160px; }
-.second { background: linear-gradient(135deg, silver, #DCDCDC); height: 140px; }
-.third { background: linear-gradient(135deg, #cd7f32, #E5A46A); height: 120px; }
+.podium-player:hover{ transform: translateY(-6px) }
+.podium-player.first{ height:160px; background: linear-gradient(135deg,#FFD700,#FFCF33); color:#111 }
+.podium-player.second{ height:140px; background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
+.podium-player.third{ height:120px; background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
 
 /* =========================
-   称号カード（種類別カラー＆取得演出）
+   称号図鑑（縦リストで全デバイス共通、カード表示豪華化）
+   - モバイルは縦カード（1列）、広い画面はグリッド（複数列）
 ========================= */
+#titleCatalog {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr; /* default mobile single column (縦リスト) */
+  margin-top: 8px;
+}
+
+/* tablet/desktop: show 2-3 columns for compactness but still vertical flow overall */
+@media(min-width:640px){
+  #titleCatalog { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media(min-width:1100px){
+  #titleCatalog { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+
+/* base card */
 .title-card {
-  padding: 1.2rem;
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-weight: 600;
-  color: #222;
-  position: relative;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  background: linear-gradient(135deg,#fff6e6,#fff9f0);
+  padding: 14px;
+  border-radius: 14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  min-height:92px;
+  box-shadow: 0 12px 28px rgba(2,6,23,0.06);
+  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
+  position:relative;
+  overflow:hidden;
 }
+.title-card:hover{ transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,6,23,0.10) }
 
-/* カードの種類別カラー */
-.title-card.king { background: linear-gradient(135deg, #FFD700, #FFEA70); color: #000; }
-.title-card.silver { background: linear-gradient(135deg, #C0C0C0, #E0E0E0); color: #000; }
-.title-card.bronze { background: linear-gradient(135deg, #CD7F32, #E7A66D); color: #000; }
-.title-card.lucky { background: linear-gradient(135deg, #a8e6cf, #dcedc1); color: #000; }
-.title-card.fire { background: linear-gradient(135deg, #ff6b6b, #ff4757); color: #fff; }
-.title-card.surprise { background: linear-gradient(135deg, #feca57, #ff6b6b); color: #fff; }
+/* locked / unlocked */
+.title-card.unlocked{ animation: glow-card 2s ease-in-out infinite alternate; box-shadow: 0 14px 36px rgba(255,200,20,0.12) }
+.title-card.locked{ background: linear-gradient(180deg,#f3f4f6,#eef2f7); color:#657085 }
 
-/* ホバーで立体的に */
-.title-card:hover {
-  transform: scale(1.08);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.35);
-}
+/* type-based classes for visual variety */
+.title-card.king{ background: linear-gradient(135deg,#FFD700,#FFEA70); color:#111 }
+.title-card.silver{ background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
+.title-card.bronze{ background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
+.title-card.lucky{ background: linear-gradient(135deg,#dff7e6,#bfeecf); color:#083 }
+.title-card.fire{ background: linear-gradient(135deg,#ff7b7b,#ff4d4d); color:#fff }
+.title-card.surprise{ background: linear-gradient(135deg,#ffe29a,#ffb86b); color:#111 }
 
-/* アイコンアニメーション */
-.title-card::before {
+/* small meta */
+.title-card strong{ font-size:1rem; display:block; margin-bottom:6px }
+.title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6) }
+
+/* decorative trophy icon */
+.title-card::before{
   content: "🏆";
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  display: block;
-  animation: bounce 1.2s infinite alternate;
+  position:absolute;
+  top:10px;
+  left:12px;
+  font-size:1.4rem;
+  opacity:0.9;
+  transform:translateZ(0);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));
 }
 
-/* 取得済み時の光る演出 */
-.title-card.unlocked {
-  animation: glow-card 1.5s ease-in-out infinite alternate;
-  box-shadow: 0 0 20px gold, 0 0 40px rgba(255, 215, 0, 0.5);
-}
-
-@keyframes bounce {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-6px); }
-}
-
-@keyframes glow-card {
-  0% { box-shadow: 0 0 10px gold, 0 0 20px rgba(255, 215, 0,0.5); }
-  50% { box-shadow: 0 0 20px gold, 0 0 40px rgba(255, 215, 0,0.7); }
-  100% { box-shadow: 0 0 10px gold, 0 0 20px rgba(255, 215, 0,0.5); }
+/* glow keyframe for unlocked */
+@keyframes glow-card{
+  0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) }
+  50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16) }
+  100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) }
 }
 
 /* =========================
-   レスポンシブ
-========================= */
-@media (max-width:768px){
-  .title-card{padding:0.9rem; font-size:0.9rem;}
-  .title-card::before{font-size:1.5rem;}
-}
-
-/* =========================
-   称号ポップアップ
+   ポップアップ（称号取得時）
 ========================= */
 .title-popup {
   position: fixed;
-  top: 40%;
+  top: 18%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  background: #fff;
-  color: #000;
-  padding: 1.5rem 2.5rem;
-  border-radius: 20px;
-  font-weight: bold;
-  font-size: 1.5rem;
+  transform: translateX(-50%) scale(.95);
+  padding: 12px 18px;
+  background: linear-gradient(180deg,#ffffff,#fff8e6);
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.06);
   z-index: 9999;
-  text-align: center;
   opacity: 0;
-  transition: all 0.6s cubic-bezier(.68,-0.55,.27,1.55);
-  box-shadow: 0 0 30px rgba(255,255,255,0.9), 0 0 50px rgba(255,200,0,0.6);
+  transition: all .36s cubic-bezier(.2,.9,.2,1);
+  box-shadow: 0 18px 46px rgba(2,6,23,0.12);
+  text-align:center;
+  min-width:220px;
 }
-.title-popup.show {
-  transform: translate(-50%, -50%) scale(1.25);
-  opacity: 1;
-}
+.title-popup.show{ opacity:1; transform: translateX(-50%) scale(1) }
 
-/* アニメーションタイプ */
-.title-medal{ animation: glow 1s infinite alternate; color: gold; text-shadow: 0 0 10px yellow, 0 0 20px orange; }
-.title-explosion{ animation: popup-scale 0.8s ease-out, shake 0.6s 0.1s; }
-.title-lucky{ animation: popup-scale 0.8s ease-out, sparkle 1s infinite; }
-.title-fire{ animation: popup-scale 0.8s ease-out, fire-flicker 0.8s infinite; }
-.title-generic{ animation: popup-scale 0.8s ease-out; }
+/* animation classes (small, non-heavy) */
+.title-medal{ outline: 2px solid gold; border-radius:10px }
+.title-explosion{ animation: explosionAnim .7s ease-out }
+.title-lucky{ background: linear-gradient(135deg,#fff9cc,#e6ffe6) }
+.title-fire{ animation: fireAnim 1s linear infinite }
 
-/* =========================
-   パーティクル
-========================= */
-.particle-container {
-  position: fixed;
-  top:0;
-  left:0;
-  width:100vw;
-  height:100vh;
-  pointer-events:none;
-  z-index:9998;
+/* light animations */
+@keyframes explosionAnim {
+  0%{ transform:scale(.85); opacity:0}
+  60%{ transform:scale(1.05); opacity:1 }
+  100%{ transform:scale(1); opacity:1 }
 }
-.particle {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  opacity: 0.9;
-  background: hsl(calc(360 * var(--rand)), 100%, 70%);
-  will-change: transform;
-  animation: particle-float linear infinite;
-}
-@keyframes particle-float {
-  0%{transform:translateY(0) scale(1);opacity:1;}
-  100%{transform:translateY(-120vh) scale(0.5);opacity:0;}
+@keyframes fireAnim {
+  0%{ box-shadow:0 0 6px rgba(255,110,110,0.25) }
+  50%{ box-shadow:0 0 22px rgba(255,70,70,0.4) }
+  100%{ box-shadow:0 0 6px rgba(255,110,110,0.25) }
 }
 
 /* =========================
-   共通キーフレーム
+   パーティクル（軽量：モバイルで少数）
 ========================= */
-@keyframes glow { 0%{text-shadow:0 0 5px gold;} 50%{text-shadow:0 0 20px yellow;} 100%{text-shadow:0 0 5px gold;} }
-@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-8px);} 75%{transform:translateX(8px);} }
-@keyframes sparkle { 0%,100%{ text-shadow: 0 0 10px gold, 0 0 20px yellow;} 50%{ text-shadow: 0 0 20px white, 0 0 40px yellow;} }
-@keyframes fire-flicker {0%,100%{transform:scale(1);} 50%{transform:scale(1.1) rotate(-2deg);} }
-@keyframes popup-scale {0%{transform:translate(-50%,-50%) scale(0);}50%{transform:translate(-50%,-50%) scale(1.3);}100%{transform:translate(-50%,-50%) scale(1.2);} }
-@keyframes up-bounce {0%{transform:translateY(-50%) translateY(0);}100%{transform:translateY(-50%) translateY(-5px);} }
-@keyframes down-bounce {0%{transform:translateY(-50%) translateY(0);}100%{transform:translateY(-50%) translateY(5px);} }
-@keyframes bounce {0%{transform:translateY(0);}100%{transform:translateY(-6px);}}
-
-/* =========================
-   ボタン
-========================= */
-button {
-  font-size: 1em;
-  padding: 0.6em 1.2em;
-  margin: 0.4em;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #4a90e2, #357ABD);
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.18);
-  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.15s ease;
-  user-select: none;
+.particle-container{
+  position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:9998;
 }
-button:hover, button:focus { background: linear-gradient(135deg, #357ABD, #2a5c9e); box-shadow: 0 6px 14px rgba(0,0,0,0.28); }
-button:active { transform: translateY(2px); }
-button:disabled { background:#ccc;color:#666;cursor:default; }
+.particle{
+  position:absolute;
+  width:8px; height:8px; border-radius:50%;
+  opacity:0.95;
+  animation: particle-float linear forwards;
+}
+@keyframes particle-float{
+  0%{ transform: translateY(0) scale(1); opacity:1 }
+  100%{ transform: translateY(-120vh) scale(.5); opacity:0 }
+}
 
 /* =========================
-   レスポンシブ対応
+   モーダル（チャート）
 ========================= */
-@media (max-width:768px){
-  #rankingTable{font-size:0.9rem; min-width:auto;}
-  .podium-player{font-size:1.2em; min-width:120px;}
-  #podium{gap:0.5rem;overflow-x:auto;padding-bottom:1rem;}
-  button{font-size:0.85em;padding:0.4em 0.8em;}
-  .title-popup{font-size:1.1rem;padding:0.8rem 1.5rem;}
-  .title-card{padding:0.9rem; font-size:0.9rem;}
+#chartModal{
+  position: fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  background: rgba(2,6,23,0.5); z-index:9995; padding:16px;
+}
+#chartModal.hidden{ display:none }
+.chart-panel{
+  width: 100%; max-width: 980px; height: 520px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.16);
+  display:flex; flex-direction:column;
+}
+#chartCanvas{
+  width:100%; height:100%; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff);
+}
+
+/* =========================
+   CSV & other miscellaneous polish
+========================= */
+#downloadCSVBtn{ background: linear-gradient(135deg,#10b981,#059669) }
+#loadRankingBtn{ background: linear-gradient(135deg,#06b6d4,#0891b2) }
+#adminToggleBtn{ background: linear-gradient(135deg,#ef4444,#dc2626) }
+
+/* small helpers for mobile row labels (when table collapsed) */
+@media(max-width:900px){
+  /* data-label pseudo uses attribute set by JS when rendering rows */
+  #rankingTable td::before{ font-weight:600; color:var(--muted); margin-right:8px; }
+}
+
+/* =========================
+   レスポンシブ調整
+========================= */
+@media(max-width:640px){
+  .container{ padding: 0 10px }
+  .header-bar{ padding:10px }
+  .chart-panel{ height: 420px; max-width: 92% }
+  #chartCanvas{ height: 360px }
+  .title-card{ padding: 12px; min-height:84px }
 }
