@@ -5,45 +5,38 @@
   <title>🔥 ババ抜きランキング 🔥</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { colors: { podiumGold:'#FFD700', podiumSilver:'#C0C0C0', podiumBronze:'#CD7F32' } } } }
-  </script>
-
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-  <!-- カスタムCSS -->
+  <!-- CSS -->
   <link rel="stylesheet" href="ranking.css">
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
 
   <!-- 操作パネル -->
-  <div class="sticky top-0 bg-white p-4 shadow z-50 flex flex-wrap gap-3 items-center justify-between">
-    <div class="flex gap-2 flex-wrap items-center">
-      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み" class="border rounded px-2 py-1 w-44">
-      <label class="flex items-center gap-1"><input id="autoRefreshToggle" type="checkbox" class="accent-blue-500"> 自動更新</label>
-      <input id="autoRefreshSec" type="number" min="5" value="30" class="w-20 border rounded px-2 py-1">
+  <div class="top-panel">
+    <div class="left-controls">
+      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
+      <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
+      <input id="autoRefreshSec" type="number" min="5" value="30">
     </div>
-    <div class="flex gap-2 flex-wrap">
-      <button id="downloadCSVBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded shadow">💽 CSV</button>
-      <button id="loadRankingBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded shadow">🔄 更新</button>
-      <button id="adminToggleBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow">管理者モード</button>
+    <div class="right-controls">
+      <button id="downloadCSVBtn">💽 CSV</button>
+      <button id="loadRankingBtn">🔄 更新</button>
+      <button id="adminToggleBtn">管理者モード</button>
       <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
     </div>
   </div>
 
   <!-- 表彰台 -->
-  <div id="podium" class="flex flex-wrap justify-center gap-4 mt-4"></div>
+  <div id="podium" class="table-wrapper"></div>
 
   <!-- メインレイアウト -->
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 p-4">
-
+  <div class="grid-container">
     <!-- ランキングテーブル -->
-    <div id="rankingTableWrapper" class="overflow-x-auto bg-white rounded shadow">
-      <table id="rankingTable" class="min-w-full text-center table-auto">
-        <thead class="bg-gray-800 text-white sticky top-0">
+    <div class="ranking-wrapper table-wrapper">
+      <table id="rankingTable">
+        <thead>
           <tr>
             <th>順位</th>
             <th>生徒ID</th>
@@ -53,63 +46,49 @@
             <th>順位変動</th>
             <th>前回の試合順位</th>
             <th>称号</th>
-            <th class="hidden admin-only">削除</th>
+            <th class="admin-only">削除</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-
-      <!-- ズーム操作 -->
-      <div class="flex items-center gap-2 p-2">
-        <button id="zoomInBtn" class="bg-gray-200 px-2 py-1 rounded">拡大</button>
-        <button id="zoomOutBtn" class="bg-gray-200 px-2 py-1 rounded">縮小</button>
+      <div class="zoom-controls">
+        <button id="zoomInBtn">拡大</button>
+        <button id="zoomOutBtn">縮小</button>
         <span id="zoomLevel">14px</span>
       </div>
     </div>
 
     <!-- サイドバー -->
-    <aside class="bg-white p-4 rounded shadow">
+    <aside class="sidebar">
+      <h3>🏆 変動ランキング</h3>
+      <h4>📈 上昇TOP3</h4>
+      <ul id="awardUp"></ul>
+      <h4>📉 下降TOP3</h4>
+      <ul id="awardDown"></ul>
 
-      <!-- 変動ランキング -->
-      <h3 class="font-bold mb-2">🏆 変動ランキング</h3>
-      <section>
-        <h4 class="font-semibold mb-1">📈 上昇TOP3</h4>
-        <ul id="awardUp" class="list-disc list-inside"></ul>
-      </section>
-      <section class="mt-4">
-        <h4 class="font-semibold mb-1">📉 下降TOP3</h4>
-        <ul id="awardDown" class="list-disc list-inside"></ul>
-      </section>
-
-      <!-- 称号図鑑 -->
-      <section class="mt-4">
-        <h4 class="font-semibold mb-1">🏅 称号図鑑</h4>
-        <div id="titleCatalogControls" class="mb-2">
-          <input type="text" id="titleSearchInput" placeholder="称号名で検索" class="border rounded px-2 py-1 w-full mb-2">
-          <div class="flex gap-2 flex-wrap">
-            <button class="filter-btn px-2 py-1 rounded border" data-filter="all">全て</button>
-            <button class="filter-btn px-2 py-1 rounded border" data-filter="unlocked">取得済み</button>
-            <button class="filter-btn px-2 py-1 rounded border" data-filter="locked">未取得</button>
-          </div>
-        </div>
-        <div id="titleCatalog" class="grid grid-cols-2 gap-2"></div>
-      </section>
+      <h4>🏅 称号図鑑</h4>
+      <input type="text" id="titleSearchInput" placeholder="称号名で検索">
+      <div class="filter-buttons">
+        <button data-filter="all">全て</button>
+        <button data-filter="unlocked">取得済み</button>
+        <button data-filter="locked">未取得</button>
+      </div>
+      <div id="titleCatalog" class="title-grid"></div>
     </aside>
   </div>
 
-  <!-- 履歴グラフモーダル -->
-  <div id="chartModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg p-6 relative w-[90%] max-w-3xl">
-      <button id="chartCloseBtn" class="absolute top-2 right-2 text-xl text-gray-700 hover:text-gray-900">✖️</button>
-      <h3 class="font-bold mb-4">📊 レート推移</h3>
-      <canvas id="chartCanvas" class="w-full h-64"></canvas>
+  <!-- モーダル -->
+  <div id="chartModal" class="modal">
+    <div class="modal-content">
+      <button id="chartCloseBtn">✖️</button>
+      <h3>📊 レート推移</h3>
+      <canvas id="chartCanvas"></canvas>
     </div>
   </div>
 
   <!-- トースト通知 -->
-  <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded shadow-lg hidden"></div>
+  <div id="toast"></div>
 
-  <!-- JS -->
   <script src="ranking.js"></script>
   <script>
     // 称号フィルターと検索初期化
@@ -117,7 +96,7 @@
       const titleSearchInput = document.getElementById("titleSearchInput");
       titleSearchInput.addEventListener("input", () => window.renderTitleCatalog?.());
 
-      document.querySelectorAll(".filter-btn").forEach(btn => {
+      document.querySelectorAll(".filter-buttons button").forEach(btn => {
         btn.addEventListener("click", e => {
           window.titleFilter = e.target.dataset.filter;
           window.renderTitleCatalog?.();
