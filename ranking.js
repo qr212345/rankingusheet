@@ -540,41 +540,76 @@ function showPlayerChart(playerId){
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // 総合ランキング拡大
+  // --- 総合ランキングモーダル ---
   const btnOpenOverall = document.getElementById("btnOpenOverall");
   const btnCloseOverall = document.getElementById("btnCloseOverall");
   const modalOverall = document.getElementById("modalOverall");
   const modalOverallTable = document.getElementById("modalOverallTable");
 
-  btnOpenOverall?.addEventListener("click", () => {
+  btnOpenOverall.addEventListener("click", () => {
     const mainTable = document.getElementById("rankingTable");
     if (!mainTable) return;
     modalOverallTable.innerHTML = mainTable.innerHTML;
     modalOverall.classList.remove("hidden");
   });
-  btnCloseOverall?.addEventListener("click", () => modalOverall.classList.add("hidden"));
-  modalOverall.querySelector(".modal-overlay")?.addEventListener("click", () => modalOverall.classList.add("hidden"));
 
-  // 変動ランキング拡大
+  btnCloseOverall.addEventListener("click", () => modalOverall.classList.add("hidden"));
+  modalOverall.querySelector(".modal-overlay").addEventListener("click", () => modalOverall.classList.add("hidden"));
+
+  // --- 変動ランキングモーダル ---
   const btnOpenChange = document.getElementById("btnOpenChange");
   const btnCloseChange = document.getElementById("btnCloseChange");
   const modalChange = document.getElementById("modalChange");
   const modalChangeContent = document.getElementById("modalChangeContent");
 
-  btnOpenChange?.addEventListener("click", () => {
-    const upList = document.getElementById("awardUp");
-    const downList = document.getElementById("awardDown");
-    if (!upList || !downList) return;
-    modalChangeContent.innerHTML = `
-      <h4>📈 上昇TOP</h4>
-      <ul>${upList.innerHTML}</ul>
-      <h4>📉 下降TOP</h4>
-      <ul>${downList.innerHTML}</ul>
-    `;
+  const upList = document.getElementById("awardUp");
+  const downList = document.getElementById("awardDown");
+
+  function renderChangeAwards(data) {
+    if (!data || !data.length) return;
+
+    const upPlayers = data.filter(p => p.rankChange > 0).sort((a,b)=>b.rankChange-a.rankChange);
+    const downPlayers = data.filter(p => p.rankChange < 0).sort((a,b)=>a.rankChange-b.rankChange);
+
+    const upTop = [], downTop = [];
+    let cutoffUp=null, cutoffDown=null;
+
+    upPlayers.forEach(p => {
+      if(upTop.length<3){ upTop.push(p); cutoffUp=p.rankChange; }
+      else if(p.rankChange===cutoffUp) upTop.push(p);
+    });
+
+    downPlayers.forEach(p => {
+      if(downTop.length<3){ downTop.push(p); cutoffDown=p.rankChange; }
+      else if(p.rankChange===cutoffDown) downTop.push(p);
+    });
+
+    upList.innerHTML = upTop.map(p=>`<li>⬆️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("");
+    downList.innerHTML = downTop.map(p=>`<li>⬇️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("");
+
+    if(!modalChange.classList.contains("hidden")){
+      modalChangeContent.innerHTML = `
+        <h4>📈 上昇TOP</h4><ul>${upList.innerHTML}</ul>
+        <h4>📉 下降TOP</h4><ul>${downList.innerHTML}</ul>
+      `;
+    }
+  }
+
+  btnOpenChange.addEventListener("click", () => {
+    if(!lastProcessedRows?.length) return;
+    renderChangeAwards(lastProcessedRows);
     modalChange.classList.remove("hidden");
   });
-  btnCloseChange?.addEventListener("click", () => modalChange.classList.add("hidden"));
-  modalChange.querySelector(".modal-overlay")?.addEventListener("click", () => modalChange.classList.add("hidden"));
+
+  btnCloseChange.addEventListener("click", () => modalChange.classList.add("hidden"));
+  modalChange.querySelector(".modal-overlay").addEventListener("click", () => modalChange.classList.add("hidden"));
+
+  // --- 自動更新連動 ---
+  const originalRefreshRanking = refreshRanking;
+  refreshRanking = async function(){
+    await originalRefreshRanking();
+    renderChangeAwards(lastProcessedRows); // 変動ランキングモーダル更新
+  };
 });
 
 /* =========================
