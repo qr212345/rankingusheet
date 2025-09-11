@@ -438,23 +438,52 @@ function showPlayerChart(playerId){
   modal.classList.remove("hidden");
 }
 
-document.getElementById("btnOpenFullscreen")?.addEventListener("click", openFullscreenRanking);
-document.getElementById("btnCloseFullscreen")?.addEventListener("click", closeFullscreenRanking);
+document.addEventListener("DOMContentLoaded", () => {
+  function setupFullscreen(openBtnId, closeBtnId, modalId, modalTableId, sourceTableId) {
+    const btnOpen = document.getElementById(openBtnId);
+    const btnClose = document.getElementById(closeBtnId);
+    const modal = document.getElementById(modalId);
+    const modalTable = document.getElementById(modalTableId);
 
-function openFullscreenRanking() {
-  const container = document.getElementById("fullscreenRanking");
-  const table = document.getElementById("fullscreenRankingTable");
-  if (!container || !table) return;
-  const rankingTable = document.getElementById("rankingTable");
-  if (rankingTable) table.innerHTML = rankingTable.innerHTML;
-  container.classList.remove("hidden");
-}
+    if (!btnOpen || !btnClose || !modal || !modalTable) return;
 
-function closeFullscreenRanking() {
-  const container = document.getElementById("fullscreenRanking");
-  if (!container) return;
-  container.classList.add("hidden");
-}
+    // 開く処理
+    btnOpen.addEventListener("click", () => {
+      const sourceTable = document.getElementById(sourceTableId);
+      if (!sourceTable) return;
+      modalTable.innerHTML = sourceTable.innerHTML;
+      modal.classList.remove("hidden");
+    });
+
+    // 閉じる処理
+    btnClose.addEventListener("click", () => {
+      modal.classList.add("hidden");
+    });
+
+    // 背景クリックで閉じる
+    modal.querySelector(".modal-overlay")?.addEventListener("click", () => {
+      modal.classList.add("hidden");
+    });
+  }
+
+  // 総合ランキング用
+  setupFullscreen(
+    "btnOpenFullscreenRanking",
+    "btnCloseFullscreenRanking",
+    "fullscreenRanking",
+    "fullscreenRankingTable",
+    "rankingTable"
+  );
+
+  // 変動ランキング用
+  setupFullscreen(
+    "btnOpenFullscreenChange",
+    "btnCloseFullscreenChange",
+    "fullscreenChangeRanking",
+    "fullscreenChangeRankingTable",
+    "changeRankingTable"
+  );
+});
 
 /* =========================
    イベント登録
