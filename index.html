@@ -4,83 +4,101 @@
 <meta charset="UTF-8">
 <title>🔥 ババ抜きランキング 🔥</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<!-- CSS -->
-<link rel="stylesheet" href="ranking.css">
 </head>
 <body>
 
-<!-- 操作パネル -->
-<div class="top-panel">
-  <div class="left-controls">
-    <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
-    <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
-    <input id="autoRefreshSec" type="number" min="5" value="30">
+  <!-- 上部操作パネル -->
+  <header class="top-panel">
+    <div class="left-controls">
+      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
+      <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
+      <input id="autoRefreshSec" type="number" min="5" value="30">
+    </div>
+    <div class="right-controls">
+      <button id="downloadCSVBtn">💽 CSV</button>
+      <button id="loadRankingBtn">🔄 更新</button>
+      <button id="adminToggleBtn">管理者モード</button>
+      <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
+      <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
+    </div>
+  </header>
+
+  <main class="grid-container">
+
+    <!-- ランキング画面 -->
+    <section id="rankingSection">
+
+      <!-- 表彰台 -->
+      <div id="podium"></div>
+
+      <!-- ランキングテーブル -->
+      <div class="ranking-wrapper">
+        <table id="rankingTable">
+          <thead>
+            <tr>
+              <th>順位</th>
+              <th>生徒ID</th>
+              <th>総合レート</th>
+              <th>獲得レート</th>
+              <th>特別ポイント🔥</th>
+              <th>順位変動</th>
+              <th>前回の試合順位</th>
+              <th>称号</th>
+              <th class="admin-only">削除</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- サイドバー：変動ランキング -->
+      <aside class="sidebar">
+        <h3>🏆 変動ランキング</h3>
+        <h4>📈 上昇TOP3</h4>
+        <ul id="awardUp"></ul>
+        <h4>📉 下降TOP3</h4>
+        <ul id="awardDown"></ul>
+      </aside>
+
+    </section>
+
+    <!-- 称号図鑑画面 -->
+    <section id="titleCatalogSection" style="display:none;">
+      <h2>🏅 称号図鑑</h2>
+      <button id="backToRankingBtn">🔙 ランキングに戻る</button>
+      <div id="titleCatalog"></div>
+    </section>
+
+  </main>
+
+  <!-- モーダル -->
+  <div id="chartModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <button id="chartCloseBtn">✖️</button>
+      <h3>📊 レート推移</h3>
+      <canvas id="chartCanvas"></canvas>
+    </div>
   </div>
-  <div class="right-controls">
-    <button id="downloadCSVBtn">💽 CSV</button>
-    <button id="loadRankingBtn">🔄 更新</button>
-    <button id="adminToggleBtn">管理者モード</button>
-    <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙戻る</button>
-  </div>
-</div>
 
-<!-- 表彰台 -->
-<div id="podium" class="table-wrapper"></div>
+  <!-- トースト通知 -->
+  <div id="toast"></div>
 
-<!-- メインレイアウト -->
-<div class="grid-container">
-  <!-- ランキングテーブル -->
-  <div class="ranking-wrapper table-wrapper">
-    <table id="rankingTable">
-      <thead>
-        <tr>
-          <th>順位</th>
-          <th>生徒ID</th>
-          <th>総合レート</th>
-          <th>獲得レート</th>
-          <th>特別ポイント🔥</th>
-          <th>順位変動</th>
-          <th>前回の試合順位</th>
-          <th>称号</th>
-          <th class="admin-only">削除</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <script>
+    // 画面切り替え：ランキング ⇄ 称号図鑑
+    const rankingSection = document.getElementById('rankingSection');
+    const titleCatalogSection = document.getElementById('titleCatalogSection');
 
-  <!-- 称号図鑑セクション -->
-<section id="titleCatalogSection" class="section">
-  <h2 id="titleCatalogHeader" class="catalog-header">🏅 称号図鑑 </h2>
-  <div id="titleCatalogContent" style="display:none;">
-    <div id="titleCatalog"></div>
-  </div>
-</section>
+    document.getElementById('goTitleCatalogBtn').addEventListener('click', () => {
+      rankingSection.style.display = 'none';
+      titleCatalogSection.style.display = 'block';
+    });
 
-  <!-- サイドバー：称号図鑑 -->
-  <aside class="sidebar">
-    <h3>🏆 変動ランキング</h3>
-    <h4>📈 上昇TOP3</h4>
-    <ul id="awardUp"></ul>
-    <h4>📉 下降TOP3</h4>
-    <ul id="awardDown"></ul>
-</aside>
+    document.getElementById('backToRankingBtn').addEventListener('click', () => {
+      titleCatalogSection.style.display = 'none';
+      rankingSection.style.display = 'block';
+    });
+  </script>
 
-<!-- モーダル -->
-<div id="chartModal" class="modal hidden">
-  <div class="modal-content">
-    <button id="chartCloseBtn">✖️</button>
-    <h3>📊 レート推移</h3>
-    <canvas id="chartCanvas"></canvas>
-  </div>
-</div>
-
-<!-- トースト通知 -->
-<div id="toast"></div>
-
-<script src="ranking.js"></script>
 </body>
 </html>
