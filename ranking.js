@@ -50,7 +50,6 @@ let lastProcessedRows = [];
 let rankingHistory = [];
 let titleHistory = [];
 let isAdmin = false;
-let isFetching = false;
 let autoRefreshTimer = null;
 let fontSize = 14;
 const titleCatalog = {};
