@@ -210,6 +210,18 @@ th.admin-only, td.admin-only { display:none }
 #chartCanvas{ width:100%; height:100%; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff); }
 
 /* =========================
+   称号図鑑折りたたみ
+========================= */
+#titleCatalogContent {
+  overflow: hidden;           /* 中身を隠す */
+  max-height: 0;              /* 初期は閉じる */
+  transition: max-height 0.36s ease; /* スムーズに開閉 */
+}
+#titleCatalogContent.open {
+  max-height: 2000px; /* JSでもscrollHeightを使う場合はここでもOK */
+}
+
+/* =========================
    CSV / Buttons色分け
 ========================= */
 #downloadCSVBtn{ background: linear-gradient(135deg,#10b981,#059669) }
