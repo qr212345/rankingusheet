@@ -1,8 +1,5 @@
 /* =========================
    BABAランキング — 完全統合CSS
-   - Tailwind補完ユーティリティ（最小限）
-   - テーブル、カード、ポップアップ、パーティクル等
-   - スマホは縦リスト（カード縦積み）、PCは横幅にゆったり表示
 ========================= */
 
 /* =========================
@@ -80,38 +77,25 @@ input,textarea,select{
 .header-left{display:flex;align-items:center;gap:8px}
 .header-right{display:flex;align-items:center;gap:8px}
 
-/* 表全体ラッパー */
 .container {
   max-width: 1200px;
   margin: 18px auto;
   padding: 0 14px;
 }
 
-/* グリッドレイアウト：縦リストメイン（全デバイス共通縦） */
 .main-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
 }
-
-/* サイドエリアはコンテンツ下に回る（縦リスト方針） */
 @media(min-width:1100px){
-  .main-grid {
-    grid-template-columns: 1fr 320px; /* メインとサイド */
-    align-items: start;
-  }
+  .main-grid { grid-template-columns: 1fr 320px; align-items: start; }
 }
 
 /* =========================
    ランキングテーブル（カード風縦リスト優先）
 ========================= */
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* For wide screens we still show table, but rows are card-like */
+.table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 #rankingTable {
   width: 100%;
   border-collapse: collapse;
@@ -121,8 +105,6 @@ input,textarea,select{
   box-shadow: 0 12px 30px rgba(13, 27, 46, 0.06);
   min-width: 640px;
 }
-
-/* header */
 #rankingTable thead th{
   background: linear-gradient(135deg,#0f1724,#0b1220);
   color:#fff;
@@ -134,27 +116,13 @@ input,textarea,select{
   z-index: 10;
   font-size: .95rem;
 }
-
-/* rows as cards on narrow devices and regular rows on wide */
-#rankingTable tbody tr {
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-  vertical-align: middle;
-}
+#rankingTable tbody tr { transition: transform .18s ease, box-shadow .18s ease, background .18s ease; vertical-align: middle; }
 #rankingTable tbody tr:hover{ transform: translateY(-3px); box-shadow: 0 12px 30px rgba(2,6,23,0.07) }
-
-#rankingTable td {
-  padding: 12px;
-  text-align:center;
-  border-bottom:1px solid #eef2f6;
-  font-size: .95rem;
-  white-space:nowrap;
-}
-
-/* highlight alternating */
+#rankingTable td { padding: 12px; text-align:center; border-bottom:1px solid #eef2f6; font-size: .95rem; white-space:nowrap; }
 #rankingTable tbody tr:nth-child(odd){ background:#ffffff }
 #rankingTable tbody tr:nth-child(even){ background:#fbfdff }
 
-/* top3 styling (strong emphasis) */
+/* top3 styling */
 tr.rank-1 td { background: linear-gradient(135deg,#FFD700,#FFEA70) !important; color:#000; font-weight:700; font-size:1.05rem; }
 tr.rank-2 td { background: linear-gradient(135deg,#C0C0C0,#E6E6E6) !important; color:#000; font-weight:700; }
 tr.rank-3 td { background: linear-gradient(135deg,#CD7F32,#E7A66D) !important; color:#000; font-weight:700; }
@@ -168,106 +136,36 @@ tr.rank-3 td { background: linear-gradient(135deg,#CD7F32,#E7A66D) !important; c
 /* Admin column hidden by default */
 th.admin-only, td.admin-only { display:none }
 
-/* Mobile: convert each row into a stacked card for readability */
+/* Mobile: stacked card rows */
 @media(max-width:900px){
-  /* hide thead and treat each row as card */
   #rankingTable thead{ display:none }
   #rankingTable, #rankingTable tbody, #rankingTable tr, #rankingTable td { display:block; width:100% }
-  #rankingTable td{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:12px;
-    border-bottom:1px solid rgba(15,23,42,0.04);
-  }
-  #rankingTable tr{
-    margin-bottom:12px;
-    background:#fff;
-    border-radius:12px;
-    box-shadow: var(--card-shadow);
-    overflow:hidden;
-  }
-  /* key label inside each cell (simulate two-column) */
-  #rankingTable td::before{
-    content: attr(data-label);
-    font-weight:600;
-    color:var(--muted);
-    margin-right:8px;
-    width:40%;
-    text-align:left;
-    display:inline-block;
-    font-size:.85rem;
-  }
+  #rankingTable td{ display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid rgba(15,23,42,0.04); }
+  #rankingTable tr{ margin-bottom:12px; background:#fff; border-radius:12px; box-shadow: var(--card-shadow); overflow:hidden; }
+  #rankingTable td::before{ content: attr(data-label); font-weight:600; color:var(--muted); margin-right:8px; width:40%; text-align:left; display:inline-block; font-size:.85rem; }
 }
 
 /* =========================
    表彰台（podium）
 ========================= */
-#podium{
-  display:flex;
-  gap:12px;
-  align-items:flex-end;
-  justify-content:center;
-  overflow-x:auto;
-  padding: 8px 4px;
-}
-.podium-player{
-  min-width:120px;
-  text-align:center;
-  border-radius:12px;
-  padding:12px;
-  color:#fff;
-  font-weight:700;
-  box-shadow:0 10px 24px rgba(2,6,23,0.08);
-  transition: transform .18s ease;
-}
+#podium{ display:flex; gap:12px; align-items:flex-end; justify-content:center; overflow-x:auto; padding: 8px 4px; }
+.podium-player{ min-width:120px; text-align:center; border-radius:12px; padding:12px; color:#fff; font-weight:700; box-shadow:0 10px 24px rgba(2,6,23,0.08); transition: transform .18s ease; }
 .podium-player:hover{ transform: translateY(-6px) }
 .podium-player.first{ height:160px; background: linear-gradient(135deg,#FFD700,#FFCF33); color:#111 }
 .podium-player.second{ height:140px; background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
 .podium-player.third{ height:120px; background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
 
 /* =========================
-   称号図鑑（縦リストで全デバイス共通、カード表示豪華化）
-   - モバイルは縦カード（1列）、広い画面はグリッド（複数列）
+   称号図鑑カード
 ========================= */
-#titleCatalog {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr; /* default mobile single column (縦リスト) */
-  margin-top: 8px;
-}
+#titleCatalog { display: grid; gap: 12px; grid-template-columns: 1fr; margin-top: 8px; }
+@media(min-width:640px){ #titleCatalog { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media(min-width:1100px){ #titleCatalog { grid-template-columns: repeat(3, minmax(0,1fr)); } }
 
-/* tablet/desktop: show 2-3 columns for compactness but still vertical flow overall */
-@media(min-width:640px){
-  #titleCatalog { grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-@media(min-width:1100px){
-  #titleCatalog { grid-template-columns: repeat(3, minmax(0,1fr)); }
-}
-
-/* base card */
-.title-card {
-  background: linear-gradient(135deg,#fff6e6,#fff9f0);
-  padding: 14px;
-  border-radius: 14px;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  min-height:92px;
-  box-shadow: 0 12px 28px rgba(2,6,23,0.06);
-  transition: transform .22s ease, box-shadow .22s ease, background .22s ease;
-  position:relative;
-  overflow:hidden;
-}
+.title-card { background: linear-gradient(135deg,#fff6e6,#fff9f0); padding: 14px; border-radius: 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height:92px; box-shadow: 0 12px 28px rgba(2,6,23,0.06); transition: transform .22s ease, box-shadow .22s ease, background .22s ease; position:relative; overflow:hidden; }
 .title-card:hover{ transform: translateY(-6px); box-shadow: 0 20px 40px rgba(2,6,23,0.10) }
-
-/* locked / unlocked */
 .title-card.unlocked{ animation: glow-card 2s ease-in-out infinite alternate; box-shadow: 0 14px 36px rgba(255,200,20,0.12) }
 .title-card.locked{ background: linear-gradient(180deg,#f3f4f6,#eef2f7); color:#657085 }
-
-/* type-based classes for visual variety */
 .title-card.king{ background: linear-gradient(135deg,#FFD700,#FFEA70); color:#111 }
 .title-card.silver{ background: linear-gradient(135deg,#C0C0C0,#E6E6E6); color:#111 }
 .title-card.bronze{ background: linear-gradient(135deg,#CD7F32,#E7A66D); color:#111 }
@@ -275,113 +173,41 @@ th.admin-only, td.admin-only { display:none }
 .title-card.fire{ background: linear-gradient(135deg,#ff7b7b,#ff4d4d); color:#fff }
 .title-card.surprise{ background: linear-gradient(135deg,#ffe29a,#ffb86b); color:#111 }
 
-/* small meta */
 .title-card strong{ font-size:1rem; display:block; margin-bottom:6px }
 .title-card small{ display:block; font-size:.82rem; color:rgba(0,0,0,0.6) }
+.title-card::before{ content: "🏆"; position:absolute; top:10px; left:12px; font-size:1.4rem; opacity:0.9; transform:translateZ(0); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08)); }
 
-/* decorative trophy icon */
-.title-card::before{
-  content: "🏆";
-  position:absolute;
-  top:10px;
-  left:12px;
-  font-size:1.4rem;
-  opacity:0.9;
-  transform:translateZ(0);
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.08));
-}
-
-/* glow keyframe for unlocked */
-@keyframes glow-card{
-  0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) }
-  50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16) }
-  100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) }
-}
+@keyframes glow-card{ 0%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } 50%{ box-shadow: 0 18px 36px rgba(255,215,0,0.16) } 100%{ box-shadow: 0 8px 20px rgba(255,215,0,0.08) } }
 
 /* =========================
-   ポップアップ（称号取得時）
+   ポップアップ
 ========================= */
-.title-popup {
-  position: fixed;
-  top: 18%;
-  left: 50%;
-  transform: translateX(-50%) scale(.95);
-  padding: 12px 18px;
-  background: linear-gradient(180deg,#ffffff,#fff8e6);
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.06);
-  z-index: 9999;
-  opacity: 0;
-  transition: all .36s cubic-bezier(.2,.9,.2,1);
-  box-shadow: 0 18px 46px rgba(2,6,23,0.12);
-  text-align:center;
-  min-width:220px;
-}
+.title-popup { position: fixed; top: 18%; left: 50%; transform: translateX(-50%) scale(.95); padding: 12px 18px; background: linear-gradient(180deg,#ffffff,#fff8e6); border-radius: 10px; border: 1px solid rgba(0,0,0,0.06); z-index: 9999; opacity: 0; transition: all .36s cubic-bezier(.2,.9,.2,1); box-shadow: 0 18px 46px rgba(2,6,23,0.12); text-align:center; min-width:220px; }
 .title-popup.show{ opacity:1; transform: translateX(-50%) scale(1) }
-
-/* animation classes (small, non-heavy) */
-.title-medal{ outline: 2px solid gold; border-radius:10px }
-.title-explosion{ animation: explosionAnim .7s ease-out }
-.title-lucky{ background: linear-gradient(135deg,#fff9cc,#e6ffe6) }
-.title-fire{ animation: fireAnim 1s linear infinite }
-
-/* light animations */
-@keyframes explosionAnim {
-  0%{ transform:scale(.85); opacity:0}
-  60%{ transform:scale(1.05); opacity:1 }
-  100%{ transform:scale(1); opacity:1 }
-}
-@keyframes fireAnim {
-  0%{ box-shadow:0 0 6px rgba(255,110,110,0.25) }
-  50%{ box-shadow:0 0 22px rgba(255,70,70,0.4) }
-  100%{ box-shadow:0 0 6px rgba(255,110,110,0.25) }
-}
+@keyframes explosionAnim { 0%{ transform:scale(.85); opacity:0} 60%{ transform:scale(1.05); opacity:1 } 100%{ transform:scale(1); opacity:1 } }
+@keyframes fireAnim { 0%{ box-shadow:0 0 6px rgba(255,110,110,0.25) } 50%{ box-shadow:0 0 22px rgba(255,70,70,0.4) } 100%{ box-shadow:0 0 6px rgba(255,110,110,0.25) } }
 
 /* =========================
-   パーティクル（軽量：モバイルで少数）
+   パーティクル
 ========================= */
-.particle-container{
-  position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:9998;
-}
-.particle{
-  position:absolute;
-  width:8px; height:8px; border-radius:50%;
-  opacity:0.95;
-  animation: particle-float linear forwards;
-}
-@keyframes particle-float{
-  0%{ transform: translateY(0) scale(1); opacity:1 }
-  100%{ transform: translateY(-120vh) scale(.5); opacity:0 }
-}
+.particle-container{ position: fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:9998; }
+.particle{ position:absolute; width:8px; height:8px; border-radius:50%; opacity:0.95; animation: particle-float linear forwards; }
+@keyframes particle-float{ 0%{ transform: translateY(0) scale(1); opacity:1 } 100%{ transform: translateY(-120vh) scale(.5); opacity:0 } }
 
 /* =========================
    モーダル（チャート）
 ========================= */
-#chartModal{
-  position: fixed; inset:0; display:flex; align-items:center; justify-content:center;
-  background: rgba(2,6,23,0.5); z-index:9995; padding:16px;
-}
+#chartModal{ position: fixed; inset:0; display:flex; align-items:center; justify-content:center; background: rgba(2,6,23,0.5); z-index:9995; padding:16px; }
 #chartModal.hidden{ display:none }
-.chart-panel{
-  width: 100%; max-width: 980px; height: 520px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.16);
-  display:flex; flex-direction:column;
-}
-#chartCanvas{
-  width:100%; height:100%; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff);
-}
+.chart-panel{ width: 100%; max-width: 980px; height: 520px; background:#fff; border-radius:12px; padding:14px; box-shadow:0 20px 60px rgba(2,6,23,0.16); display:flex; flex-direction:column; }
+#chartCanvas{ width:100%; height:100%; border-radius:8px; background:linear-gradient(180deg,#ffffff,#fbfdff); }
 
 /* =========================
-   CSV & other miscellaneous polish
+   CSV / Buttons色分け
 ========================= */
 #downloadCSVBtn{ background: linear-gradient(135deg,#10b981,#059669) }
 #loadRankingBtn{ background: linear-gradient(135deg,#06b6d4,#0891b2) }
 #adminToggleBtn{ background: linear-gradient(135deg,#ef4444,#dc2626) }
-
-/* small helpers for mobile row labels (when table collapsed) */
-@media(max-width:900px){
-  /* data-label pseudo uses attribute set by JS when rendering rows */
-  #rankingTable td::before{ font-weight:600; color:var(--muted); margin-right:8px; }
-}
 
 /* =========================
    レスポンシブ調整
