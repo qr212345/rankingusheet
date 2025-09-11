@@ -22,10 +22,20 @@
       <button id="adminToggleBtn">管理者モード</button>
       <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
       <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
+      <button id="btnOpenFullscreen">🔍 大きく表示</button>
     </div>
   </header>
 
   <main class="grid-container">
+
+    <div id="fullscreenRanking" class="fullscreen-container hidden">
+      <div class="fullscreen-header">
+        <button id="btnCloseFullscreen">❌ 閉じる</button>
+      </div>
+      <div class="fullscreen-content">
+        <table id="fullscreenRankingTable"></table>
+      </div>
+    </div>
 
     <!-- ランキング画面 -->
     <section id="rankingSection">
