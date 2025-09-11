@@ -476,7 +476,7 @@ async function refreshRanking(){
   renderRankingTable(lastProcessedRows);
 
   // 変動ランキング描画
-  renderChangeRankingTable(lastProcessedRows);
+  renderChangeAwards(lastProcessedRows);
 
   rankingHistory.push({
     date: new Date().toISOString(),
