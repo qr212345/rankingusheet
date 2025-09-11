@@ -20,23 +20,23 @@ const ALL_TITLES = [
   {name:"キングババ", desc:"1位獲得！"},
   {name:"シルバーババ", desc:"2位獲得！"},
   {name:"ブロンズババ", desc:"3位獲得！"},
-  {name:"逆転の達人", desc:"大逆転！"},
+  {name:"逆転の達人", desc:"三位以上上昇！"},
   {name:"サプライズ勝利", desc:"ビリから1位！"},
-  {name:"幸運の持ち主", desc:"ババを引かずに勝利"},
-  {name:"不屈の挑戦者", desc:"連続参加3回以上"},
-  {name:"レートブースター", desc:"今回最大レート獲得"},
-  {name:"反撃の鬼", desc:"順位上昇で3位以内"},
-  {name:"チャンスメーカー", desc:"ボーナスポイント獲得"},
-  {name:"ミラクルババ", desc:"奇跡の称号"},
-  {name:"連勝街道", desc:"連勝2回以上"},
-  {name:"勝利の方程式", desc:"安定上昇中"},
-  {name:"挑戦者", desc:"初参加で上位"},
-  {name:"エピックババ", desc:"称号5個以上獲得"},
-  {name:"ババキング", desc:"1位を3回獲得"},
-  {name:"観察眼", desc:"ボーナス獲得上位"},
-  {name:"運命の番人", desc:"最後のババ回避成功"},
-  {name:"ラッキーババ", desc:"ラッキー称号"},
-  {name:"究極のババ", desc:"全称号コンプリート直前"}
+  {name:"幸運の持ち主", desc:"ランダム称号を両方獲得！"},
+  {name:"不屈の挑戦者", desc:"連続参加3回以上！"},
+  {name:"レートブースター", desc:"今回最大レート獲得！"},
+  {name:"反撃の鬼", desc:"順位上昇で3位以内！"},
+  {name:"チャンスメーカー", desc:"ボーナスポイント獲得！"},
+  {name:"ミラクルババ", desc:"奇跡の称号（5％）！"},
+  {name:"連勝街道", desc:"連勝2回以上！"},
+  {name:"勝利の方程式", desc:"レートが上昇傾向！"},
+  {name:"挑戦者", desc:"初参加で上位！"},
+  {name:"エピックババ", desc:"称号5個以上獲得！"},
+  {name:"ババキング", desc:"1位を3回獲得！"},
+  {name:"観察眼", desc:"ボーナス獲得上位！"},
+  {name:"運命の番人", desc:"最後のババ回避成功！"},
+  {name:"ラッキーババ", desc:"ラッキー称号（10％）！"},
+  {name:"究極のババ", desc:"全称号コンプリート！"}
 ];
 
 /* =========================
@@ -192,7 +192,10 @@ function assignTitles(player){
     switch(t.name){
       case "逆転の達人": cond=((player.prevRank??player.rank)-player.rank)>=3; break;
       case "サプライズ勝利": cond=(player.prevRank??0)===player.currentRankingLength && player.rank===1; break;
-      case "幸運の持ち主": cond=player.noBabaDraw===true; break;
+      case "幸運の持ち主":
+        const randomTitlesOwned = player.titles.filter(tn => RANDOM_TITLES.includes(tn));
+        cond = randomTitlesOwned.length >= 2;
+      break;
       case "不屈の挑戦者": cond=player.consecutiveGames>=3; break;
       case "レートブースター": cond=player.rateGain===maxRateGain; break;
       case "反撃の鬼": cond=player.prevRank>player.rank && player.rank<=3; break;
@@ -234,51 +237,29 @@ function updateTitleCatalog(title){
 function scheduleRenderTitleCatalog(){
   if(renderScheduled) return;
   renderScheduled=true;
-  requestAnimationFrame(()=>{
-    renderTitleCatalog();
-    renderScheduled=false;
-  });
+  requestAnimationFrame(()=>{ renderTitleCatalog(); renderScheduled=false; });
 }
-function renderTitleCatalog() {
-  const container = $("#titleCatalog");
-  if (!container) return;
+function renderTitleCatalog(){
+  const container=$("#titleCatalog"); if(!container) return;
+  container.innerHTML="";
+  const cols = window.innerWidth<768?1:window.innerWidth<1024?2:3;
+  container.style.display="grid"; container.style.gridTemplateColumns=`repeat(${cols}, minmax(0,1fr))`; container.style.gap="12px";
 
-  container.innerHTML = "";
-  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
-  container.style.display = "grid";
-  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
-  container.style.gap = "12px";
+  ALL_TITLES.forEach(title=>{
+    const unlocked = titleCatalog[title.name]?.unlocked??false;
+    if((titleFilter==="unlocked"&&!unlocked)||(titleFilter==="locked"&&unlocked)) return;
+    if(titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
 
-  ALL_TITLES.forEach(title => {
-    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
-    if ((titleFilter === "unlocked" && !unlocked) || (titleFilter === "locked" && unlocked)) return;
-    if (titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
+    const historyItems=titleHistory.filter(h=>h.title===title.name);
+    const latest=historyItems.length?new Date(Math.max(...historyItems.map(h=>new Date(h.date)))):null;
+    const dateStr=latest?latest.toLocaleDateString():"";
 
-    const historyItems = titleHistory.filter(h => h.title === title.name);
-    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h => new Date(h.date)))) : null;
-    const dateStr = latest ? latest.toLocaleDateString() : "";
-
-    const div = document.createElement("div");
-    div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${getTitleAnimationClass(title.name)}`;
-
-    if (unlocked) {
-      div.innerHTML = `<strong>${title.name}</strong>
-                       <small>${title.desc}</small>
-                       ${dateStr ? `<small>取得日:${dateStr}</small>` : ""}`;
-
-      // 新規獲得の場合はアニメーションクラスを追加
-      if (!div.dataset.rendered) {
-        div.classList.add("gain");
-        div.dataset.rendered = "true";
-
-        // パーティクル生成
-        createParticles(div);
-      }
-
-    } else {
-      div.innerHTML = `<strong>？？？</strong><small>？？？</small>`;
-    }
-
+    const div=document.createElement("div");
+    div.className=`title-card ${unlocked?"unlocked":"locked"} ${getTitleAnimationClass(title.name)}`;
+    if(unlocked){
+      div.innerHTML=`<strong>${title.name}</strong><small>${title.desc}</small>${dateStr?`<small>取得日:${dateStr}</small>`:""}`;
+      if(!div.dataset.rendered){ div.classList.add("gain"); div.dataset.rendered="true"; createParticles(div); }
+    } else div.innerHTML=`<strong>？？？</strong><small>？？？</small>`;
     container.appendChild(div);
   });
 }
@@ -286,25 +267,19 @@ function renderTitleCatalog() {
 /* =========================
    パーティクル生成関数
 ========================= */
-function createParticles(target) {
-  const particleContainer = document.createElement("div");
-  particleContainer.className = "particle-container";
+function createParticles(target){
+  const particleContainer=document.createElement("div"); particleContainer.className="particle-container";
   target.appendChild(particleContainer);
-
-  const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth < 1200 ? 20 : 30;
-
-  for (let i = 0; i < particleCount; i++) {
-    const p = document.createElement("div");
-    p.className = "particle";
-    p.style.left = `${Math.random() * 100}%`;
-    p.style.top = `${Math.random() * 100}%`;
-    p.style.animationDuration = `${0.5 + Math.random() * 1.5}s`;
-    p.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 60%)`;
+  const particleCount = window.innerWidth<768?10:window.innerWidth<1200?20:30;
+  for(let i=0;i<particleCount;i++){
+    const p=document.createElement("div"); p.className="particle";
+    p.style.left=`${Math.random()*100}%`;
+    p.style.top=`${Math.random()*100}%`;
+    p.style.animationDuration=`${0.5+Math.random()*1.5}s`;
+    p.style.backgroundColor=`hsl(${Math.random()*360},80%,60%)`;
     particleContainer.appendChild(p);
   }
-
-  // 自動削除
-  setTimeout(() => particleContainer.remove(), 1500);
+  setTimeout(()=>particleContainer.remove(),1500);
 }
 
 /* =========================
@@ -330,14 +305,11 @@ function processRanking(data){
    モバイル用 data-label 自動設定
 ========================= */
 function setDataLabelsForMobileTable(){
-  const table = document.getElementById("rankingTable");
-  if(!table) return;
-  const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
+  const table=document.getElementById("rankingTable"); if(!table) return;
+  const headers=Array.from(table.querySelectorAll("thead th")).map(th=>th.textContent.trim());
   table.querySelectorAll("tbody tr").forEach(tr=>{
     tr.querySelectorAll("td").forEach((td,index)=>{
-      if(index < headers.length){
-        td.setAttribute("data-label", headers[index]);
-      }
+      if(index<headers.length) td.setAttribute("data-label",headers[index]);
     });
   });
 }
@@ -352,17 +324,16 @@ function renderRankingTable(data){
   data.forEach(p=>{
     const tr=document.createElement("tr"); tr.dataset.playerId=p.playerId;
     if(p.rank<=3) tr.classList.add(`rank-${p.rank}`);
-    if(p.rateGain>0) tr.classList.add("gain-up");
-    else if(p.rateGain<0) tr.classList.add("gain-down");
+    if(p.rateGain>0) tr.classList.add("gain-up"); else if(p.rateGain<0) tr.classList.add("gain-down");
     tr.innerHTML=`<td>${p.rank}</td><td>${p.playerId}</td><td>${p.rate}</td><td>${p.gain}</td><td>${p.bonus}</td><td>${p.rankChangeStr}</td><td>${p.prevRank??'—'}</td><td class="${p.rank<=3?'title-podium':''}">${p.title||''}</td><td class="admin-only"><button data-playerid="${p.playerId}">削除</button></td>`;
     tr.addEventListener("click",e=>{if(!e.target.closest("button")) showPlayerChart(p.playerId)});
     frag.appendChild(tr);
   });
   tbody.appendChild(frag);
   attachDeleteButtons();
-
- setDataLabelsForMobileTable();
+  setDataLabelsForMobileTable();
 }
+
 /* =========================
    CSVダウンロード
 ========================= */
@@ -376,59 +347,47 @@ function downloadCSV(){
 /* =========================
    データ取得・更新
 ========================= */
-async function fetchRankingJSON() {
-  if (isFetching) return [];
-  try {
-    isFetching = true;
-    const url = new URL(GAS_URL);
-    url.searchParams.set("mode", "getRanking");
-    url.searchParams.set("secret", SECRET_KEY);
-
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const json = await res.json();
-    if (!json.ranking) throw new Error(json.error || "データなし");
-
-    return Object.entries(json.ranking).map(([playerId, [rate, bonus]]) => ({
-      playerId,
-      rate: Number(rate) || 0,
-      bonus: Number(bonus) || 0
-    }));
-  } catch (e) {
-    toast("ランキング取得失敗: " + e.message);
-    return [];
-  } finally {
-    isFetching = false;
-  }
+async function fetchRankingJSON(){
+  if(isFetching) return [];
+  try{
+    isFetching=true;
+    const url=new URL(GAS_URL);
+    url.searchParams.set("mode","getRanking");
+    url.searchParams.set("secret",SECRET_KEY);
+    const res=await fetch(url.toString(),{cache:"no-store"});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json=await res.json();
+    if(!json.ranking) throw new Error(json.error||"データなし");
+    return Object.entries(json.ranking).map(([playerId,[rate,bonus]])=>({playerId,rate:Number(rate)||0,bonus:Number(bonus)||0}));
+  }catch(e){ toast("ランキング取得失敗: "+e.message); return []; }
+  finally{ isFetching=false; }
 }
 
-async function refreshRanking() {
-  const data = await fetchRankingJSON();
-  if (!data.length) return;
-
-  const filtered = data.filter(p => !deletedPlayers.has(p.playerId));
-  lastProcessedRows = processRanking(filtered);
-  lastProcessedRows.forEach(player => assignTitles(player));
+async function refreshRanking(){
+  const data=await fetchRankingJSON();
+  if(!data.length) return;
+  const filtered=data.filter(p=>!deletedPlayers.has(p.playerId));
+  lastProcessedRows=processRanking(filtered);
+  lastProcessedRows.forEach(p=>assignTitles(p));
   renderRankingTable(lastProcessedRows);
-  rankingHistory.push({date: new Date().toISOString(), snapshot: lastProcessedRows.map(p => ({playerId: p.playerId, rate: p.rate, bonus: p.bonus}))});
+  rankingHistory.push({date:new Date().toISOString(),snapshot:lastProcessedRows.map(p=>({playerId:p.playerId,rate:p.rate,bonus:p.bonus}))});
   saveRankingHistory();
 }
 
 /* =========================
    自動更新制御
 ========================= */
-function startAutoRefresh(intervalSec = AUTO_REFRESH_INTERVAL){ stopAutoRefresh(); autoRefreshTimer=setInterval(refreshRanking, intervalSec*1000); }
-function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; } }
+function startAutoRefresh(intervalSec=AUTO_REFRESH_INTERVAL){ stopAutoRefresh(); autoRefreshTimer=setInterval(refreshRanking,intervalSec*1000);}
+function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null;}}
 function toggleAutoRefresh(enabled){
   clearInterval(autoRefreshTimer);
   if(enabled){
     const secInput=$("#autoRefreshSec");
-    let intervalSec = parseInt(secInput.value,10);
+    let intervalSec=parseInt(secInput.value,10);
     if(isNaN(intervalSec)||intervalSec<5) intervalSec=5;
-    autoRefreshTimer=setInterval(refreshRanking, intervalSec*1000);
+    autoRefreshTimer=setInterval(refreshRanking,intervalSec*1000);
     toast(`自動更新ON（${intervalSec}秒間隔）`,1500);
-  }else{ toast("自動更新OFF",1500); }
+  }else toast("自動更新OFF",1500);
 }
 
 /* =========================
@@ -437,8 +396,7 @@ function toggleAutoRefresh(enabled){
 function attachDeleteButtons(){
   document.querySelectorAll("#rankingTable button[data-playerid]").forEach(btn=>{
     btn.onclick=()=>{
-      const pid=btn.dataset.playerid;
-      if(!pid) return;
+      const pid=btn.dataset.playerid; if(!pid) return;
       if(confirm(`本当に ${pid} を削除しますか？`)){
         deletedPlayers.add(pid);
         saveDeletedPlayers();
@@ -454,15 +412,14 @@ function attachDeleteButtons(){
    チャート描画
 ========================= */
 function showPlayerChart(playerId){
-  const modal=$("#chartModal"), canvas=$("#chartCanvas");
-  if(!modal||!canvas) return;
+  const modal=$("#chartModal"), canvas=$("#chartCanvas"); if(!modal||!canvas) return;
   const history=rankingHistory.map(h=>{ const entry=h.snapshot.find(p=>p.playerId===playerId); return entry?{date:new Date(h.date),rate:entry.rate}:null; }).filter(x=>x!==null);
   if(history.length===0){toast("履歴データなし"); return;}
   const labels=history.map(h=>h.date.toLocaleDateString()+" "+h.date.toLocaleTimeString());
   const rates=history.map(h=>h.rate);
   if(canvas.chartInstance) canvas.chartInstance.destroy();
-  canvas.chartInstance=new Chart(canvas,{type:'line',data:{labels,datasets:[{label:playerId+' のレート推移',data:rates,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',tension:0.3,fill:true,pointRadius:3} ] }, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true},tooltip:{mode:'index',intersect:false}}, scales:{x:{display:true,title:{display:true,text:'日付'}},y:{display:true,title:{display:true,text:'レート'},beginAtZero:false}} }});
-  canvas.parentElement.style.overflowX = window.innerWidth<768?"scroll":"visible";
+  canvas.chartInstance=new Chart(canvas,{type:'line',data:{labels,datasets:[{label:playerId+' のレート推移',data:rates,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,0.2)',tension:0.3,fill:true,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true},tooltip:{mode:'index',intersect:false}},scales:{x:{display:true,title:{display:true,text:'日付'}},y:{display:true,title:{display:true,text:'レート'},beginAtZero:false}}}});
+  canvas.parentElement.style.overflowX=window.innerWidth<768?"scroll":"visible";
   modal.classList.remove("hidden");
 }
 
@@ -470,13 +427,13 @@ function showPlayerChart(playerId){
    イベント登録
 ========================= */
 function attachEvents(){
-  $("#searchInput")?.addEventListener("input", debounce(e => { const term=e.target.value.toLowerCase(); renderRankingTable(lastProcessedRows.filter(p => p.playerId.toLowerCase().includes(term))); }));
-  $("#downloadCSVBtn")?.addEventListener("click", downloadCSV);
-  $("#loadRankingBtn")?.addEventListener("click", refreshRanking);
+  $("#searchInput")?.addEventListener("input",debounce(e=>{ const term=e.target.value.toLowerCase(); renderRankingTable(lastProcessedRows.filter(p=>p.playerId.toLowerCase().includes(term))); }));
+  $("#downloadCSVBtn")?.addEventListener("click",downloadCSV);
+  $("#loadRankingBtn")?.addEventListener("click",refreshRanking);
   $("#adminToggleBtn")?.addEventListener("click",()=>{ const pwd=prompt("管理者パスワード"); setAdminMode(pwd===ADMIN_PASSWORD); });
   const autoToggle=$("#autoRefreshToggle"), secInput=$("#autoRefreshSec");
-  if(autoToggle) autoToggle.addEventListener("change", e=>toggleAutoRefresh(e.target.checked));
-  if(secInput) secInput.addEventListener("input", ()=>{ if(autoToggle && autoToggle.checked) toggleAutoRefresh(true); });
+  if(autoToggle) autoToggle.addEventListener("change",e=>toggleAutoRefresh(e.target.checked));
+  if(secInput) secInput.addEventListener("input",()=>{ if(autoToggle && autoToggle.checked) toggleAutoRefresh(true); });
   $("#zoomInBtn")?.addEventListener("click",()=>{ fontSize+=2; $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
   $("#zoomOutBtn")?.addEventListener("click",()=>{ fontSize=Math.max(10,fontSize-2); $("#rankingTable").style.fontSize=fontSize+"px"; $("#zoomLevel").textContent=fontSize+"px"; });
   $("#chartCloseBtn")?.addEventListener("click",()=>$("#chartModal")?.classList.add("hidden"));
@@ -486,29 +443,22 @@ function attachEvents(){
    称号フィルター/検索UI
 ========================= */
 function renderTitleFilterControls(){
-  const container = document.getElementById("titleCatalogControls"); if(!container) return;
+  const container=document.getElementById("titleCatalogControls"); if(!container) return;
   container.innerHTML=`<input type="text" id="titleSearchInput" placeholder="称号名で検索"><div><button class="filter-btn" data-filter="all">全て</button><button class="filter-btn" data-filter="unlocked">取得済み</button><button class="filter-btn" data-filter="locked">未取得</button></div>`;
   container.querySelectorAll(".filter-btn").forEach(btn=>btn.addEventListener("click",e=>{ titleFilter=e.target.dataset.filter; saveTitleState(); renderTitleCatalog(); }));
   document.getElementById("titleSearchInput")?.addEventListener("input",debounce(e=>{ titleSearch=e.target.value.toLowerCase(); saveTitleState(); renderTitleCatalog(); },200));
 }
-function initTitleCatalog(){ const parent=document.getElementById("titleCatalog").parentElement; const controls=document.createElement("div"); controls.id="titleCatalogControls"; controls.className="mb-2"; parent.insertBefore(controls, document.getElementById("titleCatalog")); loadTitleState(); renderTitleFilterControls(); renderTitleCatalog(); window.addEventListener("resize", renderTitleCatalog); }
-function initTitleCatalogToggle(){ const header=document.getElementById("titleCatalogHeader"); const content=document.getElementById("titleCatalogContent"); if(!header||!content) return; content.hidden=true; header.setAttribute("aria-expanded","false"); if(!header.querySelector(".toggle-icon")){ const icon=document.createElement("span"); icon.className="toggle-icon"; icon.textContent="▼"; icon.style.marginLeft="6px"; header.appendChild(icon); } header.addEventListener("click",()=>{ const isHidden=content.hidden; content.hidden=!isHidden; header.setAttribute("aria-expanded",String(!isHidden)); const icon=header.querySelector(".toggle-icon"); if(icon) icon.textContent=isHidden?"▲":"▼"; content.classList.toggle("open",isHidden); },{once:false}); }
+function initTitleCatalog(){ const parent=document.getElementById("titleCatalog").parentElement; const controls=document.createElement("div"); controls.id="titleCatalogControls"; controls.className="mb-2"; parent.insertBefore(controls,document.getElementById("titleCatalog")); loadTitleState(); renderTitleFilterControls(); renderTitleCatalog(); window.addEventListener("resize",renderTitleCatalog);}
+function initTitleCatalogToggle(){ const header=document.getElementById("titleCatalogHeader"); const content=document.getElementById("titleCatalogContent"); if(!header||!content) return; content.hidden=true; header.setAttribute("aria-expanded","false"); if(!header.querySelector(".toggle-icon")){ const icon=document.createElement("span"); icon.className="toggle-icon"; icon.textContent="▼"; icon.style.marginLeft="6px"; header.appendChild(icon);} header.addEventListener("click",()=>{ const isHidden=content.hidden; content.hidden=!isHidden; header.setAttribute("aria-expanded",String(!isHidden)); const icon=header.querySelector(".toggle-icon"); if(icon) icon.textContent=isHidden?"▲":"▼"; content.classList.toggle("open",isHidden); },{once:false});}
 
 /* =========================
    初期化
 ========================= */
 function init(){
-  loadPlayerData();
-  loadDeletedPlayers();
-  loadRankingHistory();
-  dailyRandomCount = loadFromStorage("dailyRandomCount", {});
-  loadTitleState();
-  initTitleCatalogToggle();
-  initTitleCatalog();
-  const savedAdmin=JSON.parse(localStorage.getItem("isAdmin")??"false");
-  setAdminMode(savedAdmin);
-  attachEvents();
-  refreshRanking();
-  toast("ランキングシステム初期化完了",1500);
+  loadPlayerData(); loadDeletedPlayers(); loadRankingHistory();
+  dailyRandomCount=loadFromStorage("dailyRandomCount",{}); loadTitleState();
+  initTitleCatalogToggle(); initTitleCatalog();
+  const savedAdmin=JSON.parse(localStorage.getItem("isAdmin")??"false"); setAdminMode(savedAdmin);
+  attachEvents(); refreshRanking(); toast("ランキングシステム初期化完了",1500);
 }
-window.addEventListener("DOMContentLoaded", init);
+window.addEventListener("DOMContentLoaded",init);
