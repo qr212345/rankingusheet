@@ -143,10 +143,9 @@ tr.rank-3 td {
 .third { background: linear-gradient(135deg, #cd7f32, #E5A46A); height: 120px; }
 
 /* =========================
-   称号カード（豪華化）
+   称号カード（種類別カラー＆取得演出）
 ========================= */
 .title-card {
-  background: linear-gradient(135deg, #ffeaa7, #fab1a0);
   padding: 1.2rem;
   border-radius: 16px;
   display: flex;
@@ -160,11 +159,22 @@ tr.rank-3 td {
   box-shadow: 0 8px 20px rgba(0,0,0,0.25);
   transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
+
+/* カードの種類別カラー */
+.title-card.king { background: linear-gradient(135deg, #FFD700, #FFEA70); color: #000; }
+.title-card.silver { background: linear-gradient(135deg, #C0C0C0, #E0E0E0); color: #000; }
+.title-card.bronze { background: linear-gradient(135deg, #CD7F32, #E7A66D); color: #000; }
+.title-card.lucky { background: linear-gradient(135deg, #a8e6cf, #dcedc1); color: #000; }
+.title-card.fire { background: linear-gradient(135deg, #ff6b6b, #ff4757); color: #fff; }
+.title-card.surprise { background: linear-gradient(135deg, #feca57, #ff6b6b); color: #fff; }
+
+/* ホバーで立体的に */
 .title-card:hover {
   transform: scale(1.08);
   box-shadow: 0 15px 35px rgba(0,0,0,0.35);
-  background: linear-gradient(135deg, #ffeaa7, #ff7675);
 }
+
+/* アイコンアニメーション */
 .title-card::before {
   content: "🏆";
   font-size: 2rem;
@@ -172,9 +182,30 @@ tr.rank-3 td {
   display: block;
   animation: bounce 1.2s infinite alternate;
 }
+
+/* 取得済み時の光る演出 */
+.title-card.unlocked {
+  animation: glow-card 1.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 20px gold, 0 0 40px rgba(255, 215, 0, 0.5);
+}
+
 @keyframes bounce {
   0% { transform: translateY(0); }
   100% { transform: translateY(-6px); }
+}
+
+@keyframes glow-card {
+  0% { box-shadow: 0 0 10px gold, 0 0 20px rgba(255, 215, 0,0.5); }
+  50% { box-shadow: 0 0 20px gold, 0 0 40px rgba(255, 215, 0,0.7); }
+  100% { box-shadow: 0 0 10px gold, 0 0 20px rgba(255, 215, 0,0.5); }
+}
+
+/* =========================
+   レスポンシブ
+========================= */
+@media (max-width:768px){
+  .title-card{padding:0.9rem; font-size:0.9rem;}
+  .title-card::before{font-size:1.5rem;}
 }
 
 /* =========================
@@ -202,7 +233,7 @@ tr.rank-3 td {
   opacity: 1;
 }
 
-/* ===== アニメーションタイプ ===== */
+/* アニメーションタイプ */
 .title-medal{ animation: glow 1s infinite alternate; color: gold; text-shadow: 0 0 10px yellow, 0 0 20px orange; }
 .title-explosion{ animation: popup-scale 0.8s ease-out, shake 0.6s 0.1s; }
 .title-lucky{ animation: popup-scale 0.8s ease-out, sparkle 1s infinite; }
