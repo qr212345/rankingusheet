@@ -129,27 +129,63 @@ function processPopupQueue(){
   showTitlePopup(playerId,titleObj);
   setTimeout(processPopupQueue, window.innerWidth<768?1000:window.innerWidth<1200?700:500);
 }
-function showTitlePopup(playerId,titleObj){
-  const popup=document.createElement("div");
-  popup.className="title-popup "+getTitleAnimationClass(titleObj.name);
-  popup.innerHTML=`<strong>${playerId}</strong><br><strong>${titleObj.name}</strong><br><small>${titleObj.desc}</small>`;
+function showTitlePopup(playerId, titleObj){
+  const unlocked = titleCatalog[titleObj.name]?.unlocked ?? false;
+
+  // ポップアップ作成
+  const popup = document.createElement("div");
+  popup.className = "title-popup " + getTitleAnimationClass(titleObj.name);
+
+  // 未取得称号は？？？表示
+  const titleName = unlocked ? titleObj.name : "？？？";
+  const titleDesc = unlocked ? titleObj.desc : "？？？";
+
+  popup.innerHTML = `
+    <strong>${playerId}</strong><br>
+    <strong>${titleName}</strong><br>
+    <small>${titleDesc}</small>
+  `;
   document.body.appendChild(popup);
-  new Audio(TITLE_SOUNDS[titleObj.name]||TITLE_SOUNDS.default).play();
-  const particleContainer=document.createElement("div");
-  particleContainer.className="particle-container";
+
+  // 音を鳴らす（未取得でもデフォルト音）
+  new Audio(unlocked ? (TITLE_SOUNDS[titleObj.name] || TITLE_SOUNDS.default) : TITLE_SOUNDS.default).play();
+
+  // パーティクル作成
+  const particleContainer = document.createElement("div");
+  particleContainer.className = "particle-container";
   document.body.appendChild(particleContainer);
-  let particleCount=window.innerWidth<768?10:window.innerWidth<1200?20:30;
-  for(let i=0;i<particleCount;i++){
-    const p=document.createElement("div");
-    p.className="particle";
-    p.style.left=Math.random()*100+"vw";
-    p.style.top=Math.random()*100+"vh";
-    p.style.animationDuration=(0.5+Math.random()*1.5)+"s";
-    p.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;
+
+  const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth < 1200 ? 20 : 30;
+
+  for(let i = 0; i < particleCount; i++){
+    const p = document.createElement("div");
+    p.className = "particle";
+
+    // ランダム位置・アニメーション・色
+    p.style.left = Math.random() * 100 + "vw";
+    p.style.top = Math.random() * 100 + "vh";
+    p.style.animationDuration = (0.5 + Math.random() * 1.5) + "s";
+    p.style.backgroundColor = unlocked 
+      ? `hsl(${Math.random()*360},80%,60%)` 
+      : `hsl(0,0%,70%)`; // 未取得は灰色系
+
     particleContainer.appendChild(p);
   }
-  setTimeout(()=>popup.classList.add("show"),50);
-  setTimeout(()=>{ popup.classList.remove("show"); particleContainer.remove(); setTimeout(()=>popup.remove(),600); },1400);
+
+  // 表示アニメーション
+  setTimeout(() => popup.classList.add("show"), 50);
+
+  // クリックで閉じる処理
+  const removePopup = () => {
+    popup.classList.remove("show");
+    particleContainer.remove();
+    setTimeout(() => popup.remove(), 600);
+    popup.removeEventListener("click", removePopup);
+  };
+  popup.addEventListener("click", removePopup);
+
+  // 自動で非表示（時間経過）
+  setTimeout(removePopup, 2500);
 }
 
 /* =========================
@@ -369,11 +405,21 @@ function renderTitleCatalog() {
 
     const div = document.createElement("div");
     div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${animationClass} ${rankClass}`;
-    div.innerHTML = `
-      <strong>${title.name}</strong>
-      <small>${title.desc}</small>
-      ${dateStr ? `<small>取得日: ${dateStr}</small>` : ""}
-    `;
+
+    // 未取得は「？？？」表示、取得済みは通常表示
+    if (unlocked) {
+      div.innerHTML = `
+        <strong>${title.name}</strong>
+        <small>${title.desc}</small>
+        ${dateStr ? `<small>取得日: ${dateStr}</small>` : ""}
+      `;
+    } else {
+      div.innerHTML = `
+        <strong>？？？</strong>
+        <small>？？？</small>
+      `;
+    }
+
     container.appendChild(div);
   });
 }
