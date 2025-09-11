@@ -239,26 +239,72 @@ function scheduleRenderTitleCatalog(){
     renderScheduled=false;
   });
 }
-function renderTitleCatalog(){
-  const container=$("#titleCatalog"); if(!container) return;
-  container.innerHTML="";
-  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
-  container.style.display="grid"; container.style.gridTemplateColumns=`repeat(${cols}, minmax(0,1fr))`; container.style.gap="6px";
+function renderTitleCatalog() {
+  const container = $("#titleCatalog");
+  if (!container) return;
 
-  ALL_TITLES.forEach(title=>{
+  container.innerHTML = "";
+  const cols = window.innerWidth < 768 ? 1 : window.innerWidth < 1024 ? 2 : 3;
+  container.style.display = "grid";
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
+  container.style.gap = "12px";
+
+  ALL_TITLES.forEach(title => {
     const unlocked = titleCatalog[title.name]?.unlocked ?? false;
-    if ((titleFilter==="unlocked" && !unlocked) || (titleFilter==="locked" && unlocked)) return;
+    if ((titleFilter === "unlocked" && !unlocked) || (titleFilter === "locked" && unlocked)) return;
     if (titleSearch && !title.name.toLowerCase().includes(titleSearch)) return;
-    const historyItems = titleHistory.filter(h=>h.title===title.name);
-    const latest = historyItems.length? new Date(Math.max(...historyItems.map(h=>new Date(h.date)))) : null;
-    const dateStr = latest?latest.toLocaleDateString():"";
-    const div=document.createElement("div");
-    div.className=`title-card ${unlocked?"unlocked":"locked"} ${getTitleAnimationClass(title.name)}`;
-    if(unlocked){
-      div.innerHTML=`<strong>${title.name}</strong><small>${title.desc}</small>${dateStr?`<small>取得日:${dateStr}</small>`:""}`;
-    }else div.innerHTML=`<strong>？？？</strong><small>？？？</small>`;
+
+    const historyItems = titleHistory.filter(h => h.title === title.name);
+    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h => new Date(h.date)))) : null;
+    const dateStr = latest ? latest.toLocaleDateString() : "";
+
+    const div = document.createElement("div");
+    div.className = `title-card ${unlocked ? "unlocked" : "locked"} ${getTitleAnimationClass(title.name)}`;
+
+    if (unlocked) {
+      div.innerHTML = `<strong>${title.name}</strong>
+                       <small>${title.desc}</small>
+                       ${dateStr ? `<small>取得日:${dateStr}</small>` : ""}`;
+
+      // 新規獲得の場合はアニメーションクラスを追加
+      if (!div.dataset.rendered) {
+        div.classList.add("gain");
+        div.dataset.rendered = "true";
+
+        // パーティクル生成
+        createParticles(div);
+      }
+
+    } else {
+      div.innerHTML = `<strong>？？？</strong><small>？？？</small>`;
+    }
+
     container.appendChild(div);
   });
+}
+
+/* =========================
+   パーティクル生成関数
+========================= */
+function createParticles(target) {
+  const particleContainer = document.createElement("div");
+  particleContainer.className = "particle-container";
+  target.appendChild(particleContainer);
+
+  const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth < 1200 ? 20 : 30;
+
+  for (let i = 0; i < particleCount; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.left = `${Math.random() * 100}%`;
+    p.style.top = `${Math.random() * 100}%`;
+    p.style.animationDuration = `${0.5 + Math.random() * 1.5}s`;
+    p.style.backgroundColor = `hsl(${Math.random() * 360}, 80%, 60%)`;
+    particleContainer.appendChild(p);
+  }
+
+  // 自動削除
+  setTimeout(() => particleContainer.remove(), 1500);
 }
 
 /* =========================
