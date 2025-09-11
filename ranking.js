@@ -438,6 +438,24 @@ function showPlayerChart(playerId){
   modal.classList.remove("hidden");
 }
 
+document.getElementById("btnOpenFullscreen")?.addEventListener("click", openFullscreenRanking);
+document.getElementById("btnCloseFullscreen")?.addEventListener("click", closeFullscreenRanking);
+
+function openFullscreenRanking() {
+  const container = document.getElementById("fullscreenRanking");
+  const table = document.getElementById("fullscreenRankingTable");
+  if (!container || !table) return;
+  const rankingTable = document.getElementById("rankingTable");
+  if (rankingTable) table.innerHTML = rankingTable.innerHTML;
+  container.classList.remove("hidden");
+}
+
+function closeFullscreenRanking() {
+  const container = document.getElementById("fullscreenRanking");
+  if (!container) return;
+  container.classList.add("hidden");
+}
+
 /* =========================
    イベント登録
 ========================= */
