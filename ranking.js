@@ -707,24 +707,50 @@ function exportCSV(data){
 }
 
 /* Chart rendering (Chart.js must be loaded in page) */
-function renderTopCharts(data){
-  if(!Array.isArray(data) || data.length === 0){
-    if(window.chartUp) window.chartUp.destroy();
-    if(window.chartDown) window.chartDown.destroy();
+/**
+ * 上昇TOP・下降TOP グラフを描画する
+ * @param {Array<Object>} data - ランキングデータ配列
+ *   期待するプロパティ: { playerId: string, rankChange: number }
+ */
+function renderTopCharts(data) {
+  const upCanvas = document.getElementById("chartTopUp");
+  const downCanvas = document.getElementById("chartTopDown");
+  const upContainer = upCanvas?.parentElement;
+  const downContainer = downCanvas?.parentElement;
+
+  // データが無い場合：既存チャート破棄 & 非表示
+  if (!Array.isArray(data) || data.length === 0) {
+    if (window.chartUp) { window.chartUp.destroy(); window.chartUp = null; }
+    if (window.chartDown) { window.chartDown.destroy(); window.chartDown = null; }
+    if (upContainer) upContainer.style.display = "none";
+    if (downContainer) downContainer.style.display = "none";
     return;
   }
 
-  const topUp = [...data].sort((a,b)=>b.rankChange-a.rankChange).slice(0,10);
-  const topDown = [...data].sort((a,b)=>a.rankChange-b.rankChange).slice(0,10);
+  // データがある場合は表示
+  if (upContainer) upContainer.style.display = "";
+  if (downContainer) downContainer.style.display = "";
 
-  const ctxUp = $("#chartTopUp")?.getContext("2d");
-  const ctxDown = $("#chartTopDown")?.getContext("2d");
-  if(!ctxUp || !ctxDown) return;
+  // 上昇TOP（rankChangeが大きい順に10件）
+  const topUp = [...data]
+    .sort((a, b) => (b.rankChange ?? 0) - (a.rankChange ?? 0))
+    .slice(0, 10);
 
-  if(window.chartUp) window.chartUp.destroy();
-  if(window.chartDown) window.chartDown.destroy();
+  // 下降TOP（rankChangeが小さい順に10件）
+  const topDown = [...data]
+    .sort((a, b) => (a.rankChange ?? 0) - (b.rankChange ?? 0))
+    .slice(0, 10);
 
-  window.chartUp = new Chart(ctxUp,{
+  const ctxUp = upCanvas?.getContext("2d");
+  const ctxDown = downCanvas?.getContext("2d");
+  if (!ctxUp || !ctxDown) return;
+
+  // 既存チャート破棄
+  if (window.chartUp) window.chartUp.destroy();
+  if (window.chartDown) window.chartDown.destroy();
+
+  // 上昇TOPチャート
+  window.chartUp = new Chart(ctxUp, {
     type: "bar",
     data: {
       labels: topUp.map(p => p.playerId ?? "-"),
@@ -734,10 +760,31 @@ function renderTopCharts(data){
         backgroundColor: "hsl(120,80%,60%)"
       }]
     },
-    options: { responsive:true, maintainAspectRatio:false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `変動: ${ctx.raw ?? 0}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "順位変動数" }
+        }
+      }
+    }
   });
 
-  window.chartDown = new Chart(ctxDown,{
+  // 下降TOPチャート
+  window.chartDown = new Chart(ctxDown, {
     type: "bar",
     data: {
       labels: topDown.map(p => p.playerId ?? "-"),
@@ -747,7 +794,27 @@ function renderTopCharts(data){
         backgroundColor: "hsl(0,80%,60%)"
       }]
     },
-    options: { responsive:true, maintainAspectRatio:false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `変動: ${ctx.raw ?? 0}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "順位変動数" }
+        }
+      }
+    }
   });
 }
 
