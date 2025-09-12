@@ -16,8 +16,13 @@ header {
 }
 
 h1, h2 { margin: 0.5rem 0; }
-main { padding: 1rem; max-width: 1200px; margin: 0 auto; }
-section { margin-bottom: 2rem; }
+main {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
 
 /* =========================
    コントロール
@@ -56,20 +61,15 @@ td.admin-only { display: none; }
 /* =========================
    チャート
 ========================= */
-/* flex で横並び、wrap対応 */
-.charts-container { display: flex; flex-wrap: wrap; gap: 1rem; }
-/* canvas の最小・最大高さを担保、空データ時非表示対応 */
+.charts-container { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
 .charts-container canvas {
   flex:1 1 45%;
   background: #222;
   border-radius: 8px;
-  min-height: 200px;      /* 最低高さ */
-  max-height: 300px;      /* 最大高さ */
+  min-height: 200px;
+  max-height: 300px;
 }
-/* 空データ時に非表示にするクラス */
-.charts-container canvas.hidden {
-  display: none;
-}
+.charts-container canvas.hidden { display: none; }
 
 /* =========================
    トースト
@@ -84,25 +84,54 @@ td.admin-only { display: none; }
 #toast.hidden { opacity:0; pointer-events:none; }
 
 /* =========================
-   称号カード
+   称号カードセクション余白調整
+========================= */
+section#titleSection {
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
+}
+
+/* =========================
+   称号カード グリッド改善
 ========================= */
 #titleCatalog {
   display: grid;
-  gap: 12px;
+  gap: 20px;
   justify-content: center;
+  padding: 1rem 0;
+  max-height: 60vh;       /* ランキング表伸長時にスクロール */
+  overflow-y: auto;
+  scroll-behavior: smooth;
 }
-.title-card-container { perspective: 1000px; }
+
+/* =========================
+   称号カード 個別改善
+========================= */
+.title-card-container {
+  perspective: 1000px;
+  margin: 0 auto;
+}
 .title-card {
-  width: 150px; height: 200px; position: relative;
-  transform-style: preserve-3d; transition: transform 0.8s;
+  width: 150px;
+  height: 200px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto;
 }
 .title-card .front, .title-card .back {
   position: absolute; width:100%; height:100%;
   backface-visibility: hidden;
   display:flex; flex-direction:column; justify-content:center; align-items:center;
-  border-radius: 12px; padding: 0.5rem; text-align:center;
+  border-radius: 12px; padding: 0.75rem; text-align:center;
   box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+  overflow-wrap: break-word;
 }
 .title-card .front { background: #555; color:#ccc; }
 .title-card .back { transform: rotateY(180deg); color:#fff; font-weight:bold; }
@@ -164,6 +193,11 @@ td.admin-only { display: none; }
 /* =========================
    レスポンシブ
 ========================= */
+@media (max-width: 1024px) {
+  #titleCatalog { gap: 16px; max-height:50vh; }
+  .title-card { width: 130px; height:180px; }
+}
+
 @media (max-width: 768px) {
   .charts-container { flex-direction: column; }
   .charts-container canvas { flex:1 1 100%; height:200px; }
@@ -174,8 +208,9 @@ td.admin-only { display: none; }
 
 @media (max-width: 480px) {
   header { font-size: 1rem; }
-  #titleCatalog { gap:8px; }
+  #titleCatalog { gap:10px; max-height:40vh; }
   .title-card { width:100px; height:140px; }
+  .title-card .front, .title-card .back { font-size:0.8rem; }
   #rankingTable th, #rankingTable td { font-size:11px; padding:0.2rem; }
   .title-card.gain { transition: none; }
 }
