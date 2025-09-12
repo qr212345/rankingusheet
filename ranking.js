@@ -191,22 +191,25 @@ async function fetchTitleDataFromGAS() {
 
 async function saveTitleDataToGAS(playerData) {
   try {
-    // POST 送信用の JSON を文字列化
+    // playerData が Map か Object かを判定して配列化
+    const titlesArray = playerData instanceof Map
+      ? Array.from(playerData.entries())
+      : Object.entries(playerData || {});
+
     const payload = JSON.stringify({
       mode: "updateTitles",
       secret: SECRET_KEY,
-      titles: Array.from(playerData.entries()).map(([playerId, data]) => ({
+      titles: titlesArray.map(([playerId, data]) => ({
         playerId,
-        titles: data.titles || []
+        titles: (data && data.titles) || []
       }))
     });
 
-    // プリフライトを避ける POST
     const res = await fetch(GAS_URL, {
       method: "POST",
       body: payload,
       headers: {
-        "Content-Type": "text/plain;charset=UTF-8" // プリフライトなし
+        "Content-Type": "text/plain;charset=UTF-8" // プリフライト回避
       },
       cache: "no-cache"
     });
