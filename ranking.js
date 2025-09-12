@@ -499,22 +499,32 @@ function createParticles(target){
    テーブル描画・CSV・チャート
 ========================= */
 function renderRankingTable(data){
-  const tbody=$("#rankingTable tbody"); if(!tbody) return;
-  const fragment=document.createDocumentFragment();
-  data.forEach(p=>{
-    const tr=document.createElement("tr");
-    tr.innerHTML=`
-      <td>${p.rank}</td>
-      <td>${p.playerId}</td>
-      <td>${p.rate}</td>
+  const tbody = $("#rankingTable tbody");
+  if(!tbody) return;
+
+  // 空データチェック
+  if(!Array.isArray(data) || data.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  data.forEach(p => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.rank ?? "-"}</td>
+      <td>${p.playerId ?? "-"}</td>
+      <td>${p.rate ?? "-"}</td>
       <td>${fmtChange(p.rankChange)}</td>
       <td>${fmtChange(p.rateRankChange)}</td>
-      <td>${(p.titles||[]).join(", ")}</td>
-      ${isAdmin?`<td class="admin-only"><button data-id="${p.playerId}">削除</button></td>`:""}
+      <td>${Array.isArray(p.titles) ? p.titles.join(", ") : ""}</td>
+      ${isAdmin ? `<td class="admin-only"><button data-id="${p.playerId ?? ""}">削除</button></td>` : ""}
     `;
     fragment.appendChild(tr);
   });
-  tbody.innerHTML=""; tbody.appendChild(fragment);
+
+  tbody.innerHTML = "";
+  tbody.appendChild(fragment);
 }
 
 /* =========================
@@ -533,13 +543,47 @@ function exportCSV(data){
    上昇TOP・下降TOP描画（Chart.js）
 ========================= */
 function renderTopCharts(data){
-  const topUp=[...data].sort((a,b)=>b.rankChange-a.rankChange).slice(0,10);
-  const topDown=[...data].sort((a,b)=>a.rankChange-b.rankChange).slice(0,10);
-  const ctxUp=$("#chartTopUp").getContext("2d");
-  const ctxDown=$("#chartTopDown").getContext("2d");
-  if(window.chartUp) window.chartUp.destroy(); if(window.chartDown) window.chartDown.destroy();
-  window.chartUp=new Chart(ctxUp,{type:"bar",data:{labels:topUp.map(p=>p.playerId),datasets:[{label:"上昇TOP",data:topUp.map(p=>p.rankChange),backgroundColor:"hsl(120,80%,60%)"}]},options:{responsive:true,maintainAspectRatio:false}});
-  window.chartDown=new Chart(ctxDown,{type:"bar",data:{labels:topDown.map(p=>p.playerId),datasets:[{label:"下降TOP",data:topDown.map(p=>p.rankChange),backgroundColor:"hsl(0,80%,60%)"}]},options:{responsive:true,maintainAspectRatio:false}});
+  if(!Array.isArray(data) || data.length === 0){
+    if(window.chartUp) window.chartUp.destroy();
+    if(window.chartDown) window.chartDown.destroy();
+    return;
+  }
+
+  const topUp = [...data].sort((a,b)=>b.rankChange-a.rankChange).slice(0,10);
+  const topDown = [...data].sort((a,b)=>a.rankChange-b.rankChange).slice(0,10);
+
+  const ctxUp = $("#chartTopUp")?.getContext("2d");
+  const ctxDown = $("#chartTopDown")?.getContext("2d");
+  if(!ctxUp || !ctxDown) return;
+
+  if(window.chartUp) window.chartUp.destroy();
+  if(window.chartDown) window.chartDown.destroy();
+
+  window.chartUp = new Chart(ctxUp,{
+    type: "bar",
+    data: {
+      labels: topUp.map(p => p.playerId ?? "-"),
+      datasets: [{
+        label: "上昇TOP",
+        data: topUp.map(p => p.rankChange ?? 0),
+        backgroundColor: "hsl(120,80%,60%)"
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false }
+  });
+
+  window.chartDown = new Chart(ctxDown,{
+    type: "bar",
+    data: {
+      labels: topDown.map(p => p.playerId ?? "-"),
+      datasets: [{
+        label: "下降TOP",
+        data: topDown.map(p => p.rankChange ?? 0),
+        backgroundColor: "hsl(0,80%,60%)"
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false }
+  });
 }
 
 /* =========================
