@@ -1,4 +1,3 @@
-いつでも管理者モード関係なくGASの保存と読込をするようにして、称号のローカルはもうGASを書いたから称号をローカル保存する機能を削除するようにする機能を商品化レベルで書いて
 "use strict";
 
 /* =========================
@@ -183,14 +182,11 @@ async function fetchTitleDataFromGAS() {
         playerData.set(entry.playerId, normalizeStoredPlayer(prev));
       });
       savePlayerData();
-      toast("称号データの取得に成功しました", 2000); // ← 成功メッセージ
     }
   } catch (e) {
     console.warn("GASから称号取得失敗", e);
-    toast("称号データの取得に失敗しました", 2000); // ← 失敗メッセージも
   }
 }
-
 
 
 async function saveTitleDataToGAS(playerData) {
@@ -222,28 +218,6 @@ async function saveTitleDataToGAS(playerData) {
     console.log("GASへ称号保存成功");
   } catch (e) {
     console.error("GASへの称号保存失敗", e);
-  }
-}
-
-// GASから称号取得後にカタログ更新＆UI描画
-async function fetchAndRenderTitlesFromGAS() {
-  try {
-    // 称号データ取得（既存の fetchTitleDataFromGAS を利用）
-    await fetchTitleDataFromGAS();
-
-    // playerData にある全称号をカタログに反映
-    for (const [playerId, pdata] of playerData.entries()) {
-      (pdata.titles || []).forEach(tn => {
-        const t = ALL_TITLES.find(tt => tt.name.trim() === tn.trim());
-        if (t) updateTitleCatalog(t);
-      });
-    }
-
-    // カタログ描画
-    scheduleRenderTitleCatalog();
-
-  } catch (e) {
-    console.warn("称号取得後のUI反映に失敗", e);
   }
 }
 
@@ -290,6 +264,7 @@ async function fetchRankingData() {
     const processed = processRanking(rankingArray);
 
     // merge titles from stored playerData
+    await fetchTitleDataFromGAS();
     processed.forEach(player => {
       const saved = playerData.get(player.playerId);
       if (saved?.titles) player.titles = Array.from(new Set([...(player.titles||[]), ...saved.titles]));
@@ -307,7 +282,6 @@ async function fetchRankingData() {
 
     // persist
     await saveTitleDataToGAS();
-    await fetchAndRenderTitlesFromGAS();
     saveTitleHistory();
     savePlayerData();
     saveRankingHistory();
