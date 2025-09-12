@@ -170,8 +170,10 @@ function registerRandomAssign(playerId){
 ========================= */
 async function fetchTitleDataFromGAS() {
   try {
-    const res = await fetch(`${GAS_URL}?mode=getTitles&secret=${SECRET_KEY}`, { cache: "no-cache" });
-    if(!res.ok) throw new Error(`status ${res.status}`);
+    // GETでクエリパラメータに secret を付けるだけ
+    const url = `${GAS_URL}?mode=getTitles&secret=${SECRET_KEY}`;
+    const res = await fetch(url, { cache: "no-cache" }); // headersは付けない
+    if (!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
     if (data && Array.isArray(data.titles)) {
       data.titles.forEach(entry => {
@@ -186,25 +188,26 @@ async function fetchTitleDataFromGAS() {
   }
 }
 
+
 async function saveTitleDataToGAS() {
   try {
-    const payload = {
-      mode: "updateTitles",
-      secret: SECRET_KEY,
-      titles: Array.from(playerData.entries()).map(([playerId, data]) => ({
-        playerId,
-        titles: data.titles || []
-      }))
-    };
-    await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    // 簡易的に GET で渡す場合（URL長に注意）
+    const params = new URLSearchParams();
+    params.append('mode', 'updateTitles');
+    params.append('secret', SECRET_KEY);
+    params.append('titles', JSON.stringify(Array.from(playerData.entries()).map(([playerId, data]) => ({
+      playerId,
+      titles: data.titles || []
+    }))));
+
+    const res = await fetch(`${GAS_URL}?${params.toString()}`);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    console.log("GASへ称号保存成功");
   } catch (e) {
     console.error("GASへの称号保存失敗", e);
   }
 }
+
 
 /* =========================
    ランキング取得・処理
