@@ -221,6 +221,28 @@ async function saveTitleDataToGAS(playerData) {
   }
 }
 
+// GASから称号取得後にカタログ更新＆UI描画
+async function fetchAndRenderTitlesFromGAS() {
+  try {
+    // 称号データ取得（既存の fetchTitleDataFromGAS を利用）
+    await fetchTitleDataFromGAS();
+
+    // playerData にある全称号をカタログに反映
+    for (const [playerId, pdata] of playerData.entries()) {
+      (pdata.titles || []).forEach(tn => {
+        const t = ALL_TITLES.find(tt => tt.name.trim() === tn.trim());
+        if (t) updateTitleCatalog(t);
+      });
+    }
+
+    // カタログ描画
+    scheduleRenderTitleCatalog();
+
+  } catch (e) {
+    console.warn("称号取得後のUI反映に失敗", e);
+  }
+}
+
 /* =========================
    ランキング取得・処理
    - GASからランキング取得（SECRET_KEY認証）
@@ -264,7 +286,6 @@ async function fetchRankingData() {
     const processed = processRanking(rankingArray);
 
     // merge titles from stored playerData
-    await fetchTitleDataFromGAS();
     processed.forEach(player => {
       const saved = playerData.get(player.playerId);
       if (saved?.titles) player.titles = Array.from(new Set([...(player.titles||[]), ...saved.titles]));
@@ -282,6 +303,7 @@ async function fetchRankingData() {
 
     // persist
     await saveTitleDataToGAS();
+    await fetchAndRenderTitlesFromGAS();
     saveTitleHistory();
     savePlayerData();
     saveRankingHistory();
