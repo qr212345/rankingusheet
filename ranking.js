@@ -165,24 +165,28 @@ async function saveTitleDataToGAS() {
    - 称号データとマージ
    - 称号付与・描画・永続化
 ========================= */
+/* =========================
+   ランキング取得・処理
+   - GASからランキング取得（SECRET_KEY認証）
+   - 称号データとマージ
+   - 称号付与・描画・永続化
+   - 空データや異常値に対応
+========================= */
 async function fetchRankingData() {
   if (isFetching) return;
   isFetching = true;
 
   try {
     // ① GASからランキング取得
-    const res = await fetch(
-      `${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`,
-      { cache: "no-cache" }
-    );
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, {
+      cache: "no-cache"
+    });
 
-    if (!res.ok) {
-      throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
 
     const json = await res.json();
 
-    // ② データ形式をバリデーション
+    // ② データ形式のバリデーション
     let rankingArray = [];
     if (Array.isArray(json)) {
       rankingArray = json;
@@ -197,7 +201,7 @@ async function fetchRankingData() {
 
     if (rankingArray.length === 0) {
       console.warn("ランキング配列が空です。処理をスキップします。");
-      return;
+      return; // 描画処理をスキップしてUI崩れを防ぐ
     }
 
     // ③ ランキング整形・計算
@@ -207,9 +211,7 @@ async function fetchRankingData() {
     await fetchTitleDataFromGAS();
     processed.forEach(player => {
       const saved = playerData.get(player.playerId);
-      if (saved?.titles) {
-        player.titles = saved.titles;
-      }
+      if (saved?.titles) player.titles = saved.titles;
     });
 
     lastProcessedRows = processed;
