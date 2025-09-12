@@ -115,19 +115,13 @@ function registerRandomAssign(playerId){
 }
 
 /* =========================
-   ランキング処理（GASヘッダなし対応）
-========================= */
-
-/* =========================
    GAS 称号・ランキング取得/保存
-   ヘッダなし + SECRET_KEY対応
 ========================= */
 async function fetchTitleDataFromGAS() {
   try {
-    // SECRET_KEYで認証
     const res = await fetch(`${GAS_URL}?mode=getTitles&secret=${SECRET_KEY}`, { cache: "no-cache" });
     const data = await res.json();
-    if (data.titles) {
+    if (data.titles && Array.isArray(data.titles)) {
       data.titles.forEach(entry => {
         const prev = playerData.get(entry.playerId) || {};
         prev.titles = entry.titles || [];
@@ -161,113 +155,86 @@ async function saveTitleDataToGAS() {
 
 /* =========================
    ランキング取得・処理
-   - GASからランキング取得（SECRET_KEY認証）
-   - 称号データとマージ
-   - 称号付与・描画・永続化
-========================= */
-/* =========================
-   ランキング取得・処理
-   - GASからランキング取得（SECRET_KEY認証）
-   - 称号データとマージ
-   - 称号付与・描画・永続化
-   - 空データや異常値に対応
 ========================= */
 async function fetchRankingData() {
   if (isFetching) return;
   isFetching = true;
 
   try {
-    // ① GASからランキング取得
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, {
-      cache: "no-cache"
-    });
-
-    if (!res.ok) throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
-
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+    if(!res.ok) throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
     const json = await res.json();
 
-    // ② データ形式のバリデーション
+    // データ形式バリデーション
     let rankingArray = [];
-    if (Array.isArray(json)) {
-      rankingArray = json;
-    } else if (Array.isArray(json.ranking)) {
-      rankingArray = json.ranking;
-    } else if (json.ranking && typeof json.ranking === "object") {
-      rankingArray = Object.values(json.ranking);
-    } else {
-      console.warn("ランキングデータなし。処理をスキップします。", json);
-      return; // 安全に抜ける
-    }
+    if(Array.isArray(json)) rankingArray = json;
+    else if(Array.isArray(json.ranking)) rankingArray = json.ranking;
+    else if(json.ranking && typeof json.ranking==="object") rankingArray = Object.values(json.ranking);
 
-    if (rankingArray.length === 0) {
-      console.warn("ランキング配列が空です。処理をスキップします。");
-      return; // 描画処理をスキップしてUI崩れを防ぐ
-    }
+    if(!Array.isArray(rankingArray)) rankingArray=[];
 
-    // ③ ランキング整形・計算
-    const processed = processRanking(rankingArray);
+    lastProcessedRows = rankingArray.length ? processRanking(rankingArray) : [];
 
-    // ④ 称号データをGASから取得してマージ
+    // 称号マージ
     await fetchTitleDataFromGAS();
-    processed.forEach(player => {
-      const saved = playerData.get(player.playerId);
-      if (saved?.titles) player.titles = saved.titles;
+    lastProcessedRows.forEach(p => {
+      const saved = playerData.get(p.playerId);
+      if(saved?.titles) p.titles = saved.titles;
     });
 
-    lastProcessedRows = processed;
+    // 称号付与
+    lastProcessedRows.forEach(p => assignTitles(p));
 
-    // ⑤ 称号付与・ポップアップ表示
-    processed.forEach(p => assignTitles(p));
-
-    // ⑥ 描画
-    renderRankingTable(processed);
-    renderTopCharts(processed);
+    // 描画
+    renderRankingTable(lastProcessedRows);
+    renderTopCharts(lastProcessedRows);
     scheduleRenderTitleCatalog();
 
-    // ⑦ 永続化（GAS + localStorage）
+    // 永続化
     await saveTitleDataToGAS();
     saveTitleHistory();
     savePlayerData();
 
-  } catch (e) {
+  } catch(e) {
     console.error("fetchRankingData 失敗:", e);
     toast("ランキング更新に失敗しました");
+    lastProcessedRows = []; // 安全に初期化
+    renderRankingTable([]);
+    renderTopCharts([]);
   } finally {
     isFetching = false;
   }
 }
 
 /* =========================
-   ランキング計算（rateRank, rankChange, rateChange, bonus）
+   ランキング計算
 ========================= */
 function processRanking(data){
+  if(!Array.isArray(data)) return [];
   data.forEach(p=>{
     const prev=playerData.get(p.playerId)||{};
-    p.prevRate=prev.rate??p.rate;
-    p.prevRank=prev.lastRank??p.rank;
-    p.prevRateRank=prev.prevRateRank??0;
-
-    // ボーナスポイント: 前回と順位が同じなら獲得レート
-    p.bonus=(p.prevRank===p.rank)?(p.rate-p.prevRate):p.rate;
+    p.prevRate = prev.rate ?? p.rate ?? 0;
+    p.prevRank = prev.lastRank ?? p.rank ?? 0;
+    p.prevRateRank = prev.prevRateRank ?? 0;
+    p.bonus = (p.prevRank === p.rank) ? ((p.rate ?? 0) - (p.prevRate ?? 0)) : (p.rate ?? 0);
   });
 
-  // レート順位計算
-  data.sort((a,b)=>b.rate-a.rate);
+  data.sort((a,b)=> (b.rate??0) - (a.rate??0));
   let rank=1;
   data.forEach((p,i)=>{
-    p.rateRank=(i>0 && p.rate===data[i-1].rate)?data[i-1].rateRank:rank++;
-    p.rankChange=(p.prevRank??p.rank)-p.rank;
-    p.rateRankChange=(p.prevRateRank??p.rateRank)-p.rateRank;
+    p.rateRank = (i>0 && (p.rate??0) === (data[i-1].rate??0)) ? data[i-1].rateRank : rank++;
+    p.rankChange = (p.prevRank ?? 0) - (p.rank ?? 0);
+    p.rateRankChange = (p.prevRateRank ?? 0) - (p.rateRank ?? 0);
   });
 
   data.forEach(p=>{
     const prev=playerData.get(p.playerId)||{};
     playerData.set(p.playerId,{
-      rate: p.rate,
-      lastRank: p.rank,
-      prevRateRank: p.rateRank,
-      bonus: p.bonus,
-      titles: prev.titles??[]
+      rate: p.rate ?? 0,
+      lastRank: p.rank ?? 0,
+      prevRateRank: p.rateRank ?? 0,
+      bonus: p.bonus ?? 0,
+      titles: prev.titles ?? []
     });
   });
 
@@ -276,11 +243,7 @@ function processRanking(data){
 }
 
 /* =========================
-   称号付与・描画関連
-   （省略なし・以前のJSコードをすべて統合）
-========================= */
-/* =========================
-   称号ポップアップ・アニメ
+   称号付与・ポップアップ・描画
 ========================= */
 const TITLE_SOUNDS = {
   "キングババ":"sounds/gold.mp3","シルバーババ":"sounds/silver.mp3","ブロンズババ":"sounds/bronze.mp3",
@@ -496,105 +459,75 @@ function createParticles(target){
 }
 
 /* =========================
-   テーブル描画・CSV・チャート
+   ランキングテーブル描画
 ========================= */
 function renderRankingTable(data){
   const tbody = $("#rankingTable tbody");
   if(!tbody) return;
 
-  // 空データチェック
-  if(!Array.isArray(data) || data.length === 0){
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
+  if(!Array.isArray(data) || data.length===0){
+    tbody.innerHTML=`<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
     return;
   }
 
-  const fragment = document.createDocumentFragment();
-  data.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+  const frag=document.createDocumentFragment();
+  data.forEach(p=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
       <td>${p.rank ?? "-"}</td>
       <td>${p.playerId ?? "-"}</td>
       <td>${p.rate ?? "-"}</td>
       <td>${fmtChange(p.rankChange)}</td>
       <td>${fmtChange(p.rateRankChange)}</td>
-      <td>${Array.isArray(p.titles) ? p.titles.join(", ") : ""}</td>
-      ${isAdmin ? `<td class="admin-only"><button data-id="${p.playerId ?? ""}">削除</button></td>` : ""}
+      <td>${Array.isArray(p.titles)?p.titles.join(", "):""}</td>
+      ${isAdmin?`<td class="admin-only"><button data-id="${p.playerId ?? ""}">削除</button></td>`:""}
     `;
-    fragment.appendChild(tr);
+    frag.appendChild(tr);
   });
-
-  tbody.innerHTML = "";
-  tbody.appendChild(fragment);
+  tbody.innerHTML="";
+  tbody.appendChild(frag);
 }
 
 /* =========================
-   CSV出力
-========================= */
-function exportCSV(data){
-  const header=["Rank","PlayerId","Rate","RankChange","RateRankChange","Titles"];
-  const csv=[header.join(",")].concat(data.map(p=>[p.rank,p.playerId,p.rate,p.rankChange,p.rateRankChange,(p.titles||[]).join(";")].map(escapeCSV).join(","))).join("\n");
-  const blob=new Blob([csv],{type:"text/csv"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download=`ranking_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* =========================
-   上昇TOP・下降TOP描画（Chart.js）
+   TopCharts描画
 ========================= */
 function renderTopCharts(data){
-  if(!Array.isArray(data) || data.length === 0){
-    if(window.chartUp) window.chartUp.destroy();
-    if(window.chartDown) window.chartDown.destroy();
-    return;
-  }
+  const safeData = Array.isArray(data)?data:[];
+  const topUp = safeData.sort((a,b)=>(b.rankChange??0)-(a.rankChange??0)).slice(0,10);
+  const topDown = safeData.sort((a,b)=>(a.rankChange??0)-(b.rankChange??0)).slice(0,10);
 
-  const topUp = [...data].sort((a,b)=>b.rankChange-a.rankChange).slice(0,10);
-  const topDown = [...data].sort((a,b)=>a.rankChange-b.rankChange).slice(0,10);
-
-  const ctxUp = $("#chartTopUp")?.getContext("2d");
-  const ctxDown = $("#chartTopDown")?.getContext("2d");
+  const ctxUp=$("#chartTopUp")?.getContext("2d");
+  const ctxDown=$("#chartTopDown")?.getContext("2d");
   if(!ctxUp || !ctxDown) return;
 
   if(window.chartUp) window.chartUp.destroy();
   if(window.chartDown) window.chartDown.destroy();
 
   window.chartUp = new Chart(ctxUp,{
-    type: "bar",
-    data: {
-      labels: topUp.map(p => p.playerId ?? "-"),
-      datasets: [{
-        label: "上昇TOP",
-        data: topUp.map(p => p.rankChange ?? 0),
-        backgroundColor: "hsl(120,80%,60%)"
-      }]
+    type:"bar",
+    data:{
+      labels: topUp.map(p=>p.playerId??"-"),
+      datasets:[{label:"上昇TOP",data:topUp.map(p=>p.rankChange??0),backgroundColor:"hsl(120,80%,60%)"}]
     },
-    options: { responsive:true, maintainAspectRatio:false }
+    options:{responsive:true,maintainAspectRatio:false}
   });
 
   window.chartDown = new Chart(ctxDown,{
-    type: "bar",
-    data: {
-      labels: topDown.map(p => p.playerId ?? "-"),
-      datasets: [{
-        label: "下降TOP",
-        data: topDown.map(p => p.rankChange ?? 0),
-        backgroundColor: "hsl(0,80%,60%)"
-      }]
+    type:"bar",
+    data:{
+      labels: topDown.map(p=>p.playerId??"-"),
+      datasets:[{label:"下降TOP",data:topDown.map(p=>p.rankChange??0),backgroundColor:"hsl(0,80%,60%)"}]
     },
-    options: { responsive:true, maintainAspectRatio:false }
+    options:{responsive:true,maintainAspectRatio:false}
   });
 }
 
 /* =========================
-   自動更新
+   初期化
 ========================= */
 function startAutoRefresh(){ if(autoRefreshTimer) clearInterval(autoRefreshTimer); autoRefreshTimer=setInterval(fetchRankingData,AUTO_REFRESH_INTERVAL*1000);}
 function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null;}}
 
-/* =========================
-   初期化
-========================= */
 function init(){
   loadPlayerData(); loadDeletedPlayers(); loadRankingHistory(); loadTitleState();
   loadVolumeSetting(); loadNotificationSetting();
