@@ -32,10 +32,22 @@ section { margin-bottom: 2rem; }
 /* =========================
    ランキングテーブル
 ========================= */
-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+#rankingTable { 
+  width: 100%; 
+  min-width: 700px; /* 最低幅確保で横スクロール */
+  border-collapse: collapse; 
+  font-size: 14px; 
+}
 th, td {
   padding: 0.5rem; text-align: center;
   border: 1px solid #444;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 th { background: #222; }
 tr:nth-child(even) { background: #1a1a1a; }
@@ -80,15 +92,8 @@ td.admin-only { display: none; }
   border-radius: 12px; padding: 0.5rem; text-align:center;
   box-shadow: 0 4px 8px rgba(0,0,0,0.5);
 }
-.title-card .front {
-  background: #555;
-  color:#ccc;
-}
-.title-card .back {
-  transform: rotateY(180deg);
-  color:#fff;
-  font-weight:bold;
-}
+.title-card .front { background: #555; color:#ccc; }
+.title-card .back { transform: rotateY(180deg); color:#fff; font-weight:bold; }
 
 /* =========================
    カード回転獲得アニメ
