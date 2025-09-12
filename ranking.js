@@ -131,8 +131,21 @@ function saveDailyRandomCount(){ saveToStorage("dailyRandomCount", dailyRandomCo
 ========================= */
 function setAdminMode(enabled){
   isAdmin = Boolean(enabled);
-  $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin?"table-cell":"none");
   localStorage.setItem("isAdmin", JSON.stringify(isAdmin));
+
+  // 管理者専用列・ボタンの表示切替
+  $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin ? "table-cell" : "none");
+
+  // 称号初期化ボタンの表示切替
+  const resetBtn = document.getElementById("resetLocalBtn");
+  if(resetBtn) resetBtn.style.display = isAdmin ? "inline-block" : "none";
+
+  // 管理者モード切替ボタンのテキスト反映
+  const toggleBtn = document.getElementById("toggleAdminBtn");
+  if(toggleBtn) toggleBtn.textContent = isAdmin ? "管理者モード解除" : "管理者モード切替";
+
+  // ランキングテーブル内の削除ボタン表示制御
+  $$("button[data-id]").forEach(btn => btn.style.display = isAdmin ? "inline-block" : "none");
 }
 
 /* =========================
@@ -681,6 +694,8 @@ function renderRankingTable(data){
   const fragment = document.createDocumentFragment();
   data.forEach(p => {
     const tr = document.createElement("tr");
+    
+    // 管理者専用列は常に作るが、displayで切り替える
     tr.innerHTML = `
       <td>${p.rank ?? "-"}</td>
       <td>${p.playerId ?? "-"}</td>
@@ -688,7 +703,7 @@ function renderRankingTable(data){
       <td>${fmtChange(p.rankChange)}</td>
       <td>${fmtChange(p.rateRankChange)}</td>
       <td>${Array.isArray(p.titles) ? p.titles.join(", ") : ""}</td>
-      ${isAdmin ? `<td class="admin-only"><button data-id="${p.playerId ?? ""}">削除</button></td>` : ""}
+      <td class="admin-only"><button data-id="${p.playerId ?? ""}" style="display:${isAdmin ? "inline-block" : "none"}">削除</button></td>
     `;
     fragment.appendChild(tr);
   });
@@ -818,6 +833,43 @@ function renderTopCharts(data) {
   });
 }
 
+function resetLocalTitlesAndHistory() {
+  if(!isAdmin){
+    toast("管理者モードでのみ実行可能です");
+    return;
+  }
+
+  // playerData 初期化
+  playerData.forEach((p, id) => {
+    p.titles = [];
+    p.consecutiveGames = 0;
+    p.winStreak = 0;
+    p.rank1Count = 0;
+    p.rateTrend = 0;
+    p.maxBonusCount = 0;
+    p.lastBabaSafe = false;
+    playerData.set(id, p);
+  });
+  savePlayerData();
+
+  // 履歴・カウント初期化
+  titleHistory = [];
+  rankingHistory = [];
+  dailyRandomCount = {};
+  saveTitleHistory();
+  saveRankingHistory();
+  saveDailyRandomCount();
+
+  // カタログリセット
+  Object.keys(titleCatalog).forEach(k => delete titleCatalog[k]);
+
+  // UI再描画
+  renderTitleCatalog();
+  renderRankingTable(lastProcessedRows);
+
+  toast("ローカルの称号と履歴を初期化しました");
+}
+
 /* =========================
    自動更新
 ========================= */
@@ -827,6 +879,43 @@ function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer
 /* =========================
    初期化
 ========================= */
+document.addEventListener("DOMContentLoaded", () => {
+
+  // 管理者モード切替ボタン
+  const toggleBtn = document.getElementById("toggleAdminBtn");
+  if(toggleBtn){
+    toggleBtn.addEventListener("click", () => {
+      setAdminMode(!isAdmin);
+    });
+  }
+
+  // 称号初期化ボタン
+  const resetBtn = document.getElementById("resetLocalBtn");
+  if(resetBtn){
+    resetBtn.addEventListener("click", () => {
+      if(confirm("本当にローカルの称号と履歴を初期化しますか？")){
+        resetLocalTitlesAndHistory();
+      }
+    });
+  }
+
+  // 保存されている管理者モードを反映
+  const savedAdmin = JSON.parse(localStorage.getItem("isAdmin") || "false");
+  setAdminMode(savedAdmin);
+
+  // ランキングテーブル内の削除ボタン処理
+  document.addEventListener("click", (e)=>{
+    const btn = e.target.closest("button[data-id]");
+    if(btn && btn.dataset.id && isAdmin){
+      const id = btn.dataset.id;
+      deletedPlayers.add(id);
+      saveDeletedPlayers();
+      toast(`${id} を削除リストに追加しました`);
+      fetchRankingData();
+    }
+  });
+});
+
 function init(){
   loadPlayerData();
   loadDeletedPlayers();
