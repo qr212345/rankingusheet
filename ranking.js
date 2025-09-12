@@ -233,46 +233,40 @@ async function fetchRankingData() {
   isFetching = true;
 
   try {
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, {
-      cache: "no-cache"
-    });
-
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
     if (!res.ok) throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
 
     const json = await res.json();
-
-    // validate: we expect an array of player objects
     let rankingArray = [];
     if (Array.isArray(json)) rankingArray = json;
     else if (Array.isArray(json.ranking)) rankingArray = json.ranking;
     else if (json.ranking && typeof json.ranking === "object") rankingArray = Object.values(json.ranking);
-    else {
-      console.warn("ランキングデータの形式不明", json);
-      isFetching = false;
-      return;
-    }
+    else { console.warn("ランキングデータの形式不明", json); isFetching = false; return; }
 
     if (rankingArray.length === 0) {
-      console.warn("ランキング配列が空です。描画をスキップします。");
       renderRankingTable([]);
       renderTopCharts([]);
       isFetching = false;
       return;
     }
 
-    // process ranking: calculate rankChange, rateGain, bonus, etc.
+    // ランキング計算
     const processed = processRanking(rankingArray);
 
-    // merge titles from stored playerData
+    // GASから称号取得
     await fetchTitleDataFromGAS();
+
+    // processed 配列に GAS 取得称号を反映
     processed.forEach(player => {
       const saved = playerData.get(player.playerId);
-      if (saved?.titles) player.titles = Array.from(new Set([...(player.titles||[]), ...saved.titles]));
+      if (saved?.titles) {
+        player.titles = Array.from(new Set([...(player.titles||[]), ...saved.titles]));
+      }
     });
 
     lastProcessedRows = processed;
 
-    // assign titles (this will update playerData and titleHistory)
+    // assignTitles 内で processed の titles も更新
     processed.forEach(p => assignTitles(p));
 
     // render
@@ -281,7 +275,7 @@ async function fetchRankingData() {
     scheduleRenderTitleCatalog();
 
     // persist
-    await saveTitleDataToGAS();
+    await saveTitleDataToGAS(playerData); // playerData 全体を送信
     saveTitleHistory();
     savePlayerData();
     saveRankingHistory();
@@ -504,7 +498,6 @@ function createParticles(target){
    - 既存ロジックは保持（ポップアップ、カタログ、履歴、永続化）
 ========================= */
 function assignTitles(player) {
-  // defensive copy
   if (!player || !player.playerId) return;
   if (!player.titles) player.titles = [];
 
@@ -513,58 +506,35 @@ function assignTitles(player) {
   // =========================
   // 基本情報の初期化
   // =========================
-  // consecutiveGames: 参加回数の連続カウント（リセットロジックは別途）
   const consecutiveGames = (prevData.consecutiveGames ?? 0) + 1;
   player.consecutiveGames = consecutiveGames;
   player.prevGames = prevData.prevGames ?? 0;
   player.totalTitles = (Array.isArray(prevData.titles) ? prevData.titles.length : 0);
 
-  // =========================
-  // レート関連・差分
-  // =========================
   player.rate = Number.isFinite(player.rate) ? Number(player.rate) : 0;
   player.rateGain = (player.rate ?? 0) - (prevData.rate ?? player.rate ?? 0);
 
-  // =========================
-  // 連勝・1位回数
-  // - winStreak: 前回 winStreak を継承して判定。1位で増加、そうでなければ0
-  // - rank1Count: 累積で1位を取った回数
-  // =========================
   player.winStreak = prevData.winStreak ?? 0;
   player.winStreak = (player.rank === 1) ? (player.winStreak + 1) : 0;
 
   player.rank1Count = prevData.rank1Count ?? 0;
   if (player.rank === 1) player.rank1Count += 1;
 
-  // =========================
-  // rateTrend: 連続上昇回数（簡易実装）
-  // - 前回 rate が存在し、今回 rate が上昇なら増加、逆ならリセット
-  // =========================
   player.rateTrend = prevData.rateTrend ?? 0;
   if ((prevData.rate ?? player.rate) < player.rate) player.rateTrend += 1;
   else player.rateTrend = 0;
 
-  // =========================
-  // maxBonusCount: 累積して「ボーナスが最大値だった回数」を保持
-  // - prevData.maxBonusCount と今回 bonus を比較して更新
-  // =========================
   player.bonus = Number.isFinite(player.bonus) ? Number(player.bonus) : (prevData.bonus ?? 0);
   const prevMaxBonusCount = prevData.maxBonusCount ?? 0;
   player.maxBonusCount = Math.max(prevMaxBonusCount, (player.bonus ?? 0));
 
-  // =========================
-  // lastBabaSafe: フラグ（外部で avoidedLastBaba を渡す想定）
-  // =========================
   player.lastBabaSafe = prevData.lastBabaSafe ?? false;
   if (player.avoidedLastBaba === true) player.lastBabaSafe = true;
 
-  // =========================
-  // currentRankingLength: for checks like "from last place"
-  // =========================
   player.currentRankingLength = lastProcessedRows?.length ?? player.currentRankingLength ?? null;
 
   // =========================
-  // Podium 称号 (1-3位)
+  // Podium称号
   // =========================
   const podiumTitles = ["キングババ","シルバーババ","ブロンズババ"];
   if (player.rank && player.rank >= 1 && player.rank <= 3) {
@@ -573,18 +543,15 @@ function assignTitles(player) {
       player.titles.push(title);
       const t = ALL_TITLES.find(tt => tt.name === title);
       if (t) updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, ALL_TITLES.find(tt=>tt.name===title) || {name:title, desc:""});
+      enqueueTitlePopup(player.playerId, t || {name:title, desc:""});
       titleHistory.push({ playerId: player.playerId, title, date: new Date().toISOString() });
     }
   }
 
   // =========================
   // 固定称号判定
-  // - 全称号を網羅、各条件は安全に prevData を参照
   // =========================
   const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
-
-  // safe max computations (if lastProcessedRows empty default to 0)
   const maxRateGain = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
   const maxBonus = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
 
@@ -592,11 +559,9 @@ function assignTitles(player) {
     let cond = false;
     switch (t.name) {
       case "逆転の達人":
-        // 前回より順位が3以上上がった（prev lastRank が存在することを期待）
         cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3;
         break;
       case "サプライズ勝利":
-        // 前回が最下位（prevData.lastRank === previous ranking length）から1位になった
         cond = ( (prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength) )
                && (player.rank === 1);
         break;
@@ -637,7 +602,6 @@ function assignTitles(player) {
         cond = (player.lastBabaSafe === true);
         break;
       case "究極のババ":
-        // FIXED_TITLES の数だけ集める（雑に計算）
         const fixedNames = FIXED_TITLES.map(ft=>ft.name);
         cond = player.titles.filter(tn => fixedNames.includes(tn)).length === fixedNames.length;
         break;
@@ -667,7 +631,7 @@ function assignTitles(player) {
   });
 
   // =========================
-  // playerData更新・永続化（ここで確実に全フィールド保存）
+  // playerData更新・processedに即時反映
   // =========================
   const merged = {
     ...prevData,
@@ -684,11 +648,12 @@ function assignTitles(player) {
     rank1Count: player.rank1Count,
     maxBonusCount: player.maxBonusCount,
     lastBabaSafe: player.lastBabaSafe,
-    // store last activity
     lastUpdated: new Date().toISOString()
   };
 
   playerData.set(player.playerId, normalizeStoredPlayer(merged));
+  player.titles = merged.titles; // processed 配列に即時反映
+
   savePlayerData();
   saveTitleHistory();
 }
