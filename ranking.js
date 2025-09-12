@@ -191,23 +191,32 @@ async function fetchTitleDataFromGAS() {
 
 async function saveTitleDataToGAS() {
   try {
-    // 簡易的に GET で渡す場合（URL長に注意）
-    const params = new URLSearchParams();
-    params.append('mode', 'updateTitles');
-    params.append('secret', SECRET_KEY);
-    params.append('titles', JSON.stringify(Array.from(playerData.entries()).map(([playerId, data]) => ({
-      playerId,
-      titles: data.titles || []
-    }))));
+    // playerData から送信用 JSON を作成
+    const payload = JSON.stringify({
+      mode: "updateTitles",
+      secret: SECRET_KEY,
+      titles: Array.from(playerData.entries()).map(([playerId, data]) => ({
+        playerId,
+        titles: data.titles || []
+      }))
+    });
 
-    const res = await fetch(`${GAS_URL}?${params.toString()}`);
+    // プリフライトを避ける POST
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      body: payload,
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8"
+      },
+      cache: "no-cache"
+    });
+
     if (!res.ok) throw new Error(`status ${res.status}`);
     console.log("GASへ称号保存成功");
   } catch (e) {
     console.error("GASへの称号保存失敗", e);
   }
 }
-
 
 /* =========================
    ランキング取得・処理
