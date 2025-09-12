@@ -1,3 +1,4 @@
+いつでも管理者モード関係なくGASの保存と読込をするようにして、称号のローカルはもうGASを書いたから称号をローカル保存する機能を削除するようにする機能を商品化レベルで書いて
 "use strict";
 
 /* =========================
@@ -73,7 +74,8 @@ function escapeCSV(s){return `"${String(s).replace(/"/g,'""')}"`;}
 /* =========================
    Storage管理
 ========================= */
-function loadFromStorage(key, fallback){ return fallback; }
+function loadFromStorage(key,fallback){ try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback;}catch(e){return fallback;} }
+function saveToStorage(key,value){ try{ localStorage.setItem(key,JSON.stringify(value)); }catch(e){}}
 
 function loadPlayerData(){
   const raw = loadFromStorage(STORAGE_KEY, null);
