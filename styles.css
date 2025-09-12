@@ -38,7 +38,7 @@ section { margin-bottom: 2rem; }
 }
 #rankingTable { 
   width: 100%; 
-  min-width: 700px; /* 最低幅確保で横スクロール */
+  min-width: 700px;
   border-collapse: collapse; 
   font-size: 14px; 
 }
@@ -56,8 +56,20 @@ td.admin-only { display: none; }
 /* =========================
    チャート
 ========================= */
+/* flex で横並び、wrap対応 */
 .charts-container { display: flex; flex-wrap: wrap; gap: 1rem; }
-.charts-container canvas { flex:1 1 45%; background: #222; border-radius: 8px; }
+/* canvas の最小・最大高さを担保、空データ時非表示対応 */
+.charts-container canvas {
+  flex:1 1 45%;
+  background: #222;
+  border-radius: 8px;
+  min-height: 200px;      /* 最低高さ */
+  max-height: 300px;      /* 最大高さ */
+}
+/* 空データ時に非表示にするクラス */
+.charts-container canvas.hidden {
+  display: none;
+}
 
 /* =========================
    トースト
