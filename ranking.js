@@ -3,7 +3,7 @@
 /* =========================
    設定・定数
 ========================= */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbziDjHG_Gu7fC4LyVwOESAfROAcB7TmjFBhuDaQXRDqHRkm0JwaYLCXEBrqc4pDcDc/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz7l4jatqVc6ggdUyzKaC7joRA9Fa_XzRoqZuI7ImxF74OJqkDhGqPV0C229CBvnbY/exec";
 const ADMIN_PASSWORD = "babanuki123";
 const STORAGE_KEY = "rankingPlayerData_v4";
 const DELETED_KEY = "rankingDeletedPlayers";
@@ -12,7 +12,7 @@ const TITLE_HISTORY_KEY = "titleHistory_v4";
 const AUTO_REFRESH_INTERVAL = 30;
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
-const RANDOM_TITLE_PROB = { "ミラクルババ":0.05, "ラッキーババ":0.10 };
+const RANDOM_TITLE_PROB = { "ミラクルババ":0.01, "ラッキーババ":0.05 };
 const RANDOM_TITLE_DAILY_LIMIT = 5;
 
 const SECRET_KEY = "your-secret-key";
