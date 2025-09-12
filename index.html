@@ -2,117 +2,65 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🔥 ババ抜きランキング 🔥</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<header class="top-panel">
-  <div class="left-controls">
-    <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
-    <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
-    <input id="autoRefreshSec" type="number" min="5" value="30">
-  </div>
-  <div class="right-controls">
-    <button id="downloadCSVBtn">💽 CSV</button>
-    <button id="loadRankingBtn">🔄 更新</button>
-    <button id="adminToggleBtn">管理者モード</button>
-    <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
-    <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
-    <button id="btnOpenChange">📊 変動ランキング</button>
-    <button id="btnOpenOverall">📊 総合ランキングを大きく表示</button>
+<header>
+  <h1>🔥 ババ抜きランキング 🔥</h1>
+  <div id="controls">
+    <button id="refreshBtn">更新</button>
+    <button id="exportCSVBtn">CSV出力</button>
+    <label><input type="checkbox" id="adminToggle"> 管理者モード</label>
   </div>
 </header>
 
-<main class="grid-container">
+<main>
 
-  <!-- ランキングテーブル -->
-  <section id="rankingSection">
-    <div id="podium"></div>
-    <div class="ranking-wrapper">
-      <table id="rankingTable" class="ranking-table">
+  <section>
+    <h2>ランキング</h2>
+    <div style="overflow-x:auto;">
+      <table id="rankingTable">
         <thead>
           <tr>
-            <th>順位</th><th>生徒ID</th><th>総合レート</th><th>獲得レート</th>
-            <th>特別ポイント🔥</th><th>順位変動</th><th>前回の試合順位</th>
-            <th>称号</th><th class="admin-only">削除</th>
+            <th>順位</th><th>プレイヤー</th><th>レート</th>
+            <th>順位変動</th><th>レート変動</th><th>称号</th>
+            <th class="admin-only">操作</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
+    <div class="charts-container">
+      <canvas id="chartTopUp"></canvas>
+      <canvas id="chartTopDown"></canvas>
+    </div>
   </section>
 
-  <!-- 称号図鑑 -->
-  <section id="titleCatalogSection" style="display:none;">
-    <h2 id="titleCatalogHeader">🏅 称号図鑑</h2>
-    <button id="backToRankingBtn">🔙 ランキングに戻る</button>
-    <div id="titleCatalogControls"></div>
+  <section>
+    <h2>称号一覧</h2>
+    <div id="titleFilters">
+      <select id="titleFilterSelect">
+        <option value="all">全て</option>
+        <option value="unlocked">獲得済み</option>
+        <option value="locked">未獲得</option>
+      </select>
+      <input type="text" id="titleSearchInput" placeholder="称号検索">
+    </div>
     <div id="titleCatalog"></div>
   </section>
 
 </main>
 
-<!-- 総合ランキングモーダル -->
-<div id="modalOverall" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button id="btnCloseOverall" class="close-btn">✖</button>
-    <h2>📊 総合ランキング（フルスクリーン）</h2>
-    <table id="modalOverallTable" class="ranking-table"></table>
-  </div>
-</div>
-
-<!-- 変動ランキングモーダル -->
-<div id="modalChange" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button id="btnCloseChange" class="close-btn">✖</button>
-    <div id="modalChangeContent"></div>
-  </div>
-</div>
-
-<!-- レート推移チャートモーダル -->
-<div id="chartModal" class="modal hidden">
-  <div class="modal-content">
-    <button id="chartCloseBtn" class="close-btn">✖️</button>
-    <h3>📊 レート推移</h3>
-    <canvas id="chartCanvas"></canvas>
-  </div>
-</div>
-
-<!-- 内部計算用 -->
-<ul id="awardUp" style="display:none;"></ul>
-<ul id="awardDown" style="display:none;"></ul>
-
-<!-- トースト通知 -->
+<!-- トースト -->
 <div id="toast" class="hidden"></div>
 
+<!-- 称号詳細ポップアップ -->
+<div id="titleDetailContainer"></div>
+
 <script src="ranking.js"></script>
-
-<script>
-  // ランキング ⇄ 称号図鑑切替
-  const rankingSection = document.getElementById('rankingSection');
-  const titleCatalogSection = document.getElementById('titleCatalogSection');
-  document.getElementById('goTitleCatalogBtn').addEventListener('click', () => {
-    rankingSection.style.display = 'none';
-    titleCatalogSection.style.display = 'block';
-  });
-  document.getElementById('backToRankingBtn').addEventListener('click', () => {
-    titleCatalogSection.style.display = 'none';
-    rankingSection.style.display = 'block';
-  });
-
-  // モーダル閉じる共通処理
-  document.querySelectorAll('.modal .modal-overlay, .modal .close-btn').forEach(el => {
-    el.addEventListener('click', e => {
-      const modal = e.target.closest('.modal');
-      if(modal) modal.classList.add('hidden');
-    });
-  });
-</script>
-
 </body>
 </html>
