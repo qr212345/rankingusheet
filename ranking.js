@@ -73,8 +73,7 @@ function escapeCSV(s){return `"${String(s).replace(/"/g,'""')}"`;}
 /* =========================
    Storage管理
 ========================= */
-function loadFromStorage(key,fallback){ try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback;}catch(e){return fallback;} }
-function saveToStorage(key,value){ try{ localStorage.setItem(key,JSON.stringify(value)); }catch(e){}}
+function loadFromStorage(key, fallback){ return fallback; }
 
 function loadPlayerData(){
   const raw = loadFromStorage(STORAGE_KEY, null);
