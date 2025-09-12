@@ -182,11 +182,14 @@ async function fetchTitleDataFromGAS() {
         playerData.set(entry.playerId, normalizeStoredPlayer(prev));
       });
       savePlayerData();
+      toast("称号データの取得に成功しました", 2000); // ← 成功メッセージ
     }
   } catch (e) {
     console.warn("GASから称号取得失敗", e);
+    toast("称号データの取得に失敗しました", 2000); // ← 失敗メッセージも
   }
 }
+
 
 
 async function saveTitleDataToGAS(playerData) {
