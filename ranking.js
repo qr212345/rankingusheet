@@ -189,9 +189,9 @@ async function fetchTitleDataFromGAS() {
 }
 
 
-async function saveTitleDataToGAS() {
+async function saveTitleDataToGAS(playerData) {
   try {
-    // playerData から送信用 JSON を作成
+    // POST 送信用の JSON を文字列化
     const payload = JSON.stringify({
       mode: "updateTitles",
       secret: SECRET_KEY,
@@ -206,7 +206,7 @@ async function saveTitleDataToGAS() {
       method: "POST",
       body: payload,
       headers: {
-        "Content-Type": "text/plain;charset=UTF-8"
+        "Content-Type": "text/plain;charset=UTF-8" // プリフライトなし
       },
       cache: "no-cache"
     });
