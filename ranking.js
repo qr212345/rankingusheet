@@ -159,42 +159,77 @@ async function saveTitleDataToGAS() {
   }
 }
 
+/* =========================
+   ランキング取得・処理
+   - GASからランキング取得（SECRET_KEY認証）
+   - 称号データとマージ
+   - 称号付与・描画・永続化
+========================= */
 async function fetchRankingData() {
   if (isFetching) return;
   isFetching = true;
 
   try {
-    // ① GASからランキング取得（SECRET_KEYで認証）
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+    // ① GASからランキング取得
+    const res = await fetch(
+      `${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`,
+      { cache: "no-cache" }
+    );
+
+    if (!res.ok) {
+      throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
+    }
+
     const json = await res.json();
 
-    // ② ランキング整形・計算
-    const processed = processRanking(json.ranking || json);
+    // ② データ形式をバリデーション
+    let rankingArray = [];
+    if (Array.isArray(json)) {
+      rankingArray = json;
+    } else if (Array.isArray(json.ranking)) {
+      rankingArray = json.ranking;
+    } else if (json.ranking && typeof json.ranking === "object") {
+      rankingArray = Object.values(json.ranking);
+    } else {
+      console.warn("ランキングデータなし。処理をスキップします。", json);
+      return; // 安全に抜ける
+    }
 
-    // ③ GASから称号を取得してマージ
+    if (rankingArray.length === 0) {
+      console.warn("ランキング配列が空です。処理をスキップします。");
+      return;
+    }
+
+    // ③ ランキング整形・計算
+    const processed = processRanking(rankingArray);
+
+    // ④ 称号データをGASから取得してマージ
     await fetchTitleDataFromGAS();
-    processed.forEach(p => {
-      const saved = playerData.get(p.playerId);
-      if (saved?.titles) p.titles = saved.titles;
+    processed.forEach(player => {
+      const saved = playerData.get(player.playerId);
+      if (saved?.titles) {
+        player.titles = saved.titles;
+      }
     });
 
     lastProcessedRows = processed;
 
-    // ④ 称号付与・ポップアップ表示
+    // ⑤ 称号付与・ポップアップ表示
     processed.forEach(p => assignTitles(p));
 
-    // ⑤ 描画
+    // ⑥ 描画
     renderRankingTable(processed);
     renderTopCharts(processed);
     scheduleRenderTitleCatalog();
 
-    // ⑥ 永続化（GAS + localStorage）
+    // ⑦ 永続化（GAS + localStorage）
     await saveTitleDataToGAS();
     saveTitleHistory();
     savePlayerData();
 
   } catch (e) {
-    console.error(e);
+    console.error("fetchRankingData 失敗:", e);
+    toast("ランキング更新に失敗しました");
   } finally {
     isFetching = false;
   }
