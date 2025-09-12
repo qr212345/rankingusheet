@@ -5,70 +5,63 @@
 <title>🔥 ババ抜きランキング 🔥</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="styles.css"> <!-- 先ほどのCSSを外部化推奨 -->
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- 上部操作パネル -->
-  <header class="top-panel">
-    <div class="left-controls">
-      <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
-      <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
-      <input id="autoRefreshSec" type="number" min="5" value="30">
-    </div>
-    <div class="right-controls">
-      <button id="downloadCSVBtn">💽 CSV</button>
-      <button id="loadRankingBtn">🔄 更新</button>
-      <button id="adminToggleBtn">管理者モード</button>
-      <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
-      <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
-      <button id="btnOpenChange">📊 変動ランキング</button>
-      <!-- 総合ランキング拡大ボタン -->
-　　　<button id="btnOpenOverall">📊 総合ランキングを大きく表示</button>
-    
-    </div>
-  </header>
-
-  <main class="grid-container">
-
-    <!-- 総合ランキングモーダル -->
-<div id="modalOverall" class="modal hidden">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button id="btnCloseOverall" class="close-btn">✖</button>
-    <h2>📊 総合ランキング（フルスクリーン）</h2>
-    <table id="modalOverallTable" class="ranking-table"></table>
+<header class="top-panel">
+  <div class="left-controls">
+    <input id="searchInput" type="text" placeholder="IDや名前で絞り込み">
+    <label><input id="autoRefreshToggle" type="checkbox"> 自動更新</label>
+    <input id="autoRefreshSec" type="number" min="5" value="30">
   </div>
-</div>
+  <div class="right-controls">
+    <button id="downloadCSVBtn">💽 CSV</button>
+    <button id="loadRankingBtn">🔄 更新</button>
+    <button id="adminToggleBtn">管理者モード</button>
+    <button onclick="window.open('https://qr212345.github.io/0987654321/')">🔙プレイヤー登録に戻る</button>
+    <button id="goTitleCatalogBtn">🏅 称号図鑑</button>
+    <button id="btnOpenChange">📊 変動ランキング</button>
+    <button id="btnOpenOverall">📊 総合ランキングを大きく表示</button>
+  </div>
+</header>
 
-    <!-- ランキング画面 -->
-    <section id="rankingSection">
-      <div id="podium"></div>
-      <div class="ranking-wrapper">
-        <table id="rankingTable">
-          <thead>
-            <tr>
-              <th>順位</th><th>生徒ID</th><th>総合レート</th><th>獲得レート</th>
-              <th>特別ポイント🔥</th><th>順位変動</th><th>前回の試合順位</th>
-              <th>称号</th><th class="admin-only">削除</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table> 
-      </div>
-    </section>
+<main class="grid-container">
 
+  <!-- ランキングテーブル -->
+  <section id="rankingSection">
+    <div id="podium"></div>
+    <div class="ranking-wrapper">
+      <table id="rankingTable" class="ranking-table">
+        <thead>
+          <tr>
+            <th>順位</th><th>生徒ID</th><th>総合レート</th><th>獲得レート</th>
+            <th>特別ポイント🔥</th><th>順位変動</th><th>前回の試合順位</th>
+            <th>称号</th><th class="admin-only">削除</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 
-<!-- 非表示リスト（内部計算用） -->
-<ul id="awardUp" style="display:none;"></ul>
-<ul id="awardDown" style="display:none;"></ul>
+  <!-- 称号図鑑 -->
+  <section id="titleCatalogSection" style="display:none;">
+    <h2 id="titleCatalogHeader">🏅 称号図鑑</h2>
+    <button id="backToRankingBtn">🔙 ランキングに戻る</button>
+    <div id="titleCatalogControls"></div>
+    <div id="titleCatalog"></div>
+  </section>
+
+</main>
 
 <!-- 総合ランキングモーダル -->
 <div id="modalOverall" class="modal hidden">
   <div class="modal-overlay"></div>
   <div class="modal-content">
     <button id="btnCloseOverall" class="close-btn">✖</button>
-    <table id="modalOverallTable"></table>
+    <h2>📊 総合ランキング（フルスクリーン）</h2>
+    <table id="modalOverallTable" class="ranking-table"></table>
   </div>
 </div>
 
@@ -81,45 +74,45 @@
   </div>
 </div>
 
-    <!-- 称号図鑑画面 -->
-    <section id="titleCatalogSection" style="display:none;">
-      <h2 id="titleCatalogHeader">🏅 称号図鑑</h2>
-      <button id="backToRankingBtn">🔙 ランキングに戻る</button>
-      <!-- 称号フィルター用コントロール -->
-      <div id="titleCatalogControls"></div>
-      <div id="titleCatalog"></div>
-    </section>
-
-  </main>
-
-  <!-- モーダル -->
-  <div id="chartModal" class="modal hidden">
-    <div class="modal-content">
-      <button id="chartCloseBtn">✖️</button>
-      <h3>📊 レート推移</h3>
-      <canvas id="chartCanvas"></canvas>
-    </div>
+<!-- レート推移チャートモーダル -->
+<div id="chartModal" class="modal hidden">
+  <div class="modal-content">
+    <button id="chartCloseBtn" class="close-btn">✖️</button>
+    <h3>📊 レート推移</h3>
+    <canvas id="chartCanvas"></canvas>
   </div>
+</div>
 
-  <!-- トースト通知 -->
-  <div id="toast" class="hidden"></div>
+<!-- 内部計算用 -->
+<ul id="awardUp" style="display:none;"></ul>
+<ul id="awardDown" style="display:none;"></ul>
 
-  <!-- JS 全機能スクリプト -->
-  <script src="ranking.js"></script> <!-- 先ほどのJSを外部化推奨 -->
+<!-- トースト通知 -->
+<div id="toast" class="hidden"></div>
 
-  <script>
-    // ランキング ⇄ 称号図鑑切り替え
-    const rankingSection = document.getElementById('rankingSection');
-    const titleCatalogSection = document.getElementById('titleCatalogSection');
-    document.getElementById('goTitleCatalogBtn').addEventListener('click', () => {
-      rankingSection.style.display = 'none';
-      titleCatalogSection.style.display = 'block';
+<script src="ranking.js"></script>
+
+<script>
+  // ランキング ⇄ 称号図鑑切替
+  const rankingSection = document.getElementById('rankingSection');
+  const titleCatalogSection = document.getElementById('titleCatalogSection');
+  document.getElementById('goTitleCatalogBtn').addEventListener('click', () => {
+    rankingSection.style.display = 'none';
+    titleCatalogSection.style.display = 'block';
+  });
+  document.getElementById('backToRankingBtn').addEventListener('click', () => {
+    titleCatalogSection.style.display = 'none';
+    rankingSection.style.display = 'block';
+  });
+
+  // モーダル閉じる共通処理
+  document.querySelectorAll('.modal .modal-overlay, .modal .close-btn').forEach(el => {
+    el.addEventListener('click', e => {
+      const modal = e.target.closest('.modal');
+      if(modal) modal.classList.add('hidden');
     });
-    document.getElementById('backToRankingBtn').addEventListener('click', () => {
-      titleCatalogSection.style.display = 'none';
-      rankingSection.style.display = 'block';
-    });
-  </script>
+  });
+</script>
 
 </body>
 </html>
