@@ -391,6 +391,56 @@ function renderRankingTable(data) {
   setDataLabelsForMobileTable();
 }
 
+
+function renderOverallModalTable(data) {
+  const table = document.getElementById("modalOverallTable");
+  if (!table) return;
+
+  // tbody がなければ作成
+  let tbody = table.querySelector("tbody");
+  if (!tbody) {
+    tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+  }
+
+  tbody.innerHTML = "";
+  const frag = document.createDocumentFragment();
+
+  data.forEach(player => {
+    const tr = document.createElement("tr");
+
+    // 順位ごとの強調
+    if (player.rank <= 3) tr.classList.add(`rank-${player.rank}`);
+    // レート増減ごとの色分け
+    if (player.rateGain > 0) tr.classList.add("gain-up");
+    else if (player.rateGain < 0) tr.classList.add("gain-down");
+
+    // 行HTML（管理者ボタンやクリックイベントは削除）
+    tr.innerHTML = `
+      <td class="col-rank">${player.rank}</td>
+      <td class="col-id">${player.playerId}</td>
+      <td class="col-rate">${player.rate}</td>
+      <td class="col-gain">${player.rateGain}</td>
+      <td class="col-bonus">${player.bonus ?? 0}</td>
+      <td class="col-change">${player.rankChangeStr ?? "—"}</td>
+      <td class="col-prev">${player.prevRank ?? "—"}</td>
+      <td class="col-title ${player.rank <= 3 ? "title-podium" : ""}">${player.title || ""}</td>
+    `;
+
+    frag.appendChild(tr);
+  });
+
+  tbody.appendChild(frag);
+
+  // モバイル用 data-label 自動設定
+  const headers = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
+  tbody.querySelectorAll("tr").forEach(tr => {
+    tr.querySelectorAll("td").forEach((td, i) => {
+      if (headers[i]) td.setAttribute("data-label", headers[i]);
+    });
+  });
+}
+
 /* =========================
    変動ランキング 上昇/下降TOP3（同率なら全員）
 ========================= */
@@ -544,17 +594,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnOpenOverall = document.getElementById("btnOpenOverall");
   const btnCloseOverall = document.getElementById("btnCloseOverall");
   const modalOverall = document.getElementById("modalOverall");
-  const modalOverallTable = document.getElementById("modalOverallTable");
+
+  function renderOverallModal() {
+    if(!lastProcessedRows?.length) return;
+    renderOverallModalTable(lastProcessedRows);
+  }
 
   btnOpenOverall.addEventListener("click", () => {
-    const mainTable = document.getElementById("rankingTable");
-    if (!mainTable) return;
-    modalOverallTable.innerHTML = mainTable.innerHTML;
+    renderOverallModal();  // データ駆動で描画
     modalOverall.classList.remove("hidden");
   });
-
   btnCloseOverall.addEventListener("click", () => modalOverall.classList.add("hidden"));
-  modalOverall.querySelector(".modal-overlay").addEventListener("click", () => modalOverall.classList.add("hidden"));
+  modalOverall.querySelector(".modal-overlay")
+    .addEventListener("click", () => modalOverall.classList.add("hidden"));
 
   // --- 変動ランキングモーダル ---
   const btnOpenChange = document.getElementById("btnOpenChange");
@@ -562,53 +614,46 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalChange = document.getElementById("modalChange");
   const modalChangeContent = document.getElementById("modalChangeContent");
 
-  const upList = document.getElementById("awardUp");
-  const downList = document.getElementById("awardDown");
+  function renderChangeModal() {
+    if (!lastProcessedRows?.length) return;
 
-  function renderChangeAwards(data) {
-    if (!data || !data.length) return;
+    const upPlayers = lastProcessedRows.filter(p => p.rankChange > 0)
+      .sort((a,b)=>b.rankChange-a.rankChange);
+    const downPlayers = lastProcessedRows.filter(p => p.rankChange < 0)
+      .sort((a,b)=>a.rankChange-b.rankChange);
 
-    const upPlayers = data.filter(p => p.rankChange > 0).sort((a,b)=>b.rankChange-a.rankChange);
-    const downPlayers = data.filter(p => p.rankChange < 0).sort((a,b)=>a.rankChange-b.rankChange);
-
-    const upTop = [], downTop = [];
-    let cutoffUp=null, cutoffDown=null;
-
-    upPlayers.forEach(p => {
-      if(upTop.length<3){ upTop.push(p); cutoffUp=p.rankChange; }
-      else if(p.rankChange===cutoffUp) upTop.push(p);
-    });
-
-    downPlayers.forEach(p => {
-      if(downTop.length<3){ downTop.push(p); cutoffDown=p.rankChange; }
-      else if(p.rankChange===cutoffDown) downTop.push(p);
-    });
-
-    upList.innerHTML = upTop.map(p=>`<li>⬆️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("");
-    downList.innerHTML = downTop.map(p=>`<li>⬇️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("");
-
-    if(!modalChange.classList.contains("hidden")){
-      modalChangeContent.innerHTML = `
-        <h4>📈 上昇TOP</h4><ul>${upList.innerHTML}</ul>
-        <h4>📉 下降TOP</h4><ul>${downList.innerHTML}</ul>
-      `;
+    const getTopN = (players, n=3) => {
+      const top = [], cutoff = {val: null};
+      players.forEach(p => {
+        if(top.length<n){ top.push(p); cutoff.val=p.rankChange; }
+        else if(p.rankChange===cutoff.val) top.push(p);
+      });
+      return top;
     }
+
+    const upTop = getTopN(upPlayers);
+    const downTop = getTopN(downPlayers);
+
+    modalChangeContent.innerHTML = `
+      <h4>📈 上昇TOP</h4><ul>${upTop.map(p=>`<li>⬆️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("")}</ul>
+      <h4>📉 下降TOP</h4><ul>${downTop.map(p=>`<li>⬇️ ${p.playerId}（${p.rankChangeStr} / 現在 ${p.rank}位）</li>`).join("")}</ul>
+    `;
   }
 
   btnOpenChange.addEventListener("click", () => {
-    if(!lastProcessedRows?.length) return;
-    renderChangeAwards(lastProcessedRows);
+    renderChangeModal();
     modalChange.classList.remove("hidden");
   });
-
   btnCloseChange.addEventListener("click", () => modalChange.classList.add("hidden"));
-  modalChange.querySelector(".modal-overlay").addEventListener("click", () => modalChange.classList.add("hidden"));
+  modalChange.querySelector(".modal-overlay")
+    .addEventListener("click", () => modalChange.classList.add("hidden"));
 
   // --- 自動更新連動 ---
   const originalRefreshRanking = refreshRanking;
   refreshRanking = async function(){
     await originalRefreshRanking();
-    renderChangeAwards(lastProcessedRows); // 変動ランキングモーダル更新
+    renderOverallModal();   // 総合モーダルも自動更新対応
+    renderChangeModal();    // 変動モーダルも自動更新対応
   };
 });
 
