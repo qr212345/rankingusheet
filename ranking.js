@@ -834,21 +834,20 @@ function renderTopCharts(data) {
 }
 
 function resetLocalTitlesAndHistory() {
-  if(!isAdmin){
-    toast("管理者モードでのみ実行可能です");
-    return;
-  }
+  if(!isAdmin){ toast("管理者モードでのみ実行可能です"); return; }
 
   // playerData 初期化
   playerData.forEach((p, id) => {
-    p.titles = [];
-    p.consecutiveGames = 0;
-    p.winStreak = 0;
-    p.rank1Count = 0;
-    p.rateTrend = 0;
-    p.maxBonusCount = 0;
-    p.lastBabaSafe = false;
-    playerData.set(id, p);
+    playerData.set(id, normalizeStoredPlayer({
+      ...p,
+      titles: [],
+      consecutiveGames:0,
+      winStreak:0,
+      rank1Count:0,
+      rateTrend:0,
+      maxBonusCount:0,
+      lastBabaSafe:false
+    }));
   });
   savePlayerData();
 
@@ -856,6 +855,7 @@ function resetLocalTitlesAndHistory() {
   titleHistory = [];
   rankingHistory = [];
   dailyRandomCount = {};
+  lastProcessedRows = [];
   saveTitleHistory();
   saveRankingHistory();
   saveDailyRandomCount();
@@ -865,10 +865,11 @@ function resetLocalTitlesAndHistory() {
 
   // UI再描画
   renderTitleCatalog();
-  renderRankingTable(lastProcessedRows);
+  renderRankingTable([]);
 
   toast("ローカルの称号と履歴を初期化しました");
 }
+
 
 /* =========================
    自動更新
