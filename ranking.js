@@ -10,7 +10,7 @@ const STORAGE_KEY = "rankingPlayerData_v4"; // local cache (but GAS is authorita
 const DELETED_KEY = "rankingDeletedPlayers";
 const HISTORY_KEY = "rankingHistory_v4";
 const TITLE_HISTORY_KEY = "titleHistory_v4";
-const AUTO_REFRESH_INTERVAL = 30; // seconds
+const AUTO_REFRESH_INTERVAL = 40; // seconds
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
 const RANDOM_TITLE_PROB = { "ミラクルババ":0.01, "ラッキーババ":0.05 };
