@@ -4,6 +4,7 @@
    設定・定数
 ========================= */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbz7l4jatqVc6ggdUyzKaC7joRA9Fa_XzRoqZuI7ImxF74OJqkDhGqPV0C229CBvnbY/exec";
+const ENDPOINT = "https://script.google.com/macros/s/YOUR_GAS_ID/exec";
 const ADMIN_PASSWORD = "babanuki123";
 const STORAGE_KEY = "rankingPlayerData_v4";
 const DELETED_KEY = "rankingDeletedPlayers";
@@ -73,9 +74,6 @@ function escapeCSV(s){return `"${String(s).replace(/"/g,'""')}"`;}
 /* =========================
    Storage管理
 ========================= */
-function loadFromStorage(key,fallback){ try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw):fallback;}catch(e){return fallback;} }
-function saveToStorage(key,value){ try{ localStorage.setItem(key,JSON.stringify(value)); }catch(e){}}
-
 function loadPlayerData(){
   const raw = loadFromStorage(STORAGE_KEY, null);
   if(raw && Array.isArray(raw)){
@@ -111,20 +109,12 @@ function normalizeStoredPlayer(p){
   };
 }
 
-function loadDeletedPlayers(){ deletedPlayers=new Set(loadFromStorage(DELETED_KEY,[])); }
-function saveDeletedPlayers(){ saveToStorage(DELETED_KEY,Array.from(deletedPlayers)); }
-function loadRankingHistory(){ rankingHistory=loadFromStorage(HISTORY_KEY,[]); }
-function saveRankingHistory(){ saveToStorage(HISTORY_KEY,rankingHistory); }
-function loadTitleHistory(){ titleHistory=loadFromStorage(TITLE_HISTORY_KEY,[]); }
-function saveTitleHistory(){ saveToStorage(TITLE_HISTORY_KEY,titleHistory); }
 function saveTitleState(){ saveToStorage("titleFilter", titleFilter); saveToStorage("titleSearch", titleSearch); }
 function loadTitleState(){ titleFilter = loadFromStorage("titleFilter", "all"); titleSearch = loadFromStorage("titleSearch", ""); }
 function saveVolumeSetting(){ saveToStorage("volumeSetting", volume); }
 function loadVolumeSetting(){ volume = loadFromStorage("volumeSetting", 1.0); }
 function saveNotificationSetting(){ saveToStorage("notificationEnabled", notificationEnabled); }
 function loadNotificationSetting(){ notificationEnabled = loadFromStorage("notificationEnabled", true); }
-function loadDailyRandomCount(){ dailyRandomCount = loadFromStorage("dailyRandomCount", {}); }
-function saveDailyRandomCount(){ saveToStorage("dailyRandomCount", dailyRandomCount); }
 
 /* =========================
    管理者モード
@@ -151,17 +141,26 @@ function setAdminMode(enabled){
 /* =========================
    ランダム称号管理
 ========================= */
-function canAssignRandom(playerId){
-  const today = new Date().toISOString().slice(0,10);
-  if(!dailyRandomCount[today]) dailyRandomCount[today]=0;
-  return !assignedRandomTitles.has(playerId) && dailyRandomCount[today]<RANDOM_TITLE_DAILY_LIMIT;
+// ランダム称号付与可能か（累計情報ベース）
+function canAssignRandom(playerId) {
+  const prevData = normalizeStoredPlayer(playerData.get(playerId) || {});
+  const assignedCount = prevData.randomTitleCount ?? 0;
+  return assignedCount < RANDOM_TITLE_DAILY_LIMIT; // RANDOM_TITLE_DAILY_LIMITを累計制限に変更可
 }
-function registerRandomAssign(playerId){
-  const today = new Date().toISOString().slice(0,10);
-  if(!dailyRandomCount[today]) dailyRandomCount[today]=0;
-  dailyRandomCount[today]++;
-  assignedRandomTitles.add(playerId);
-  saveDailyRandomCount();
+
+// ランダム称号付与登録（累計情報ベース）
+function registerRandomAssign(playerId) {
+  const prevData = normalizeStoredPlayer(playerData.get(playerId) || {});
+  const newCount = (prevData.randomTitleCount ?? 0) + 1;
+
+  // playerDataに累計付与回数を保存
+  const merged = {
+    ...prevData,
+    randomTitleCount: newCount,
+    lastUpdated: new Date().toISOString()
+  };
+  playerData.set(playerId, normalizeStoredPlayer(merged));
+  savePlayerData(); // GASに保存
 }
 
 /* =========================
@@ -228,140 +227,173 @@ async function saveTitleDataToGAS(playerData) {
    - 称号付与・描画・永続化
    - 空データや異常値に対応
 ========================= */
+// fetchRankingData を GAS 処理に置き換え
 async function fetchRankingData() {
-  if (isFetching) return;
-  isFetching = true;
-
-  try {
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, {
-      cache: "no-cache"
-    });
-
-    if (!res.ok) throw new Error(`GASリクエスト失敗: ${res.status} ${res.statusText}`);
-
-    const json = await res.json();
-
-    // validate: we expect an array of player objects
-    let rankingArray = [];
-    if (Array.isArray(json)) rankingArray = json;
-    else if (Array.isArray(json.ranking)) rankingArray = json.ranking;
-    else if (json.ranking && typeof json.ranking === "object") rankingArray = Object.values(json.ranking);
-    else {
-      console.warn("ランキングデータの形式不明", json);
-      isFetching = false;
-      return;
+    try {
+        const updatedRanking = await processRankingWithGAS();
+        renderRankingTable(updatedRanking);
+        renderTopCharts(updatedRanking);
+    } catch (e) {
+        console.error("ランキング取得失敗", e);
     }
-
-    if (rankingArray.length === 0) {
-      console.warn("ランキング配列が空です。描画をスキップします。");
-      renderRankingTable([]);
-      renderTopCharts([]);
-      isFetching = false;
-      return;
-    }
-
-    // process ranking: calculate rankChange, rateGain, bonus, etc.
-    const processed = processRanking(rankingArray);
-
-    // merge titles from stored playerData
-    await fetchTitleDataFromGAS();
-    processed.forEach(player => {
-      const saved = playerData.get(player.playerId);
-      if (saved?.titles) player.titles = Array.from(new Set([...(player.titles||[]), ...saved.titles]));
-    });
-
-    lastProcessedRows = processed;
-
-    // assign titles (this will update playerData and titleHistory)
-    processed.forEach(p => assignTitles(p));
-
-    // render
-    renderRankingTable(processed);
-    renderTopCharts(processed);
-    scheduleRenderTitleCatalog();
-
-    // persist
-    await saveTitleDataToGAS();
-    saveTitleHistory();
-    savePlayerData();
-    saveRankingHistory();
-
-  } catch (e) {
-    console.error("fetchRankingData 失敗:", e);
-    toast("ランキング更新に失敗しました");
-  } finally {
-    isFetching = false;
-  }
 }
+
+// =========================
+// GAS 累計情報操作
+// =========================
+async function fetchCumulative() {
+  const url = `${ENDPOINT}?mode=getCumulative&secret=${SECRET_KEY}`;
+  const res = await fetch(url); // GET はプリフライトなし
+  return res.json(); // { cumulative: { playerId: { ... } } }
+}
+
+async function updateCumulative(cumulativeData) {
+  const payload = {
+    mode: "updateCumulative",
+    secret: SECRET_KEY,
+    cumulative: cumulativeData
+  };
+  const res = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" }, // プリフライトなし
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+// =========================
+// 使用例
+// =========================
+(async () => {
+  // latestRankingData: APIやリアルタイム取得データを想定
+  const latestRankingData = [
+    {playerId:"player123", rank:1, rate:1200},
+    {playerId:"player456", rank:2, rate:1150},
+    // ... 
+  ];
+
+  const updatedRanking = await processRankingWithGAS(latestRankingData);
+  console.log(updatedRanking);
+})();
 
 /* =========================
    ランキング計算（rateRank, rankChange, rateChange, bonus）
    ここで rateGain, bonus, rateRank などを確実に計算・初期化
 ========================= */
-function processRanking(data){
-  // defensive copy
-  const arr = data.map(p => Object.assign({}, p));
 
-  // ensure standard fields exist
-  arr.forEach(p => {
-    p.playerId = p.playerId ?? (p.id ?? "unknown");
-    p.rank = Number.isFinite(p.rank) ? p.rank : null;
-    p.rate = Number.isFinite(p.rate) ? Number(p.rate) : 0;
-    p.bonus = Number.isFinite(p.bonus) ? Number(p.bonus) : 0; // may be computed below
-    p.titles = Array.isArray(p.titles) ? p.titles : [];
+/**
+ * ランキングデータを累計情報と照合して処理・更新する
+ * @param {Array} latestRankingData 最新のランキングデータ
+ * @returns {Array} 更新後のランキング配列
+ */
+// =========================
+// 累計情報取得 & ランキング処理
+// =========================
+async function processRankingWithGAS(latestRankingData = null) {
+  // 1. 累計情報取得
+  const { cumulative } = await fetchCumulative();
+  const cumulativeData = cumulative || {};
+
+  // 2. lastProcessedRows 初期化
+  lastProcessedRows = Object.entries(cumulativeData).map(([playerId, data]) => ({
+    playerId,
+    rank: data.lastRank ?? null,
+    rate: data.rate ?? 0,
+    bonus: data.bonus ?? 0,
+    titles: Array.isArray(data.titles) ? [...data.titles] : [],
+    consecutiveGames: data.consecutiveGames ?? 0,
+    winStreak: data.winStreak ?? 0,
+    rateTrend: data.rateTrend ?? 0,
+    rank1Count: data.rank1Count ?? 0,
+    maxBonusCount: data.maxBonusCount ?? 0,
+    lastBabaSafe: data.lastBabaSafe ?? false,
+    deleted: data.deleted ?? false // 削除フラグを累計情報に統合
+  }));
+
+  // 3. 最新ランキング取得
+  let rankingArray = latestRankingData;
+  if (!rankingArray) {
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+    const json = await res.json();
+    rankingArray = Array.isArray(json) ? json : (Array.isArray(json.ranking) ? json.ranking : Object.values(json.ranking || {}));
+  }
+
+  if (!rankingArray || rankingArray.length === 0) {
+    renderRankingTable(lastProcessedRows);
+    renderTopCharts(lastProcessedRows);
+    return lastProcessedRows;
+  }
+
+  // 4. 差分計算 & playerData更新
+  const processed = rankingArray.map(p => {
+    const prev = cumulativeData[p.playerId] || {};
+    const rate = Number.isFinite(p.rate) ? p.rate : 0;
+    const rank = Number.isFinite(p.rank) ? p.rank : null;
+    const bonus = Number.isFinite(p.bonus) ? p.bonus : 0;
+    const rateGain = rate - (prev.rate ?? rate);
+
+    return {
+      playerId: p.playerId,
+      rank,
+      rate,
+      bonus,
+      titles: Array.isArray(prev.titles) ? [...prev.titles] : [],
+      prevRate: prev.rate ?? rate,
+      prevRank: prev.lastRank ?? rank,
+      rateGain,
+      consecutiveGames: (prev.consecutiveGames ?? 0) + 1,
+      winStreak: rank === 1 ? ((prev.winStreak ?? 0) + 1) : 0,
+      rank1Count: (prev.rank1Count ?? 0) + (rank === 1 ? 1 : 0),
+      rateTrend: ((prev.rate ?? 0) < rate) ? ((prev.rateTrend ?? 0) + 1) : 0,
+      maxBonusCount: Math.max(prev.maxBonusCount ?? 0, bonus),
+      lastBabaSafe: prev.lastBabaSafe ?? false,
+      deleted: prev.deleted ?? false // 削除フラグ反映
+    };
   });
 
-  // attach previous data & compute basic deltas
-  arr.forEach(p => {
-    const prev = playerData.get(p.playerId) || {};
-    p.prevRate = prev.rate ?? p.rate;
-    p.prevRank = prev.lastRank ?? p.rank;
-    p.prevRateRank = prev.prevRateRank ?? 0;
-
-    // rateGain: now - prev
-    p.rateGain = (p.rate ?? 0) - (prev.rate ?? p.rate ?? 0);
-
-    // bonus: define as same-rank bonus: example business rule:
-    // if rank unchanged => bonus = gained rate; else bonus = p.rate (fallback)
-    p.bonus = (p.prevRank === p.rank) ? (p.rate - (prev.rate ?? p.rate)) : (p.bonus ?? 0);
-    if (!Number.isFinite(p.bonus)) p.bonus = 0;
+  // レート順に並び替え & ランク変化計算
+  processed.sort((a, b) => b.rate - a.rate);
+  processed.forEach((p, i, arr) => {
+    p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
+    p.rankChange = (p.prevRank ?? p.rank) - p.rank;
+    p.rateRankChange = (p.prevRateRank ?? p.rateRank) - p.rateRank;
   });
 
-  // compute rateRank (by rate desc)
-  arr.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
-  let rankCounter = 1;
-  arr.forEach((p,i)=>{
-    if (i>0 && p.rate === arr[i-1].rate) p.rateRank = arr[i-1].rateRank;
-    else p.rateRank = rankCounter++;
-  });
+  lastProcessedRows = processed;
 
-  // compute rankChange & rateRankChange
-  arr.forEach(p=>{
-    p.rankChange = (p.prevRank ?? p.rank) - (p.rank ?? 0);
-    p.rateRankChange = (p.prevRateRank ?? p.rateRank) - (p.rateRank ?? 0);
-  });
+  // 5. 称号付与
+  processed.forEach(p => assignTitles(p));
 
-  // update playerData base record with computed baseline (but keep other stats)
-  arr.forEach(p=>{
-    const prev = playerData.get(p.playerId) || {};
-    playerData.set(p.playerId, normalizeStoredPlayer({
-      ...prev,
+  // 6. 描画
+  renderRankingTable(processed);
+  renderTopCharts(processed);
+  scheduleRenderTitleCatalog();
+
+  // 7. GAS累計情報保存（削除フラグも統合）
+  const newCumulative = {};
+  processed.forEach(p => {
+    newCumulative[p.playerId] = {
       rate: p.rate,
       lastRank: p.rank,
       prevRateRank: p.rateRank,
       bonus: p.bonus,
-      // preserve titles until assignTitles runs
-      titles: prev.titles ?? p.titles ?? []
-    }));
+      consecutiveGames: p.consecutiveGames,
+      winStreak: p.winStreak,
+      rank1Count: p.rank1Count,
+      rateTrend: p.rateTrend,
+      maxBonusCount: p.maxBonusCount,
+      lastBabaSafe: p.lastBabaSafe,
+      titles: p.titles,
+      deleted: p.deleted ?? false
+    };
   });
 
-  // store a snapshot in rankingHistory (keep size bounded)
-  rankingHistory.push({ date: new Date().toISOString(), snapshot: arr.map(x=>({playerId:x.playerId, rank:x.rank, rate:x.rate})) });
-  if (rankingHistory.length > 1000) rankingHistory.shift();
+  await updateCumulative(newCumulative);
+  savePlayerData();
   saveRankingHistory();
+  saveTitleHistory();
 
-  // return defensive copy
-  return arr.map(p => ({...p}));
+  return processed;
 }
 
 /* =========================
@@ -504,68 +536,36 @@ function createParticles(target){
    - 既存ロジックは保持（ポップアップ、カタログ、履歴、永続化）
 ========================= */
 function assignTitles(player) {
-  // defensive copy
   if (!player || !player.playerId) return;
   if (!player.titles) player.titles = [];
 
   const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || {});
 
-  // =========================
-  // 基本情報の初期化
-  // =========================
-  // consecutiveGames: 参加回数の連続カウント（リセットロジックは別途）
-  const consecutiveGames = (prevData.consecutiveGames ?? 0) + 1;
-  player.consecutiveGames = consecutiveGames;
+  player.consecutiveGames = (prevData.consecutiveGames ?? 0) + 1;
   player.prevGames = prevData.prevGames ?? 0;
   player.totalTitles = (Array.isArray(prevData.titles) ? prevData.titles.length : 0);
 
-  // =========================
-  // レート関連・差分
-  // =========================
   player.rate = Number.isFinite(player.rate) ? Number(player.rate) : 0;
   player.rateGain = (player.rate ?? 0) - (prevData.rate ?? player.rate ?? 0);
 
-  // =========================
   // 連勝・1位回数
-  // - winStreak: 前回 winStreak を継承して判定。1位で増加、そうでなければ0
-  // - rank1Count: 累積で1位を取った回数
-  // =========================
-  player.winStreak = prevData.winStreak ?? 0;
-  player.winStreak = (player.rank === 1) ? (player.winStreak + 1) : 0;
+  player.winStreak = (player.rank === 1) ? ((prevData.winStreak ?? 0) + 1) : 0;
+  player.rank1Count = (prevData.rank1Count ?? 0) + (player.rank === 1 ? 1 : 0);
 
-  player.rank1Count = prevData.rank1Count ?? 0;
-  if (player.rank === 1) player.rank1Count += 1;
+  // rateTrend
+  player.rateTrend = ((prevData.rate ?? 0) < player.rate) ? ((prevData.rateTrend ?? 0) + 1) : 0;
 
-  // =========================
-  // rateTrend: 連続上昇回数（簡易実装）
-  // - 前回 rate が存在し、今回 rate が上昇なら増加、逆ならリセット
-  // =========================
-  player.rateTrend = prevData.rateTrend ?? 0;
-  if ((prevData.rate ?? player.rate) < player.rate) player.rateTrend += 1;
-  else player.rateTrend = 0;
-
-  // =========================
-  // maxBonusCount: 累積して「ボーナスが最大値だった回数」を保持
-  // - prevData.maxBonusCount と今回 bonus を比較して更新
-  // =========================
+  // maxBonusCount
   player.bonus = Number.isFinite(player.bonus) ? Number(player.bonus) : (prevData.bonus ?? 0);
-  const prevMaxBonusCount = prevData.maxBonusCount ?? 0;
-  player.maxBonusCount = Math.max(prevMaxBonusCount, (player.bonus ?? 0));
+  player.maxBonusCount = Math.max(prevData.maxBonusCount ?? 0, player.bonus ?? 0);
 
-  // =========================
-  // lastBabaSafe: フラグ（外部で avoidedLastBaba を渡す想定）
-  // =========================
+  // lastBabaSafe
   player.lastBabaSafe = prevData.lastBabaSafe ?? false;
   if (player.avoidedLastBaba === true) player.lastBabaSafe = true;
 
-  // =========================
-  // currentRankingLength: for checks like "from last place"
-  // =========================
   player.currentRankingLength = lastProcessedRows?.length ?? player.currentRankingLength ?? null;
 
-  // =========================
-  // Podium 称号 (1-3位)
-  // =========================
+  // podium titles
   const podiumTitles = ["キングババ","シルバーババ","ブロンズババ"];
   if (player.rank && player.rank >= 1 && player.rank <= 3) {
     const title = podiumTitles[player.rank - 1];
@@ -573,76 +573,38 @@ function assignTitles(player) {
       player.titles.push(title);
       const t = ALL_TITLES.find(tt => tt.name === title);
       if (t) updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, ALL_TITLES.find(tt=>tt.name===title) || {name:title, desc:""});
+      enqueueTitlePopup(player.playerId, t || {name:title, desc:""});
       titleHistory.push({ playerId: player.playerId, title, date: new Date().toISOString() });
     }
   }
 
-  // =========================
-  // 固定称号判定
-  // - 全称号を網羅、各条件は安全に prevData を参照
-  // =========================
+  // 固定称号
   const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
-
-  // safe max computations (if lastProcessedRows empty default to 0)
   const maxRateGain = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
   const maxBonus = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
 
   FIXED_TITLES.forEach(t => {
     let cond = false;
     switch (t.name) {
-      case "逆転の達人":
-        // 前回より順位が3以上上がった（prev lastRank が存在することを期待）
-        cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3;
-        break;
-      case "サプライズ勝利":
-        // 前回が最下位（prevData.lastRank === previous ranking length）から1位になった
-        cond = ( (prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength) )
-               && (player.rank === 1);
-        break;
-      case "幸運の持ち主":
-        cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2);
-        break;
-      case "不屈の挑戦者":
-        cond = (player.consecutiveGames >= 3);
-        break;
-      case "レートブースター":
-        cond = (player.rateGain !== undefined && player.rateGain === maxRateGain && maxRateGain > 0);
-        break;
-      case "反撃の鬼":
-        cond = ((prevData.lastRank ?? player.rank) > (player.rank ?? 999)) && (player.rank !== null && player.rank <= 3);
-        break;
-      case "チャンスメーカー":
-        cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0);
-        break;
-      case "連勝街道":
-        cond = (player.winStreak >= 2);
-        break;
-      case "勝利の方程式":
-        cond = (player.rateTrend >= 3);
-        break;
-      case "挑戦者":
-        cond = ((prevData.prevGames ?? 0) === 0) && (player.rank !== null && player.rank <= 5);
-        break;
-      case "エピックババ":
-        cond = (player.totalTitles >= 5);
-        break;
-      case "ババキング":
-        cond = (player.rank1Count >= 3);
-        break;
-      case "観察眼":
-        cond = (player.maxBonusCount >= 3);
-        break;
-      case "運命の番人":
-        cond = (player.lastBabaSafe === true);
-        break;
+      case "逆転の達人": cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
+      case "サプライズ勝利": cond = ((prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength)) && (player.rank === 1); break;
+      case "幸運の持ち主": cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2); break;
+      case "不屈の挑戦者": cond = (player.consecutiveGames >= 3); break;
+      case "レートブースター": cond = (player.rateGain !== undefined && player.rateGain === maxRateGain && maxRateGain > 0); break;
+      case "反撃の鬼": cond = ((prevData.lastRank ?? player.rank) > (player.rank ?? 999)) && (player.rank !== null && player.rank <= 3); break;
+      case "チャンスメーカー": cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0); break;
+      case "連勝街道": cond = (player.winStreak >= 2); break;
+      case "勝利の方程式": cond = (player.rateTrend >= 3); break;
+      case "挑戦者": cond = ((prevData.prevGames ?? 0) === 0) && (player.rank !== null && player.rank <= 5); break;
+      case "エピックババ": cond = (player.totalTitles >= 5); break;
+      case "ババキング": cond = (player.rank1Count >= 3); break;
+      case "観察眼": cond = (player.maxBonusCount >= 3); break;
+      case "運命の番人": cond = (player.lastBabaSafe === true); break;
       case "究極のババ":
-        // FIXED_TITLES の数だけ集める（雑に計算）
-        const fixedNames = FIXED_TITLES.map(ft=>ft.name);
+        const fixedNames = FIXED_TITLES.map(ft => ft.name);
         cond = player.titles.filter(tn => fixedNames.includes(tn)).length === fixedNames.length;
         break;
-      default:
-        cond = false;
+      default: cond = false;
     }
     if (cond && !player.titles.includes(t.name)) {
       player.titles.push(t.name);
@@ -652,23 +614,19 @@ function assignTitles(player) {
     }
   });
 
-  // =========================
-  // ランダム称号
-  // =========================
+  // ランダム称号付与（累計情報ベースで残り回数管理）
   RANDOM_TITLES.forEach(name => {
     const t = ALL_TITLES.find(tt => tt.name === name) || {name, desc:""};
-    if (!player.titles.includes(name) && Math.random() < (RANDOM_TITLE_PROB[name] ?? 0) && canAssignRandom(player.playerId)) {
+    if (!player.titles.includes(name) && canAssignRandom(player.playerId)) {
       player.titles.push(name);
       updateTitleCatalog(t);
       enqueueTitlePopup(player.playerId, t);
-      registerRandomAssign(player.playerId);
+      registerRandomAssign(player.playerId); // 累計付与回数を playerData で管理
       titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
     }
   });
 
-  // =========================
-  // playerData更新・永続化（ここで確実に全フィールド保存）
-  // =========================
+  // playerData更新・永続化
   const merged = {
     ...prevData,
     rate: player.rate,
@@ -684,7 +642,7 @@ function assignTitles(player) {
     rank1Count: player.rank1Count,
     maxBonusCount: player.maxBonusCount,
     lastBabaSafe: player.lastBabaSafe,
-    // store last activity
+    deleted: player.deleted ?? false,
     lastUpdated: new Date().toISOString()
   };
 
@@ -869,11 +827,9 @@ function resetLocalTitlesAndHistory() {
   // 履歴・カウント初期化
   titleHistory = [];
   rankingHistory = [];
-  dailyRandomCount = {};
   lastProcessedRows = [];
   saveTitleHistory();
   saveRankingHistory();
-  saveDailyRandomCount();
 
   // カタログリセット
   Object.keys(titleCatalog).forEach(k => delete titleCatalog[k]);
@@ -940,7 +896,6 @@ function init(){
   loadTitleState();
   loadVolumeSetting();
   loadNotificationSetting();
-  loadDailyRandomCount();
   setAdminMode(JSON.parse(localStorage.getItem("isAdmin")||"false"));
   fetchRankingData();
   startAutoRefresh();
