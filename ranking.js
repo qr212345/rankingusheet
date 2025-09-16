@@ -941,7 +941,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function init(){
-  loadDeletedPlayers();
   loadRankingHistory();
   loadTitleHistory();
   loadTitleState();
