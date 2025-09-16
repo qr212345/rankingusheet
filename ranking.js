@@ -6,11 +6,11 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbz7l4jatqVc6ggdUyzKaC7joRA9Fa_XzRoqZuI7ImxF74OJqkDhGqPV0C229CBvnbY/exec";
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbzJ0-yF5R7NSvEahxv15ke0AU2lNT8mHSHCLoop74MpUy_-RiFa5Y3OGlq0OBUTr6_t/exec";
 const ADMIN_PASSWORD = "babanuki123";
-const STORAGE_KEY = "rankingPlayerData_v4";
+const STORAGE_KEY = "rankingPlayerData_v4"; // local cache (but GAS is authoritative)
 const DELETED_KEY = "rankingDeletedPlayers";
 const HISTORY_KEY = "rankingHistory_v4";
 const TITLE_HISTORY_KEY = "titleHistory_v4";
-const AUTO_REFRESH_INTERVAL = 30;
+const AUTO_REFRESH_INTERVAL = 30; // seconds
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
 const RANDOM_TITLE_PROB = { "ミラクルババ":0.01, "ラッキーババ":0.05 };
@@ -44,11 +44,11 @@ const ALL_TITLES = [
 /* =========================
    State
 ========================= */
-let playerData = new Map(); // playerId -> playerState object
-let deletedPlayers = new Set();
+let playerData = new Map(); // playerId -> playerState object (authoritative copy mirrored from GAS)
+let deletedPlayers = new Set(); // authoritative deleted list from GAS
 let lastProcessedRows = []; // last processed ranking array (with computed fields)
-let rankingHistory = [];
-let titleHistory = [];
+let rankingHistory = []; // local per-user log
+let titleHistory = [];   // local per-user log
 let isAdmin = false;
 let autoRefreshTimer = null;
 let volume = 1.0;
@@ -56,8 +56,8 @@ let notificationEnabled = true;
 let titleFilter = "all";
 let titleSearch = "";
 const titleCatalog = {};
-const assignedRandomTitles = new Set();
-let dailyRandomCount = {}; // { "YYYY-MM-DD": count }
+let assignedRandomTitles = new Set();
+let dailyRandomCount = {}; // { "YYYY-MM-DD": count }  local
 let renderScheduled = false;
 let isFetching = false;
 
@@ -68,34 +68,21 @@ const $ = (sel, root=document)=>root.querySelector(sel);
 const $$ = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
 function debounce(fn, wait=250){let t; return (...args)=>{clearTimeout(t); t=setTimeout(()=>fn(...args),wait);};}
 function fmtChange(val,up="↑",down="↓"){return val>0?`${up}${val}`:val<0?`${down}${-val}`:"—";}
-function toast(msg,sec=2500){if(!notificationEnabled) return; const t=$("#toast"); if(t){ t.textContent=msg; t.classList.remove("hidden"); setTimeout(()=>t.classList.add("hidden"),sec); }}
+function toast(msg,sec=2500){ if(!notificationEnabled) return; const t=$("#toast"); if(t){ t.textContent=msg; t.classList.remove("hidden"); setTimeout(()=>t.classList.add("hidden"),sec); }}
 function escapeCSV(s){return `"${String(s).replace(/"/g,'""')}"`;}
 
 /* =========================
-   Storage管理
+   Normalization & Local storage helpers
 ========================= */
-function loadPlayerData(){
-  const raw = loadFromStorage(STORAGE_KEY, null);
-  if(raw && Array.isArray(raw)){
-    playerData = new Map(raw);
-  } else {
-    playerData = new Map();
-  }
-  // ensure every player has required fields (defensive)
-  for(const [id, p] of playerData.entries()){
-    playerData.set(id, normalizeStoredPlayer(p));
-  }
-}
-function savePlayerData(){ try{ saveToStorage(STORAGE_KEY, Array.from(playerData.entries())); }catch(e){console.error("savePlayerData error", e);} }
-
 function normalizeStoredPlayer(p){
-  // Ensure all expected fields exist (backwards compatibility)
+  if(!p || typeof p !== "object") p = {};
   return {
+    playerId: p.playerId ?? p.id ?? null,
     rate: p.rate ?? 0,
     lastRank: p.lastRank ?? null,
     prevRateRank: p.prevRateRank ?? 0,
     bonus: p.bonus ?? 0,
-    titles: Array.isArray(p.titles)?p.titles:[],
+    titles: Array.isArray(p.titles) ? p.titles : [],
     consecutiveGames: p.consecutiveGames ?? 0,
     prevGames: p.prevGames ?? 0,
     rateGain: p.rateGain ?? 0,
@@ -104,357 +91,412 @@ function normalizeStoredPlayer(p){
     rank1Count: p.rank1Count ?? 0,
     maxBonusCount: p.maxBonusCount ?? 0,
     lastBabaSafe: p.lastBabaSafe ?? false,
-    // keep any other fields
+    randomTitleCount: p.randomTitleCount ?? 0,
+    deleted: p.deleted ?? false,
+    lastUpdated: p.lastUpdated ?? null,
     ...p
   };
 }
 
+function loadFromStorage(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  }catch(e){
+    return fallback;
+  }
+}
+function saveToStorage(key, value){
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+  }catch(e){
+    console.error("saveToStorage error", e);
+  }
+}
+
+/* =========================
+   Local user settings & logs (keep local only)
+========================= */
 function saveTitleState(){ saveToStorage("titleFilter", titleFilter); saveToStorage("titleSearch", titleSearch); }
-function loadTitleState(){ titleFilter = loadFromStorage("titleFilter", "all"); titleSearch = loadFromStorage("titleSearch", ""); }
+function loadTitleState(){ titleFilter = loadFromStorage("titleFilter","all"); titleSearch = loadFromStorage("titleSearch",""); }
+
 function saveVolumeSetting(){ saveToStorage("volumeSetting", volume); }
 function loadVolumeSetting(){ volume = loadFromStorage("volumeSetting", 1.0); }
+
 function saveNotificationSetting(){ saveToStorage("notificationEnabled", notificationEnabled); }
 function loadNotificationSetting(){ notificationEnabled = loadFromStorage("notificationEnabled", true); }
 
+function saveRankingHistory(){ try{ saveToStorage(HISTORY_KEY, rankingHistory); }catch(e){console.error(e);} }
+function loadRankingHistory(){ rankingHistory = loadFromStorage(HISTORY_KEY, []); }
+
+function saveTitleHistory(){ try{ saveToStorage(TITLE_HISTORY_KEY, titleHistory); }catch(e){console.error(e);} }
+function loadTitleHistory(){ titleHistory = loadFromStorage(TITLE_HISTORY_KEY, []); }
+
 /* =========================
-   管理者モード
+   管理者モード UI
 ========================= */
 function setAdminMode(enabled){
   isAdmin = Boolean(enabled);
-  localStorage.setItem("isAdmin", JSON.stringify(isAdmin));
-
-  // 管理者専用列・ボタンの表示切替
+  saveToStorage("isAdmin", isAdmin);
   $$("th.admin-only, td.admin-only").forEach(el => el.style.display = isAdmin ? "table-cell" : "none");
-
-  // 称号初期化ボタンの表示切替
   const resetBtn = document.getElementById("resetLocalBtn");
   if(resetBtn) resetBtn.style.display = isAdmin ? "inline-block" : "none";
-
-  // 管理者モード切替ボタンのテキスト反映
   const toggleBtn = document.getElementById("toggleAdminBtn");
   if(toggleBtn) toggleBtn.textContent = isAdmin ? "管理者モード解除" : "管理者モード切替";
-
-  // ランキングテーブル内の削除ボタン表示制御
+  // update buttons visibility inside table
   $$("button[data-id]").forEach(btn => btn.style.display = isAdmin ? "inline-block" : "none");
 }
 
 /* =========================
-   ランダム称号管理
+   GAS: cumulative fetch/update (authoritative)
+   - fetchCumulative: returns { cumulative: {...}, deletedPlayers: [...] }
+   - updateCumulative: accepts cumulative object and returns GAS response
 ========================= */
-// ランダム称号付与可能か（累計情報ベース）
-function canAssignRandom(playerId) {
-  const prevData = normalizeStoredPlayer(playerData.get(playerId) || {});
-  const assignedCount = prevData.randomTitleCount ?? 0;
-  return assignedCount < RANDOM_TITLE_DAILY_LIMIT; // RANDOM_TITLE_DAILY_LIMITを累計制限に変更可
-}
-
-// ランダム称号付与登録（累計情報ベース）
-function registerRandomAssign(playerId) {
-  const prevData = normalizeStoredPlayer(playerData.get(playerId) || {});
-  const newCount = (prevData.randomTitleCount ?? 0) + 1;
-
-  // playerDataに累計付与回数を保存
-  const merged = {
-    ...prevData,
-    randomTitleCount: newCount,
-    lastUpdated: new Date().toISOString()
-  };
-  playerData.set(playerId, normalizeStoredPlayer(merged));
-  savePlayerData(); // GASに保存
-}
-
-/* =========================
-   GAS 称号・ランキング取得/保存
-   ヘッダなし + SECRET_KEY対応
-========================= */
-async function fetchTitleDataFromGAS() {
-  try {
-    // GETでクエリパラメータに secret を付けるだけ
-    const url = `${GAS_URL}?mode=getTitles&secret=${SECRET_KEY}`;
-    const res = await fetch(url, { cache: "no-cache" }); // headersは付けない
-    if (!res.ok) throw new Error(`status ${res.status}`);
-    const data = await res.json();
-    if (data && Array.isArray(data.titles)) {
-      data.titles.forEach(entry => {
-        const prev = playerData.get(entry.playerId) || {};
-        prev.titles = entry.titles || [];
-        playerData.set(entry.playerId, normalizeStoredPlayer(prev));
-      });
-      savePlayerData();
-    }
-  } catch (e) {
-    console.warn("GASから称号取得失敗", e);
-  }
-}
-
-
-async function saveTitleDataToGAS(playerData) {
-  try {
-    // playerData が Map か Object かを判定して配列化
-    const titlesArray = playerData instanceof Map
-      ? Array.from(playerData.entries())
-      : Object.entries(playerData || {});
-
-    const payload = JSON.stringify({
-      mode: "updateTitles",
-      secret: SECRET_KEY,
-      titles: titlesArray.map(([playerId, data]) => ({
-        playerId,
-        titles: (data && data.titles) || []
-      }))
-    });
-
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      body: payload,
-      headers: {
-        "Content-Type": "text/plain;charset=UTF-8" // プリフライト回避
-      },
-      cache: "no-cache"
-    });
-
-    if (!res.ok) throw new Error(`status ${res.status}`);
-    console.log("GASへ称号保存成功");
-  } catch (e) {
-    console.error("GASへの称号保存失敗", e);
-  }
-}
-
-/* =========================
-   ランキング取得・処理
-   - GASからランキング取得（SECRET_KEY認証）
-   - 称号データとマージ
-   - 称号付与・描画・永続化
-   - 空データや異常値に対応
-========================= */
-// fetchRankingData を GAS 処理に置き換え
-async function fetchRankingData() {
-    try {
-        const updatedRanking = await processRankingWithGAS();
-        renderRankingTable(updatedRanking);
-        renderTopCharts(updatedRanking);
-    } catch (e) {
-        console.error("ランキング取得失敗", e);
-    }
-}
-
-// =========================
-// GAS 累計情報操作
-// =========================
-/* =========================
-   GAS 累計情報取得/更新
-   ローカル保存を完全に廃止
-========================= */
-async function fetchCumulative() {
-  try {
+async function fetchCumulative(){
+  try{
     const url = `${ENDPOINT}?mode=getCumulative&secret=${SECRET_KEY}`;
     const res = await fetch(url, { cache: "no-cache" });
-    if (!res.ok) throw new Error(`status ${res.status}`);
+    if(!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
-    // cumulative: { playerId: {...} }, deletedPlayers: [id,...]
     return {
       cumulative: data.cumulative || {},
       deletedPlayers: Array.isArray(data.deletedPlayers) ? data.deletedPlayers : []
     };
-  } catch (e) {
+  }catch(e){
     console.error("fetchCumulative error", e);
     return { cumulative: {}, deletedPlayers: [] };
   }
 }
 
-async function updateCumulative(cumulativeData) {
-  try {
-    const payload = {
-      mode: "updateCumulative",
-      secret: SECRET_KEY,
-      cumulative: cumulativeData
-    };
+async function updateCumulative(cumulativeData){
+  try{
+    const payload = { mode: "updateCumulative", secret: SECRET_KEY, cumulative: cumulativeData };
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      cache: "no-cache"
     });
-    if (!res.ok) throw new Error(`status ${res.status}`);
+    if(!res.ok) throw new Error(`status ${res.status}`);
     return await res.json();
-  } catch (e) {
+  }catch(e){
     console.error("updateCumulative error", e);
     return null;
   }
 }
 
 /* =========================
-   GAS管理 playerData 初期化
+   GAS: title get/update helpers (for syncing titles if needed)
 ========================= */
-async function initPlayerDataFromGAS() {
-  const { cumulative, deletedPlayers } = await fetchCumulative();
-  playerData = new Map();
-
-  for (const [id, data] of Object.entries(cumulative)) {
-    // 削除済みフラグを統合
-    const deleted = deletedPlayers.includes(id);
-    playerData.set(id, normalizeStoredPlayer({ ...data, deleted }));
+async function fetchTitleDataFromGAS(){
+  try{
+    const url = `${GAS_URL}?mode=getTitles&secret=${SECRET_KEY}`;
+    const res = await fetch(url, { cache: "no-cache" });
+    if(!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    if(data && Array.isArray(data.titles)){
+      data.titles.forEach(entry=>{
+        const prev = playerData.get(entry.playerId) || {};
+        prev.titles = entry.titles || [];
+        playerData.set(entry.playerId, normalizeStoredPlayer(prev));
+      });
+    }
+  }catch(e){
+    console.warn("fetchTitleDataFromGAS failed", e);
   }
+}
 
-  console.log("playerData initialized from GAS:", playerData);
+async function saveTitleDataToGAS(){
+  try{
+    const titlesArray = Array.from(playerData.entries()).map(([playerId, data])=>({
+      playerId,
+      titles: (data && data.titles) || []
+    }));
+    const payload = JSON.stringify({ mode: "updateTitles", secret: SECRET_KEY, titles: titlesArray });
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      body: payload,
+      headers: { "Content-Type":"text/plain;charset=UTF-8" },
+      cache: "no-cache"
+    });
+    if(!res.ok) throw new Error(`status ${res.status}`);
+    console.log("saveTitleDataToGAS OK");
+  }catch(e){
+    console.error("saveTitleDataToGAS error", e);
+  }
+}
+
+/* =========================
+   Init playerData from GAS (GAS-priority)
+   - This replaces previous loadPlayerData local-first behavior
+========================= */
+async function initPlayerDataFromGAS(){
+  const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
+  deletedPlayers = new Set(gasDeleted || []);
+  playerData = new Map();
+  for(const [id, data] of Object.entries(cumulative || {})){
+    const merged = normalizeStoredPlayer({ playerId: id, ...data, deleted: deletedPlayers.has(id) });
+    playerData.set(id, merged);
+  }
+  // keep a local cache for quick reloads if desired (optional)
+  try{ saveToStorage(STORAGE_KEY, Array.from(playerData.entries())); }catch(e){}
+  console.log("initPlayerDataFromGAS done. players:", playerData.size);
   return playerData;
 }
 
 /* =========================
-   processRankingWithGAS 更新
-   ローカル保存関数を使わず全てGAS管理
+   Utility to persist cumulative to GAS (converts Map -> plain cumulative object)
 ========================= */
-/* =========================
-   削除機能（GAS同期版）
-========================= */
-async function deletePlayer(playerId) {
-  if (!playerData.has(playerId)) return;
-
-  // 1. ローカルフラグ更新
-  const player = playerData.get(playerId);
-  player.deleted = true;
-  playerData.set(playerId, player);
-  deletedPlayers.add(playerId);
-
-  // 2. GAS側累計更新
+async function savePlayerDataToGAS(){
   const cumulativeData = {};
   playerData.forEach((p, id) => {
     cumulativeData[id] = {
-      rate: p.rate,
-      lastRank: p.rank,
-      prevRateRank: p.rateRank,
-      bonus: p.bonus,
-      consecutiveGames: p.consecutiveGames,
-      winStreak: p.winStreak,
-      rank1Count: p.rank1Count,
-      rateTrend: p.rateTrend,
-      maxBonusCount: p.maxBonusCount,
-      lastBabaSafe: p.lastBabaSafe,
-      titles: p.titles,
-      deleted: p.deleted ?? false
+      rate: p.rate ?? 0,
+      lastRank: p.lastRank ?? null,
+      prevRateRank: p.prevRateRank ?? 0,
+      bonus: p.bonus ?? 0,
+      consecutiveGames: p.consecutiveGames ?? 0,
+      winStreak: p.winStreak ?? 0,
+      rank1Count: p.rank1Count ?? 0,
+      rateTrend: p.rateTrend ?? 0,
+      maxBonusCount: p.maxBonusCount ?? 0,
+      lastBabaSafe: p.lastBabaSafe ?? false,
+      titles: p.titles ?? [],
+      randomTitleCount: p.randomTitleCount ?? 0,
+      deleted: p.deleted ?? false,
+      lastUpdated: p.lastUpdated ?? null
     };
   });
+  return await updateCumulative(cumulativeData);
+}
 
-  await updateCumulative(cumulativeData);
+/* =========================
+   Deletion: admin-only, GAS-synced
+   - deletePlayer marks deleted locally and pushes cumulative to GAS
+========================= */
+async function deletePlayer(playerId){
+  if(!playerId) return;
+  // ensure we have latest cumulative before changing
+  if(!playerData.size) await initPlayerDataFromGAS();
+  if(!playerData.has(playerId)) {
+    toast(`${playerId} が見つかりません`);
+    return;
+  }
+  const p = playerData.get(playerId);
+  p.deleted = true;
+  p.lastUpdated = new Date().toISOString();
+  playerData.set(playerId, p);
+  deletedPlayers.add(playerId);
 
-  // 3. ランキング再描画
-  lastProcessedRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
-  lastProcessedRows.sort((a, b) => b.rate - a.rate);
-  lastProcessedRows.forEach((p, i, arr) => {
-    p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
-    p.rankChange = (p.prevRank ?? p.rank) - p.rank;
-    p.rateRankChange = (p.prevRateRank ?? p.rateRank) - p.rateRank;
+  // push updated cumulative
+  const res = await savePlayerDataToGAS();
+  if(res === null) {
+    toast("削除をGASに反映できませんでした（ネットワークエラー）");
+  } else {
+    toast(`${playerId} を削除しました（GAS同期済み）`);
+  }
+
+  // re-render filtered view
+  lastProcessedRows = Array.from(playerData.values()).filter(x => !deletedPlayers.has(x.playerId));
+  lastProcessedRows.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+  lastProcessedRows.forEach((r,i,arr)=>{
+    r.rateRank = i>0 && r.rate === arr[i-1].rate ? arr[i-1].rateRank : i+1;
   });
-
   renderRankingTable(lastProcessedRows);
   renderTopCharts(lastProcessedRows);
 }
 
 /* =========================
-   processRankingWithGAS
-   （既存ロジック維持、削除ボタン同期対応）
+   Process ranking with GAS as authoritative source
+   - Fetch cumulative from GAS
+   - Fetch latest ranking from GAS_URL (getRanking)
+   - Compute diffs, assign titles, update cumulative and push to GAS
 ========================= */
-async function processRankingWithGAS(latestRankingData = null) {
-  const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
-  deletedPlayers = new Set(gasDeleted);
+async function processRankingWithGAS(latestRankingData = null){
+  isFetching = true;
+  try{
+    // 1) get latest cumulative + deleted from ENDPOINT
+    const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
+    deletedPlayers = new Set(gasDeleted || []);
 
-  // playerData 初期化
-  playerData = new Map();
-  for (const [id, data] of Object.entries(cumulative)) {
-    playerData.set(id, normalizeStoredPlayer({ ...data, deleted: deletedPlayers.has(id) }));
-  }
+    // initialize local playerData from cumulative
+    playerData = new Map();
+    for(const [id, data] of Object.entries(cumulative || {})){
+      playerData.set(id, normalizeStoredPlayer({ playerId: id, ...data, deleted: deletedPlayers.has(id) }));
+    }
 
-  // 最新ランキング取得
-  let rankingArray = latestRankingData;
-  if (!rankingArray) {
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-    const json = await res.json();
-    rankingArray = Array.isArray(json) ? json : (Array.isArray(json.ranking) ? json.ranking : Object.values(json.ranking || {}));
-  }
+    // 2) get latest ranking (from GAS_URL)
+    let rankingArray = latestRankingData;
+    if(!rankingArray){
+      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+      if(!res.ok) throw new Error(`status ${res.status}`);
+      const json = await res.json();
+      rankingArray = Array.isArray(json) ? json : (Array.isArray(json.ranking) ? json.ranking : Object.values(json.ranking || {}));
+    }
 
-  if (!rankingArray || rankingArray.length === 0) {
-    lastProcessedRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
+    // 3) if no ranking data, just render cumulative (excluding deleted)
+    if(!rankingArray || rankingArray.length === 0){
+      lastProcessedRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
+      lastProcessedRows.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+      renderRankingTable(lastProcessedRows);
+      renderTopCharts(lastProcessedRows);
+      scheduleRenderTitleCatalog();
+      return lastProcessedRows;
+    }
+
+    // 4) compute processed rows (merge previous cumulative where available)
+    const processed = rankingArray.map(p => {
+      const prev = cumulative[p.playerId] || {};
+      const rate = Number.isFinite(p.rate) ? Number(p.rate) : 0;
+      const rank = Number.isFinite(p.rank) ? Number(p.rank) : null;
+      const bonus = Number.isFinite(p.bonus) ? Number(p.bonus) : 0;
+      const rateGain = rate - (prev.rate ?? rate);
+
+      return {
+        playerId: p.playerId,
+        rank,
+        rate,
+        bonus,
+        titles: Array.isArray(prev.titles) ? [...prev.titles] : [],
+        prevRate: prev.rate ?? rate,
+        prevRank: prev.lastRank ?? rank,
+        rateGain,
+        consecutiveGames: (prev.consecutiveGames ?? 0) + 1,
+        winStreak: rank === 1 ? ((prev.winStreak ?? 0) + 1) : 0,
+        rank1Count: (prev.rank1Count ?? 0) + (rank === 1 ? 1 : 0),
+        rateTrend: ((prev.rate ?? 0) < rate) ? ((prev.rateTrend ?? 0) + 1) : 0,
+        maxBonusCount: Math.max(prev.maxBonusCount ?? 0, bonus),
+        lastBabaSafe: prev.lastBabaSafe ?? false,
+        deleted: prev.deleted ?? false
+      };
+    });
+
+    // 5) filter deleted and sort by rate (desc)
+    const filteredProcessed = processed.filter(p => !deletedPlayers.has(p.playerId));
+    filteredProcessed.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+    filteredProcessed.forEach((p, i, arr) => {
+      p.rateRank = i > 0 && p.rate === arr[i-1].rate ? arr[i-1].rateRank : i + 1;
+      p.rankChange = (p.prevRank ?? p.rank) - p.rank;
+      p.rateRankChange = (p.prevRateRank ?? p.rateRank) - p.rateRank;
+    });
+
+    lastProcessedRows = filteredProcessed;
+
+    // 6) assign titles (this updates local playerData and titleHistory)
+    filteredProcessed.forEach(p => assignTitles(p));
+
+    // 7) update local playerData map with new cumulative fields and push to GAS
+    const newCumulative = {};
+    filteredProcessed.forEach(p => {
+      // merge existing prev with computed
+      const merged = normalizeStoredPlayer({
+        playerId: p.playerId,
+        rate: p.rate,
+        lastRank: p.rank,
+        prevRateRank: p.rateRank,
+        bonus: p.bonus,
+        consecutiveGames: p.consecutiveGames,
+        winStreak: p.winStreak,
+        rank1Count: p.rank1Count,
+        rateTrend: p.rateTrend,
+        maxBonusCount: p.maxBonusCount,
+        lastBabaSafe: p.lastBabaSafe,
+        titles: p.titles || [],
+        deleted: p.deleted ?? false,
+        lastUpdated: new Date().toISOString()
+      });
+      playerData.set(p.playerId, merged);
+      newCumulative[p.playerId] = {
+        rate: merged.rate,
+        lastRank: merged.lastRank,
+        prevRateRank: merged.prevRateRank,
+        bonus: merged.bonus,
+        consecutiveGames: merged.consecutiveGames,
+        winStreak: merged.winStreak,
+        rank1Count: merged.rank1Count,
+        rateTrend: merged.rateTrend,
+        maxBonusCount: merged.maxBonusCount,
+        lastBabaSafe: merged.lastBabaSafe,
+        titles: merged.titles,
+        deleted: merged.deleted ?? false
+      };
+    });
+
+    // also include players that are in playerData but not in today's ranking (preserve)
+    playerData.forEach((v, id) => {
+      if(!(id in newCumulative)){
+        newCumulative[id] = {
+          rate: v.rate ?? 0,
+          lastRank: v.lastRank ?? null,
+          prevRateRank: v.prevRateRank ?? 0,
+          bonus: v.bonus ?? 0,
+          consecutiveGames: v.consecutiveGames ?? 0,
+          winStreak: v.winStreak ?? 0,
+          rank1Count: v.rank1Count ?? 0,
+          rateTrend: v.rateTrend ?? 0,
+          maxBonusCount: v.maxBonusCount ?? 0,
+          lastBabaSafe: v.lastBabaSafe ?? false,
+          titles: v.titles ?? [],
+          deleted: v.deleted ?? false
+        };
+      }
+    });
+
+    // 8) push to GAS (single call)
+    const updRes = await updateCumulative(newCumulative);
+    if(!updRes){
+      console.warn("Failed to update cumulative to GAS");
+    } else {
+      console.log("Cumulative updated to GAS");
+    }
+
+    // 9) render
+    renderRankingTable(filteredProcessed);
+    renderTopCharts(filteredProcessed);
+    scheduleRenderTitleCatalog();
+
+    // 10) save local logs (titleHistory, rankingHistory)
+    saveTitleHistory();
+    saveRankingHistory();
+
+    return filteredProcessed;
+  }catch(e){
+    console.error("processRankingWithGAS error", e);
+    // best-effort: render whatever local cache we have
+    const fallback = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
+    fallback.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+    lastProcessedRows = fallback;
     renderRankingTable(lastProcessedRows);
     renderTopCharts(lastProcessedRows);
+    scheduleRenderTitleCatalog();
     return lastProcessedRows;
+  }finally{
+    isFetching = false;
   }
-
-  // 差分計算 & playerData更新
-  const processed = rankingArray.map(p => {
-    const prev = cumulative[p.playerId] || {};
-    const rate = Number.isFinite(p.rate) ? p.rate : 0;
-    const rank = Number.isFinite(p.rank) ? p.rank : null;
-    const bonus = Number.isFinite(p.bonus) ? p.bonus : 0;
-    const rateGain = rate - (prev.rate ?? rate);
-
-    return {
-      playerId: p.playerId,
-      rank,
-      rate,
-      bonus,
-      titles: Array.isArray(prev.titles) ? [...prev.titles] : [],
-      prevRate: prev.rate ?? rate,
-      prevRank: prev.lastRank ?? rank,
-      rateGain,
-      consecutiveGames: (prev.consecutiveGames ?? 0) + 1,
-      winStreak: rank === 1 ? ((prev.winStreak ?? 0) + 1) : 0,
-      rank1Count: (prev.rank1Count ?? 0) + (rank === 1 ? 1 : 0),
-      rateTrend: ((prev.rate ?? 0) < rate) ? ((prev.rateTrend ?? 0) + 1) : 0,
-      maxBonusCount: Math.max(prev.maxBonusCount ?? 0, bonus),
-      lastBabaSafe: prev.lastBabaSafe ?? false,
-      deleted: prev.deleted ?? false
-    };
-  });
-
-  // 削除済み反映
-  const filteredProcessed = processed.filter(p => !deletedPlayers.has(p.playerId));
-  filteredProcessed.sort((a, b) => b.rate - a.rate);
-  filteredProcessed.forEach((p, i, arr) => {
-    p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
-    p.rankChange = (p.prevRank ?? p.rank) - p.rank;
-    p.rateRankChange = (p.prevRateRank ?? p.rateRank) - p.rateRank;
-  });
-
-  lastProcessedRows = filteredProcessed;
-
-  // 称号付与
-  filteredProcessed.forEach(p => assignTitles(p));
-
-  // 描画
-  renderRankingTable(filteredProcessed);
-  renderTopCharts(filteredProcessed);
-  scheduleRenderTitleCatalog();
-
-  // GASに累計保存
-  const newCumulative = {};
-  filteredProcessed.forEach(p => {
-    newCumulative[p.playerId] = {
-      rate: p.rate,
-      lastRank: p.rank,
-      prevRateRank: p.rateRank,
-      bonus: p.bonus,
-      consecutiveGames: p.consecutiveGames,
-      winStreak: p.winStreak,
-      rank1Count: p.rank1Count,
-      rateTrend: p.rateTrend,
-      maxBonusCount: p.maxBonusCount,
-      lastBabaSafe: p.lastBabaSafe,
-      titles: p.titles,
-      deleted: p.deleted ?? false
-    };
-  });
-
-  await updateCumulative(newCumulative);
-
-  return filteredProcessed;
 }
 
 /* =========================
-   称号付与・描画関連（商品の品質で）
-   - 未定義プロパティはここで全て初期化／計算
-   - 既存の演出・永続化は全て残す
+   Random title assignment helpers (uses playerData counts stored in cumulative)
 ========================= */
+function canAssignRandom(playerId){
+  const prev = playerData.get(playerId) || {};
+  const assigned = prev.randomTitleCount ?? 0;
+  return assigned < RANDOM_TITLE_DAILY_LIMIT;
+}
+function registerRandomAssign(playerId){
+  const prev = normalizeStoredPlayer(playerData.get(playerId) || { playerId });
+  prev.randomTitleCount = (prev.randomTitleCount ?? 0) + 1;
+  prev.lastUpdated = new Date().toISOString();
+  playerData.set(playerId, normalizeStoredPlayer(prev));
+  // persist to GAS (cheap single update of cumulative for that player)
+  // To avoid throttling, we defer pushing full cumulative until processRankingWithGAS or explicit save
+  saveToStorage(STORAGE_KEY, Array.from(playerData.entries())); // local cache
+}
 
-/* TITLE sounds & animation helpers */
+/* =========================
+   Title popups, catalog rendering, particles (UI polish)
+   (kept largely same as your original, refactored slightly)
+========================= */
 const TITLE_SOUNDS = {
   "キングババ":"sounds/gold.mp3","シルバーババ":"sounds/silver.mp3","ブロンズババ":"sounds/bronze.mp3",
   "逆転の達人":"sounds/reversal.mp3","サプライズ勝利":"sounds/reversal.mp3","幸運の持ち主":"sounds/lucky.mp3",
@@ -469,15 +511,14 @@ function getTitleAnimationClass(titleName){
   return "title-generic";
 }
 
-/* popup queue to avoid overlapping */
 const popupQueue=[]; let popupActive=false;
-function enqueueTitlePopup(playerId,titleObj){ popupQueue.push({playerId,titleObj}); if(!popupActive) processPopupQueue(); }
+function enqueueTitlePopup(playerId, titleObj){ popupQueue.push({playerId,titleObj}); if(!popupActive) processPopupQueue(); }
 function processPopupQueue(){
   if(popupQueue.length===0){ popupActive=false; return; }
   popupActive=true;
-  const {playerId,titleObj}=popupQueue.shift();
-  showTitlePopup(playerId,titleObj);
-  setTimeout(processPopupQueue, window.innerWidth<768?1000:700);
+  const {playerId,titleObj} = popupQueue.shift();
+  showTitlePopup(playerId, titleObj);
+  setTimeout(processPopupQueue, window.innerWidth<768 ? 1000 : 700);
 }
 function showTitlePopup(playerId, titleObj){
   const unlocked = titleCatalog[titleObj.name]?.unlocked ?? false;
@@ -491,67 +532,67 @@ function showTitlePopup(playerId, titleObj){
     const audio = new Audio(unlocked ? (TITLE_SOUNDS[titleObj.name]||TITLE_SOUNDS.default) : TITLE_SOUNDS.default);
     audio.volume = volume; audio.play().catch(()=>{});
   } catch(e){}
-
-  // partices
-  const particleContainer=document.createElement("div"); particleContainer.className="particle-container";
+  const particleContainer = document.createElement("div"); particleContainer.className="particle-container";
   document.body.appendChild(particleContainer);
   const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth<1200 ? 20 : 30;
   for(let i=0;i<particleCount;i++){
     const p=document.createElement("div"); p.className="particle";
-    p.style.left=Math.random()*100+"vw";
-    p.style.top=Math.random()*100+"vh";
-    p.style.animationDuration=(0.5+Math.random()*1.5)+"s";
-    p.style.backgroundColor=unlocked?`hsl(${Math.random()*360},80%,60%)`:`hsl(0,0%,70%)`;
+    p.style.left = Math.random()*100 + "vw";
+    p.style.top  = Math.random()*100 + "vh";
+    p.style.animationDuration = (0.5 + Math.random()*1.5) + "s";
+    p.style.backgroundColor = unlocked ? `hsl(${Math.random()*360},80%,60%)` : `hsl(0,0%,70%)`;
     particleContainer.appendChild(p);
   }
-
   setTimeout(()=>popup.classList.add("show"),50);
-  const removePopup=()=>{ popup.classList.remove("show"); particleContainer.remove(); setTimeout(()=>popup.remove(),600); popup.removeEventListener("click",removePopup); }
-  popup.addEventListener("click",removePopup);
-  setTimeout(removePopup,2500);
+  const removePopup = ()=>{
+    popup.classList.remove("show");
+    try{ particleContainer.remove(); }catch(e){}
+    setTimeout(()=>{ try{ popup.remove(); }catch(e){} }, 600);
+    popup.removeEventListener("click", removePopup);
+  };
+  popup.addEventListener("click", removePopup);
+  setTimeout(removePopup, 2500);
 }
 
-/* title catalog and rendering */
 function updateTitleCatalog(title){
-  if(!titleCatalog[title.name]) titleCatalog[title.name]={unlocked:true,desc:title.desc};
-  else titleCatalog[title.name].unlocked=true;
+  if(!titleCatalog[title.name]) titleCatalog[title.name] = { unlocked:true, desc: title.desc };
+  else titleCatalog[title.name].unlocked = true;
   scheduleRenderTitleCatalog();
 }
 function scheduleRenderTitleCatalog(){
   if(renderScheduled) return;
-  renderScheduled=true;
-  requestAnimationFrame(()=>{ renderTitleCatalog(); renderScheduled=false; });
+  renderScheduled = true;
+  requestAnimationFrame(()=>{ renderTitleCatalog(); renderScheduled = false; });
 }
 function renderTitleCatalog(){
-  const container=$("#titleCatalog"); if(!container) return;
-  container.innerHTML="";
-  const cols = window.innerWidth<480?1:window.innerWidth<768?2:window.innerWidth<1024?3:4;
-  container.style.display="grid"; container.style.gridTemplateColumns=`repeat(${cols}, minmax(0,1fr))`; container.style.gap="12px";
+  const container = $("#titleCatalog");
+  if(!container) return;
+  container.innerHTML = "";
+  const cols = window.innerWidth<480 ? 1 : window.innerWidth<768 ? 2 : window.innerWidth<1024 ? 3 : 4;
+  container.style.display = "grid";
+  container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
+  container.style.gap = "12px";
 
   ALL_TITLES.forEach(title=>{
-    const unlocked = titleCatalog[title.name]?.unlocked??false;
-    if((titleFilter==="unlocked"&&!unlocked)||(titleFilter==="locked"&&unlocked)) return;
+    const unlocked = titleCatalog[title.name]?.unlocked ?? false;
+    if((titleFilter==="unlocked" && !unlocked) || (titleFilter==="locked" && unlocked)) return;
     if(titleSearch && !title.name.toLowerCase().includes(titleSearch.toLowerCase())) return;
-
-    const historyItems=titleHistory.filter(h=>h.title===title.name);
-    const latest=historyItems.length?new Date(Math.max(...historyItems.map(h=>new Date(h.date)))):null;
-    const dateStr=latest?latest.toLocaleDateString():"";
-
-    const cardContainer=document.createElement("div"); cardContainer.className="title-card-container";
-    const card=document.createElement("div"); card.className="title-card";
-    const front=document.createElement("div"); front.className="front";
-    front.innerHTML=`<strong>？？？</strong><small>？？？</small>`; front.title=title.desc;
-    const back=document.createElement("div"); back.className="back "+getRarityClass(title.name);
-    back.innerHTML=`<strong>${title.name}</strong><small>${title.desc}</small>${dateStr?`<small>取得日:${dateStr}</small>`:""}`;
-
+    const historyItems = titleHistory.filter(h => h.title === title.name);
+    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h=>new Date(h.date)))) : null;
+    const dateStr = latest ? latest.toLocaleDateString() : "";
+    const cardContainer = document.createElement("div"); cardContainer.className = "title-card-container";
+    const card = document.createElement("div"); card.className = "title-card";
+    const front = document.createElement("div"); front.className = "front";
+    front.innerHTML = `<strong>？？？</strong><small>？？？</small>`;
+    front.title = title.desc;
+    const back = document.createElement("div"); back.className = "back " + getRarityClass(title.name);
+    back.innerHTML = `<strong>${title.name}</strong><small>${title.desc}</small>${dateStr?`<small>取得日:${dateStr}</small>`:""}`;
     card.appendChild(front); card.appendChild(back); cardContainer.appendChild(card); container.appendChild(cardContainer);
-
     if(unlocked && !card.dataset.rendered){
-      card.classList.add("gain"); card.dataset.rendered="true";
+      card.classList.add("gain"); card.dataset.rendered = "true";
       createParticles(cardContainer);
     }
-
-    card.addEventListener("click",()=>showTitleDetailPopup(title));
+    card.addEventListener("click", ()=> showTitleDetailPopup(title));
   });
 }
 function getRarityClass(titleName){
@@ -561,37 +602,35 @@ function getRarityClass(titleName){
   return "rare-gold";
 }
 function showTitleDetailPopup(title){
-  const overlay=document.createElement("div"); overlay.className="title-detail-overlay";
-  overlay.innerHTML=`<div class="title-detail-popup"><h3>${title.name}</h3><p>${title.desc}</p><button id="closeTitleDetail">閉じる</button></div>`;
+  const overlay = document.createElement("div"); overlay.className = "title-detail-overlay";
+  overlay.innerHTML = `<div class="title-detail-popup"><h3>${title.name}</h3><p>${title.desc}</p><button id="closeTitleDetail">閉じる</button></div>`;
   document.body.appendChild(overlay);
-  $("#closeTitleDetail").addEventListener("click",()=>overlay.remove());
+  $("#closeTitleDetail").addEventListener("click", ()=> overlay.remove());
 }
-
-/* particles */
 function createParticles(target){
-  const particleContainer=document.createElement("div"); particleContainer.className="particle-container";
+  const particleContainer = document.createElement("div"); particleContainer.className = "particle-container";
   target.appendChild(particleContainer);
-  const particleCount = window.innerWidth<480?10:window.innerWidth<768?15:window.innerWidth<1200?20:30;
+  const particleCount = window.innerWidth<480 ? 10 : window.innerWidth<768 ? 15 : window.innerWidth<1200 ? 20 : 30;
   for(let i=0;i<particleCount;i++){
-    const p=document.createElement("div"); p.className="particle";
-    p.style.left=`${Math.random()*100}%`; p.style.top=`${Math.random()*100}%`;
-    p.style.animationDuration=`${0.5+Math.random()*1.5}s`;
-    p.style.backgroundColor=`hsl(${Math.random()*360},80%,60%)`;
+    const p = document.createElement("div"); p.className = "particle";
+    p.style.left = `${Math.random()*100}%`; p.style.top = `${Math.random()*100}%`;
+    p.style.animationDuration = `${0.5 + Math.random()*1.5}s`;
+    p.style.backgroundColor = `hsl(${Math.random()*360},80%,60%)`;
     particleContainer.appendChild(p);
   }
-  setTimeout(()=>particleContainer.remove(),1500);
+  setTimeout(()=>{ try{ particleContainer.remove(); }catch(e){} }, 1500);
 }
 
 /* =========================
-   称号付与・履歴（商品化レベルで完全版）
-   - ここで未定義変数を全て初期化・計算
-   - 既存ロジックは保持（ポップアップ、カタログ、履歴、永続化）
+   Title assignment & persistence (商品化レベルで完全版)
+   - fills missing properties, uses playerData (GAS-authoritative)
 ========================= */
-function assignTitles(player) {
-  if (!player || !player.playerId) return;
-  if (!player.titles) player.titles = [];
+function assignTitles(player){
+  if(!player || !player.playerId) return;
+  if(!player.titles) player.titles = [];
 
-  const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || {});
+  // prevData from authoritative playerData map (GAS)
+  const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || { playerId: player.playerId });
 
   player.consecutiveGames = (prevData.consecutiveGames ?? 0) + 1;
   player.prevGames = prevData.prevGames ?? 0;
@@ -600,47 +639,46 @@ function assignTitles(player) {
   player.rate = Number.isFinite(player.rate) ? Number(player.rate) : 0;
   player.rateGain = (player.rate ?? 0) - (prevData.rate ?? player.rate ?? 0);
 
-  // 連勝・1位回数
   player.winStreak = (player.rank === 1) ? ((prevData.winStreak ?? 0) + 1) : 0;
   player.rank1Count = (prevData.rank1Count ?? 0) + (player.rank === 1 ? 1 : 0);
 
-  // rateTrend
   player.rateTrend = ((prevData.rate ?? 0) < player.rate) ? ((prevData.rateTrend ?? 0) + 1) : 0;
 
-  // maxBonusCount
   player.bonus = Number.isFinite(player.bonus) ? Number(player.bonus) : (prevData.bonus ?? 0);
   player.maxBonusCount = Math.max(prevData.maxBonusCount ?? 0, player.bonus ?? 0);
 
-  // lastBabaSafe
   player.lastBabaSafe = prevData.lastBabaSafe ?? false;
-  if (player.avoidedLastBaba === true) player.lastBabaSafe = true;
+  if(player.avoidedLastBaba === true) player.lastBabaSafe = true;
 
   player.currentRankingLength = lastProcessedRows?.length ?? player.currentRankingLength ?? null;
 
   // podium titles
   const podiumTitles = ["キングババ","シルバーババ","ブロンズババ"];
-  if (player.rank && player.rank >= 1 && player.rank <= 3) {
+  if(player.rank && player.rank >=1 && player.rank <=3){
     const title = podiumTitles[player.rank - 1];
-    if (!player.titles.includes(title)) {
+    if(!player.titles.includes(title)){
       player.titles.push(title);
-      const t = ALL_TITLES.find(tt => tt.name === title);
-      if (t) updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, t || {name:title, desc:""});
+      const t = ALL_TITLES.find(tt => tt.name === title) || { name: title, desc:"" };
+      updateTitleCatalog(t);
+      enqueueTitlePopup(player.playerId, t);
       titleHistory.push({ playerId: player.playerId, title, date: new Date().toISOString() });
     }
   }
 
-  // 固定称号
+  // fixed titles
   const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
   const maxRateGain = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
   const maxBonus = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
 
   FIXED_TITLES.forEach(t => {
     let cond = false;
-    switch (t.name) {
-      case "逆転の達人": cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
-      case "サプライズ勝利": cond = ((prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength)) && (player.rank === 1); break;
-      case "幸運の持ち主": cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2); break;
+    switch(t.name){
+      case "逆転の達人":
+        cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
+      case "サプライズ勝利":
+        cond = ((prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength)) && (player.rank === 1); break;
+      case "幸運の持ち主":
+        cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2); break;
       case "不屈の挑戦者": cond = (player.consecutiveGames >= 3); break;
       case "レートブースター": cond = (player.rateGain !== undefined && player.rateGain === maxRateGain && maxRateGain > 0); break;
       case "反撃の鬼": cond = ((prevData.lastRank ?? player.rank) > (player.rank ?? 999)) && (player.rank !== null && player.rank <= 3); break;
@@ -658,7 +696,7 @@ function assignTitles(player) {
         break;
       default: cond = false;
     }
-    if (cond && !player.titles.includes(t.name)) {
+    if(cond && !player.titles.includes(t.name)){
       player.titles.push(t.name);
       updateTitleCatalog(t);
       enqueueTitlePopup(player.playerId, t);
@@ -666,21 +704,21 @@ function assignTitles(player) {
     }
   });
 
-  // ランダム称号付与（累計情報ベースで残り回数管理）
+  // random titles (controlled by cumulative/randomTitleCount in playerData)
   RANDOM_TITLES.forEach(name => {
-    const t = ALL_TITLES.find(tt => tt.name === name) || {name, desc:""};
-    if (!player.titles.includes(name) && canAssignRandom(player.playerId)) {
+    const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
+    if(!player.titles.includes(name) && canAssignRandom(player.playerId)){
       player.titles.push(name);
       updateTitleCatalog(t);
       enqueueTitlePopup(player.playerId, t);
-      registerRandomAssign(player.playerId); // 累計付与回数を playerData で管理
+      registerRandomAssign(player.playerId);
       titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
     }
   });
 
-  // playerData更新・永続化
+  // merge into playerData (authoritative) and persist minimal local logs
   const merged = {
-    ...prevData,
+    ...normalizeStoredPlayer(prevData),
     rate: player.rate,
     lastRank: player.rank ?? prevData.lastRank,
     prevRateRank: player.rateRank ?? prevData.prevRateRank,
@@ -695,32 +733,30 @@ function assignTitles(player) {
     maxBonusCount: player.maxBonusCount,
     lastBabaSafe: player.lastBabaSafe,
     deleted: player.deleted ?? false,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
+    playerId: player.playerId
   };
 
   playerData.set(player.playerId, normalizeStoredPlayer(merged));
-  savePlayerData();
+
+  // local-only logs: titleHistory already appended above
   saveTitleHistory();
+  saveToStorage(STORAGE_KEY, Array.from(playerData.entries())); // local quick cache
 }
 
 /* =========================
-   テーブル描画・CSV・チャート
+   Table rendering / CSV / Charts
 ========================= */
 function renderRankingTable(data){
   const tbody = $("#rankingTable tbody");
   if(!tbody) return;
-
-  // 空データチェック
   if(!Array.isArray(data) || data.length === 0){
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
     return;
   }
-
   const fragment = document.createDocumentFragment();
-  data.forEach(p => {
+  data.forEach(p=>{
     const tr = document.createElement("tr");
-    
-    // 管理者専用列は常に作るが、displayで切り替える
     tr.innerHTML = `
       <td>${p.rank ?? "-"}</td>
       <td>${p.playerId ?? "-"}</td>
@@ -732,7 +768,6 @@ function renderRankingTable(data){
     `;
     fragment.appendChild(tr);
   });
-
   tbody.innerHTML = "";
   tbody.appendChild(fragment);
 }
@@ -746,122 +781,52 @@ function exportCSV(data){
   URL.revokeObjectURL(url);
 }
 
-/* Chart rendering (Chart.js must be loaded in page) */
-/**
- * 上昇TOP・下降TOP グラフを描画する
- * @param {Array<Object>} data - ランキングデータ配列
- *   期待するプロパティ: { playerId: string, rankChange: number }
- */
-function renderTopCharts(data) {
+/* Chart rendering - assumes Chart.js is present */
+function renderTopCharts(data){
   const upCanvas = document.getElementById("chartTopUp");
   const downCanvas = document.getElementById("chartTopDown");
   const upContainer = upCanvas?.parentElement;
   const downContainer = downCanvas?.parentElement;
-
-  // データが無い場合：既存チャート破棄 & 非表示
-  if (!Array.isArray(data) || data.length === 0) {
-    if (window.chartUp) { window.chartUp.destroy(); window.chartUp = null; }
-    if (window.chartDown) { window.chartDown.destroy(); window.chartDown = null; }
-    if (upContainer) upContainer.style.display = "none";
-    if (downContainer) downContainer.style.display = "none";
+  if(!Array.isArray(data) || data.length === 0){
+    if(window.chartUp){ window.chartUp.destroy(); window.chartUp = null; }
+    if(window.chartDown){ window.chartDown.destroy(); window.chartDown = null; }
+    if(upContainer) upContainer.style.display = "none";
+    if(downContainer) downContainer.style.display = "none";
     return;
   }
-
-  // データがある場合は表示
-  if (upContainer) upContainer.style.display = "";
-  if (downContainer) downContainer.style.display = "";
-
-  // 上昇TOP（rankChangeが大きい順に10件）
-  const topUp = [...data]
-    .sort((a, b) => (b.rankChange ?? 0) - (a.rankChange ?? 0))
-    .slice(0, 10);
-
-  // 下降TOP（rankChangeが小さい順に10件）
-  const topDown = [...data]
-    .sort((a, b) => (a.rankChange ?? 0) - (b.rankChange ?? 0))
-    .slice(0, 10);
-
+  if(upContainer) upContainer.style.display = "";
+  if(downContainer) downContainer.style.display = "";
+  const topUp = [...data].sort((a,b)=>(b.rankChange ?? 0)-(a.rankChange ?? 0)).slice(0,10);
+  const topDown = [...data].sort((a,b)=>(a.rankChange ?? 0)-(b.rankChange ?? 0)).slice(0,10);
   const ctxUp = upCanvas?.getContext("2d");
   const ctxDown = downCanvas?.getContext("2d");
-  if (!ctxUp || !ctxDown) return;
-
-  // 既存チャート破棄
-  if (window.chartUp) window.chartUp.destroy();
-  if (window.chartDown) window.chartDown.destroy();
-
-  // 上昇TOPチャート
+  if(!ctxUp || !ctxDown) return;
+  if(window.chartUp) window.chartUp.destroy();
+  if(window.chartDown) window.chartDown.destroy();
   window.chartUp = new Chart(ctxUp, {
     type: "bar",
     data: {
-      labels: topUp.map(p => p.playerId ?? "-"),
-      datasets: [{
-        label: "上昇TOP",
-        data: topUp.map(p => p.rankChange ?? 0),
-        backgroundColor: "hsl(120,80%,60%)"
-      }]
+      labels: topUp.map(p=>p.playerId ?? "-"),
+      datasets: [{ label: "上昇TOP", data: topUp.map(p=>p.rankChange ?? 0) }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `変動: ${ctx.raw ?? 0}`
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
-        },
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: "順位変動数" }
-        }
-      }
-    }
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, title:{display:true, text:"順位変動数"} } } }
   });
-
-  // 下降TOPチャート
   window.chartDown = new Chart(ctxDown, {
     type: "bar",
     data: {
-      labels: topDown.map(p => p.playerId ?? "-"),
-      datasets: [{
-        label: "下降TOP",
-        data: topDown.map(p => p.rankChange ?? 0),
-        backgroundColor: "hsl(0,80%,60%)"
-      }]
+      labels: topDown.map(p=>p.playerId ?? "-"),
+      datasets: [{ label: "下降TOP", data: topDown.map(p=>p.rankChange ?? 0) }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `変動: ${ctx.raw ?? 0}`
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 }
-        },
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: "順位変動数" }
-        }
-      }
-    }
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, title:{display:true, text:"順位変動数"} } } }
   });
 }
 
-function resetLocalTitlesAndHistory() {
+/* =========================
+   Reset local titles/history (admin-only)
+========================= */
+async function resetLocalTitlesAndHistory(){
   if(!isAdmin){ toast("管理者モードでのみ実行可能です"); return; }
-
-  // playerData 初期化
+  // reset only local logs & local cached fields (not touching GAS cumulative except titles if you want to push)
   playerData.forEach((p, id) => {
     playerData.set(id, normalizeStoredPlayer({
       ...p,
@@ -871,97 +836,116 @@ function resetLocalTitlesAndHistory() {
       rank1Count:0,
       rateTrend:0,
       maxBonusCount:0,
-      lastBabaSafe:false
+      lastBabaSafe:false,
+      randomTitleCount:0
     }));
   });
-  savePlayerData();
-
-  // 履歴・カウント初期化
+  saveToStorage(STORAGE_KEY, Array.from(playerData.entries()));
   titleHistory = [];
   rankingHistory = [];
   lastProcessedRows = [];
   saveTitleHistory();
   saveRankingHistory();
-
-  // カタログリセット
-  Object.keys(titleCatalog).forEach(k => delete titleCatalog[k]);
-
-  // UI再描画
+  Object.keys(titleCatalog).forEach(k=>delete titleCatalog[k]);
   renderTitleCatalog();
   renderRankingTable([]);
-
-  toast("ローカルの称号と履歴を初期化しました");
+  toast("ローカルの称号と履歴を初期化しました（ローカルのみ）");
 }
 
-
 /* =========================
-   自動更新
+   Auto refresh controls
 ========================= */
-function startAutoRefresh(){ if(autoRefreshTimer) clearInterval(autoRefreshTimer); autoRefreshTimer=setInterval(fetchRankingData,AUTO_REFRESH_INTERVAL*1000); }
-function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null;} }
+function startAutoRefresh(){ if(autoRefreshTimer) clearInterval(autoRefreshTimer); autoRefreshTimer = setInterval(()=>fetchRankingData(), AUTO_REFRESH_INTERVAL*1000); }
+function stopAutoRefresh(){ if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer = null; } }
 
 /* =========================
-   初期化
+   Top-level fetch wrapper
+========================= */
+async function fetchRankingData(){
+  try{
+    await processRankingWithGAS();
+  }catch(e){
+    console.error("fetchRankingData error", e);
+  }
+}
+
+/* =========================
+   Initialization & Event wiring
 ========================= */
 document.addEventListener("DOMContentLoaded", () => {
-
-  // 管理者モード切替ボタン
+  // Wire admin toggle button (if present)
   const toggleBtn = document.getElementById("toggleAdminBtn");
   if(toggleBtn){
-    toggleBtn.addEventListener("click", () => {
-      setAdminMode(!isAdmin);
+    toggleBtn.addEventListener("click", ()=>{
+      // simple prompt for password (you can change to better auth)
+      if(!isAdmin){
+        const pw = prompt("管理者パスワードを入力してください");
+        if(pw === ADMIN_PASSWORD){
+          setAdminMode(true);
+          toast("管理者モードを有効化しました");
+        }else{
+          toast("パスワードが違います");
+        }
+      }else{
+        setAdminMode(false);
+        toast("管理者モード解除");
+      }
     });
   }
 
-  // 称号初期化ボタン
+  // reset local button
   const resetBtn = document.getElementById("resetLocalBtn");
   if(resetBtn){
-    resetBtn.addEventListener("click", () => {
-      if(confirm("本当にローカルの称号と履歴を初期化しますか？")){
+    resetBtn.addEventListener("click", ()=>{
+      if(confirm("本当にローカルの称号と履歴を初期化しますか？（GASは影響を受けません）")){
         resetLocalTitlesAndHistory();
       }
     });
   }
 
-  // 保存されている管理者モードを反映
-  const savedAdmin = JSON.parse(localStorage.getItem("isAdmin") || "false");
-  setAdminMode(savedAdmin);
-
-  // ランキングテーブル内の削除ボタン処理
-  document.addEventListener("click", (e)=>{
+  // general click handler for delete buttons in table (admin-only)
+  document.addEventListener("click", async (e)=>{
     const btn = e.target.closest("button[data-id]");
-    if(btn && btn.dataset.id && isAdmin){
-      const id = btn.dataset.id;
-      deletedPlayers.add(id);
-      saveDeletedPlayers();
-      toast(`${id} を削除リストに追加しました`);
-      fetchRankingData();
+    if(!btn) return;
+    const id = btn.dataset.id;
+    if(!id) return;
+    if(isAdmin){
+      if(confirm(`${id} を削除（GASと同期）しますか？`)){
+        await deletePlayer(id);
+      }
     }
   });
-});
 
-function init(){
+  // load saved user settings & logs
   loadTitleHistory();
   loadTitleState();
   loadVolumeSetting();
   loadNotificationSetting();
-  setAdminMode(JSON.parse(localStorage.getItem("isAdmin")||"false"));
-  fetchRankingData();
-  startAutoRefresh();
-  window.addEventListener("resize",debounce(()=>scheduleRenderTitleCatalog(),200));
+  const savedAdmin = loadFromStorage("isAdmin", false);
+  setAdminMode(savedAdmin);
 
-  // example UI hookups (if present)
-  document.addEventListener("click", (e)=>{
-    const btn = e.target.closest("button[data-id]");
-    if(btn && btn.dataset.id && isAdmin){
-      const id = btn.dataset.id;
-      deletedPlayers.add(id);
-      saveDeletedPlayers();
-      toast(`${id} を削除リストに追加しました`);
-      // optionally remove from UI
-      fetchRankingData();
-    }
-  });
+  // initialize authoritative data from GAS and start auto refresh
+  (async ()=>{
+    await initPlayerDataFromGAS(); // populate playerData from GAS
+    await fetchRankingData(); // compute, assign titles, push cumulative back to GAS if necessary
+    startAutoRefresh();
+  })();
+
+  window.addEventListener("resize", debounce(()=>scheduleRenderTitleCatalog(), 200));
+});
+
+// compatibility: alias init if external code calls it
+async function init(){
+  // load local settings/logs and then sync with GAS
+  loadTitleHistory();
+  loadTitleState();
+  loadVolumeSetting();
+  loadNotificationSetting();
+  setAdminMode(loadFromStorage("isAdmin", false));
+  await initPlayerDataFromGAS();
+  await fetchRankingData();
+  startAutoRefresh();
+  window.addEventListener("resize", debounce(()=>scheduleRenderTitleCatalog(),200));
 }
 
-document.addEventListener("DOMContentLoaded",()=>init());
+window.appInit = init; // expose for debugging if needed
