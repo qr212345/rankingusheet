@@ -312,42 +312,47 @@ async function deletePlayer(playerId){
    - Fetch latest ranking from GAS_URL (getRanking)
    - Compute diffs, assign titles, update cumulative and push to GAS
 ========================= */
-async function processRankingWithGAS(latestRankingData = null){
+async function processRankingWithGAS(latestRankingData = null) {
   isFetching = true;
-  try{
+  try {
     // 1) get latest cumulative + deleted from ENDPOINT
     const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
     deletedPlayers = new Set(gasDeleted || []);
 
     // initialize local playerData from cumulative
     playerData = new Map();
-    for(const [id, data] of Object.entries(cumulative || {})){
+    for (const [id, data] of Object.entries(cumulative || {})) {
       playerData.set(id, normalizeStoredPlayer({ playerId: id, ...data, deleted: deletedPlayers.has(id) }));
     }
 
     // 2) get latest ranking (from GAS_URL)
-   if(!rankingArray){
-    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-    if(!res.ok) throw new Error(`status ${res.status}`);
-    const json = await res.json();
-    if(Array.isArray(json)){
-      rankingArray = json;
-    } else if(json.ranking && typeof json.ranking === "object"){
-      rankingArray = Object.entries(json.ranking).map(([playerId, values]) => ({
-        playerId,
-        rank: values[0],
-        rate: values[1],
-      }));
-    } else {
-      rankingArray = [];
-   }
- }
-
+    if (!rankingArray) {
+      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const json = await res.json();
+      if (Array.isArray(json)) {
+        rankingArray = json;
+      } else if (json.ranking && typeof json.ranking === "object") {
+        rankingArray = Object.entries(json.ranking).map(([playerId, values]) => ({
+          playerId,
+          rank: values[0],
+          rate: values[1],
+        }));
+      } else {
+        rankingArray = [];
+      }
+    }
 
     // 3) if no ranking data, just render cumulative (excluding deleted)
-    if(!rankingArray || rankingArray.length === 0){
-      lastProcessedRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
-      lastProcessedRows.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+    if (!rankingArray || rankingArray.length === 0) {
+      const fallbackRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
+      fallbackRows.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
+      fallbackRows.forEach((p, i, arr) => {
+        p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
+        p.rankChange = 0;
+        p.rateRankChange = 0;
+      });
+      lastProcessedRows = fallbackRows;
       renderRankingTable(lastProcessedRows);
       renderTopCharts(lastProcessedRows);
       scheduleRenderTitleCatalog();
@@ -383,11 +388,14 @@ async function processRankingWithGAS(latestRankingData = null){
 
     // 5) filter deleted and sort by rate (desc)
     const filteredProcessed = processed.filter(p => !deletedPlayers.has(p.playerId));
-    filteredProcessed.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+    filteredProcessed.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
     filteredProcessed.forEach((p, i, arr) => {
-      p.rateRank = i > 0 && p.rate === arr[i-1].rate ? arr[i-1].rateRank : i + 1;
+      // rateRankはレート順に順位付け
+      p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
+      // prevRateRankがなければ初回0として計算
+      const prevRateRank = p.prevRateRank ?? p.rateRank;
       p.rankChange = (p.prevRank ?? p.rank) - p.rank;
-      p.rateRankChange = (p.prevRateRank ?? p.rateRank) - p.rateRank;
+      p.rateRankChange = prevRateRank - p.rateRank;
     });
 
     lastProcessedRows = filteredProcessed;
@@ -398,7 +406,6 @@ async function processRankingWithGAS(latestRankingData = null){
     // 7) update local playerData map with new cumulative fields and push to GAS
     const newCumulative = {};
     filteredProcessed.forEach(p => {
-      // merge existing prev with computed
       const merged = normalizeStoredPlayer({
         playerId: p.playerId,
         rate: p.rate,
@@ -432,9 +439,9 @@ async function processRankingWithGAS(latestRankingData = null){
       };
     });
 
-    // also include players that are in playerData but not in today's ranking (preserve)
+    // 8) include players in playerData but not in today's ranking (preserve)
     playerData.forEach((v, id) => {
-      if(!(id in newCumulative)){
+      if (!(id in newCumulative)) {
         newCumulative[id] = {
           rate: v.rate ?? 0,
           lastRank: v.lastRank ?? null,
@@ -452,35 +459,40 @@ async function processRankingWithGAS(latestRankingData = null){
       }
     });
 
-    // 8) push to GAS (single call)
+    // 9) push to GAS (single call)
     const updRes = await updateCumulative(newCumulative);
-    if(!updRes){
+    if (!updRes) {
       console.warn("Failed to update cumulative to GAS");
     } else {
       console.log("Cumulative updated to GAS");
     }
 
-    // 9) render
+    // 10) render
     renderRankingTable(filteredProcessed);
     renderTopCharts(filteredProcessed);
     scheduleRenderTitleCatalog();
 
-    // 10) save local logs (titleHistory, rankingHistory)
+    // 11) save local logs (titleHistory, rankingHistory)
     saveTitleHistory();
     saveRankingHistory();
 
     return filteredProcessed;
-  }catch(e){
+  } catch (e) {
     console.error("processRankingWithGAS error", e);
     // best-effort: render whatever local cache we have
     const fallback = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
-    fallback.sort((a,b)=> (b.rate ?? 0) - (a.rate ?? 0));
+    fallback.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
+    fallback.forEach((p, i, arr) => {
+      p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
+      p.rankChange = 0;
+      p.rateRankChange = 0;
+    });
     lastProcessedRows = fallback;
     renderRankingTable(lastProcessedRows);
     renderTopCharts(lastProcessedRows);
     scheduleRenderTitleCatalog();
     return lastProcessedRows;
-  }finally{
+  } finally {
     isFetching = false;
   }
 }
