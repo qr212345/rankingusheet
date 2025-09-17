@@ -326,13 +326,23 @@ async function processRankingWithGAS(latestRankingData = null){
     }
 
     // 2) get latest ranking (from GAS_URL)
-    let rankingArray = latestRankingData;
-    if(!rankingArray){
-      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-      if(!res.ok) throw new Error(`status ${res.status}`);
-      const json = await res.json();
-      rankingArray = Array.isArray(json) ? json : (Array.isArray(json.ranking) ? json.ranking : Object.values(json.ranking || {}));
-    }
+   if(!rankingArray){
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+    if(!res.ok) throw new Error(`status ${res.status}`);
+    const json = await res.json();
+    if(Array.isArray(json)){
+      rankingArray = json;
+    } else if(json.ranking && typeof json.ranking === "object"){
+      rankingArray = Object.entries(json.ranking).map(([playerId, values]) => ({
+        playerId,
+        rank: values[0],
+        rate: values[1],
+      }));
+    } else {
+      rankingArray = [];
+   }
+ }
+
 
     // 3) if no ranking data, just render cumulative (excluding deleted)
     if(!rankingArray || rankingArray.length === 0){
