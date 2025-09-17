@@ -60,6 +60,7 @@ let assignedRandomTitles = new Set();
 let dailyRandomCount = {}; // { "YYYY-MM-DD": count }  local
 let renderScheduled = false;
 let isFetching = false;
+let rankingArray = null;
 
 /* =========================
    DOM & Utility
