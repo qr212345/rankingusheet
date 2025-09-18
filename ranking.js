@@ -335,9 +335,9 @@ async function processRankingWithGAS(latestRankingData = null) {
         rankingArray = json;
       } else if (json.ranking && typeof json.ranking === "object") {
         rankingArray = Object.entries(json.ranking).map(([playerId, values]) => ({
-          playerId,
-          rank: values[0],
-          rate: values[1],
+           playerId: values[0], // ← 配列の最初がID
+           rate: values[1],     // ← 2番目がレート
+           rank: values[2],     // ← 3番目が順位
         }));
       } else {
         rankingArray = [];
