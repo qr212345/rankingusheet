@@ -13,7 +13,7 @@ const TITLE_HISTORY_KEY = "titleHistory_v4";
 const AUTO_REFRESH_INTERVAL = 40; // seconds
 
 const RANDOM_TITLES = ["ミラクルババ","ラッキーババ"];
-const RANDOM_TITLE_PROB = { "ミラクルババ":0.01, "ラッキーババ":0.05 };
+const RANDOM_TITLE_PROB = { "ミラクルババ": 0.005, "ラッキーババ": 0.01 }; // 0.5% / 1%
 const RANDOM_TITLE_DAILY_LIMIT = 5;
 
 const SECRET_KEY = "your-secret-key";
