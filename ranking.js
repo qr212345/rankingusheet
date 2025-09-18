@@ -728,16 +728,27 @@ function assignTitles(player){
   });
 
   // random titles (controlled by cumulative/randomTitleCount in playerData)
-  RANDOM_TITLES.forEach(name => {
-    const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
-    if(!player.titles.includes(name) && canAssignRandom(player.playerId)){
+RANDOM_TITLES.forEach(name => {
+  const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
+  
+  // 未取得称号かつ付与可能なプレイヤーのみ対象
+  if(!player.titles.includes(name) && canAssignRandom(player.playerId)){
+    const prob = RANDOM_TITLE_PROB[name] ?? 0;  // 例: { "ミラクルババ":0.005, "ラッキーババ":0.01 }
+    
+    // ランダム判定
+    if(Math.random() < prob){
       player.titles.push(name);
       updateTitleCatalog(t);
       enqueueTitlePopup(player.playerId, t);
       registerRandomAssign(player.playerId);
-      titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
+      titleHistory.push({
+        playerId: player.playerId,
+        title: name,
+        date: new Date().toISOString()
+      });
     }
-  });
+  }
+});
 
   // merge into playerData (authoritative) and persist minimal local logs
   const merged = {
