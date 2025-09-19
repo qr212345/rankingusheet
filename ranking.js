@@ -327,22 +327,89 @@ async function processRankingWithGAS(latestRankingData = null) {
     }
 
     // 2) get latest ranking (from GAS_URL)
-    if (!rankingArray) {
-      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const json = await res.json();
-      if (Array.isArray(json)) {
-        rankingArray = json;
-      } else if (json.ranking && typeof json.ranking === "object") {
-        rankingArray = Object.entries(json.ranking).map(([playerId, values]) => ({
-           playerId: values[0], // ← 配列の最初がID
-           rate: values[1],     // ← 2番目がレート
-           rank: values[2],     // ← 3番目が順位
-        }));
+    // 2) get latest ranking (from GAS_URL)
+if (!rankingArray) {
+  const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const json = await res.json();
+
+  // 文字列形式 "playerId=player3, rate=120, rank=1" をオブジェクトに変換する関数
+  const parseRankingString = (str) => {
+    const obj = {};
+    str.split(",").forEach(part => {
+      const [key, value] = part.split("=").map(s => s.trim());
+      if (key === "rate" || key === "rank") {
+        obj[key] = Number(value);
       } else {
-        rankingArray = [];
+        obj[key] = value;
       }
+    });
+    return obj;
+  };
+
+  // --- ランキングデータの解釈 ---
+  if (Array.isArray(json)) {
+    if (json.length > 0 && Array.isArray(json[0])) {
+      // 形式: [["player3", 120, 1], ["player7", 95, 4], ...]
+      rankingArray = json.map(values => {
+        const playerId = values[0];
+        const a = Number(values[1]);
+        const b = Number(values[2]);
+        let rate, rank;
+        if (a > 20 && b <= 20) {
+          rate = a; rank = b;
+        } else if (b > 20 && a <= 20) {
+          rate = b; rank = a;
+        } else {
+          if (a >= b) { rate = a; rank = b; } else { rate = b; rank = a; }
+        }
+        return { playerId, rate, rank };
+      });
+    } else if (json.length > 0 && typeof json[0] === "object") {
+      // 形式: [{playerId:"p1", rate:120, rank:1}, ...]
+      rankingArray = json.map(obj => {
+        // 文字列形式にも対応
+        if (typeof obj === "string") return parseRankingString(obj);
+        return {
+          playerId: obj.playerId ?? obj.id ?? null,
+          rate: Number(obj.rate) || 0,
+          rank: Number(obj.rank) || null
+        };
+      });
+    } else if (json.length > 0 && typeof json[0] === "string") {
+      // 配列内が文字列の場合もパース
+      rankingArray = json.map(line => parseRankingString(line));
+    } else {
+      rankingArray = [];
     }
+  } else if (json.ranking && typeof json.ranking === "object") {
+    // 形式: { player3: [120,1], player7:[95,4], ... } または { player3: {rate:120, rank:1} }
+    rankingArray = Object.entries(json.ranking).map(([id, values]) => {
+      if (typeof values === "string") {
+        const parsed = parseRankingString(values);
+        return { playerId: parsed.playerId || id, rate: parsed.rate || 0, rank: parsed.rank || null };
+      } else if (Array.isArray(values)) {
+        const a = Number(values[0]);
+        const b = Number(values[1]);
+        let rate, rank;
+        if (a > 20 && b <= 20) {
+          rate = a; rank = b;
+        } else if (b > 20 && a <= 20) {
+          rate = b; rank = a;
+        } else {
+          if (a >= b) { rate = a; rank = b; } else { rate = b; rank = a; }
+        }
+        return { playerId: id, rate, rank };
+      } else if (typeof values === "object") {
+        return { playerId: id, rate: Number(values.rate) || 0, rank: Number(values.rank) || null };
+      } else {
+        return { playerId: id, rate: 0, rank: null };
+      }
+    });
+  } else {
+    rankingArray = [];
+  }
+}
 
     // 3) if no ranking data, just render cumulative (excluding deleted)
     if (!rankingArray || rankingArray.length === 0) {
