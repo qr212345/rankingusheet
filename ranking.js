@@ -316,102 +316,67 @@ async function deletePlayer(playerId){
 async function processRankingWithGAS(latestRankingData = null) {
   isFetching = true;
   try {
-    // 1) get latest cumulative + deleted from ENDPOINT
+    // --- 1) 累計情報と削除リストを取得 ---
     const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
     deletedPlayers = new Set(gasDeleted || []);
 
-    // initialize local playerData from cumulative
     playerData = new Map();
     for (const [id, data] of Object.entries(cumulative || {})) {
       playerData.set(id, normalizeStoredPlayer({ playerId: id, ...data, deleted: deletedPlayers.has(id) }));
     }
 
-    // 2) get latest ranking (from GAS_URL)
-    // 2) get latest ranking (from GAS_URL)
-if (!rankingArray) {
-  const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-  if (!res.ok) throw new Error(`status ${res.status}`);
-  const json = await res.json();
+    // --- 2) ランキング取得 ---
+    if (!rankingArray) {
+      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const json = await res.json();
 
-  // 文字列形式 "playerId=player3, rate=120, rank=1" をオブジェクトに変換する関数
-  const parseRankingString = (str) => {
-    const obj = {};
-    str.split(",").forEach(part => {
-      const [key, value] = part.split("=").map(s => s.trim());
-      if (key === "rate" || key === "rank") {
-        obj[key] = Number(value);
-      } else {
-        obj[key] = value;
-      }
-    });
-    return obj;
-  };
+      // "PlayerId=player1, rate=120, rank=1" をオブジェクトに変換
+      const parseRankingString = (str) => {
+        const obj = {};
+        str.split(",").forEach(part => {
+          const [key, value] = part.split("=").map(s => s.trim());
+          obj[key.toLowerCase()] = key === "rate" || key === "rank" ? Number(value) : value;
+        });
+        return obj;
+      };
 
-  // --- ランキングデータの解釈 ---
-  if (Array.isArray(json)) {
-    if (json.length > 0 && Array.isArray(json[0])) {
-      // 形式: [["player3", 120, 1], ["player7", 95, 4], ...]
-      rankingArray = json.map(values => {
-        const playerId = values[0];
-        const a = Number(values[1]);
-        const b = Number(values[2]);
-        let rate, rank;
-        if (a > 20 && b <= 20) {
-          rate = a; rank = b;
-        } else if (b > 20 && a <= 20) {
-          rate = b; rank = a;
+      // --- ランキング形式判定 ---
+      if (Array.isArray(json)) {
+        if (json.length > 0 && Array.isArray(json[0])) {
+          // 形式: [["player3", 120, 1], ...]
+          rankingArray = json.map(arr => ({ playerId: arr[0], rate: Number(arr[1]), rank: Number(arr[2]) }));
+        } else if (json.length > 0 && typeof json[0] === "object") {
+          rankingArray = json.map(obj => typeof obj === "string" ? parseRankingString(obj) : ({
+            playerId: obj.playerId ?? obj.id ?? null,
+            rate: Number(obj.rate) || 0,
+            rank: Number(obj.rank) || null
+          }));
+        } else if (json.length > 0 && typeof json[0] === "string") {
+          // 配列内が文字列の場合は "=" を ":" に置き換えなくても parseRankingString で対応
+          rankingArray = json.map(line => parseRankingString(line));
         } else {
-          if (a >= b) { rate = a; rank = b; } else { rate = b; rank = a; }
+          rankingArray = [];
         }
-        return { playerId, rate, rank };
-      });
-    } else if (json.length > 0 && typeof json[0] === "object") {
-      // 形式: [{playerId:"p1", rate:120, rank:1}, ...]
-      rankingArray = json.map(obj => {
-        // 文字列形式にも対応
-        if (typeof obj === "string") return parseRankingString(obj);
-        return {
-          playerId: obj.playerId ?? obj.id ?? null,
-          rate: Number(obj.rate) || 0,
-          rank: Number(obj.rank) || null
-        };
-      });
-    } else if (json.length > 0 && typeof json[0] === "string") {
-      // 配列内が文字列の場合もパース
-      rankingArray = json.map(line => parseRankingString(line));
-    } else {
-      rankingArray = [];
+      } else if (json.ranking && typeof json.ranking === "object") {
+        rankingArray = Object.entries(json.ranking).map(([id, values]) => {
+          if (typeof values === "string") {
+            const parsed = parseRankingString(values); // "=" を ":" に変換せず parseRankingString 内で処理
+            return { playerId: parsed.playerId || id, rate: parsed.rate || 0, rank: parsed.rank || null };
+          } else if (Array.isArray(values)) {
+            return { playerId: id, rate: Number(values[0]), rank: Number(values[1]) };
+          } else if (typeof values === "object") {
+            return { playerId: id, rate: Number(values.rate) || 0, rank: Number(values.rank) || null };
+          } else {
+            return { playerId: id, rate: 0, rank: null };
+          }
+        });
+      } else {
+        rankingArray = [];
+      }
     }
-  } else if (json.ranking && typeof json.ranking === "object") {
-    // 形式: { player3: [120,1], player7:[95,4], ... } または { player3: {rate:120, rank:1} }
-    rankingArray = Object.entries(json.ranking).map(([id, values]) => {
-      if (typeof values === "string") {
-        const parsed = parseRankingString(values);
-        return { playerId: parsed.playerId || id, rate: parsed.rate || 0, rank: parsed.rank || null };
-      } else if (Array.isArray(values)) {
-        const a = Number(values[0]);
-        const b = Number(values[1]);
-        let rate, rank;
-        if (a > 20 && b <= 20) {
-          rate = a; rank = b;
-        } else if (b > 20 && a <= 20) {
-          rate = b; rank = a;
-        } else {
-          if (a >= b) { rate = a; rank = b; } else { rate = b; rank = a; }
-        }
-        return { playerId: id, rate, rank };
-      } else if (typeof values === "object") {
-        return { playerId: id, rate: Number(values.rate) || 0, rank: Number(values.rank) || null };
-      } else {
-        return { playerId: id, rate: 0, rank: null };
-      }
-    });
-  } else {
-    rankingArray = [];
-  }
-}
 
-    // 3) if no ranking data, just render cumulative (excluding deleted)
+    // --- 3) ランキングが空の場合は累計のみ表示 ---
     if (!rankingArray || rankingArray.length === 0) {
       const fallbackRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
       fallbackRows.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
@@ -427,7 +392,7 @@ if (!rankingArray) {
       return lastProcessedRows;
     }
 
-    // 4) compute processed rows (merge previous cumulative where available)
+    // --- 4) 累計情報と統合して差分計算 ---
     const processed = rankingArray.map(p => {
       const prev = cumulative[p.playerId] || {};
       const rate = Number.isFinite(p.rate) ? Number(p.rate) : 0;
@@ -454,13 +419,11 @@ if (!rankingArray) {
       };
     });
 
-    // 5) filter deleted and sort by rate (desc)
+    // --- 5) 削除済み除外・レート順ソート・順位差計算 ---
     const filteredProcessed = processed.filter(p => !deletedPlayers.has(p.playerId));
     filteredProcessed.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
     filteredProcessed.forEach((p, i, arr) => {
-      // rateRankはレート順に順位付け
       p.rateRank = i > 0 && p.rate === arr[i - 1].rate ? arr[i - 1].rateRank : i + 1;
-      // prevRateRankがなければ初回0として計算
       const prevRateRank = p.prevRateRank ?? p.rateRank;
       p.rankChange = (p.prevRank ?? p.rank) - p.rank;
       p.rateRankChange = prevRateRank - p.rateRank;
@@ -468,10 +431,10 @@ if (!rankingArray) {
 
     lastProcessedRows = filteredProcessed;
 
-    // 6) assign titles (this updates local playerData and titleHistory)
+    // --- 6) タイトル割り当て ---
     filteredProcessed.forEach(p => assignTitles(p));
 
-    // 7) update local playerData map with new cumulative fields and push to GAS
+    // --- 7) 累計更新・GAS同期 ---
     const newCumulative = {};
     filteredProcessed.forEach(p => {
       const merged = normalizeStoredPlayer({
@@ -507,7 +470,7 @@ if (!rankingArray) {
       };
     });
 
-    // 8) include players in playerData but not in today's ranking (preserve)
+    // --- 8) 累計に存在するが当日のランキングにないプレイヤーも保持 ---
     playerData.forEach((v, id) => {
       if (!(id in newCumulative)) {
         newCumulative[id] = {
@@ -527,27 +490,22 @@ if (!rankingArray) {
       }
     });
 
-    // 9) push to GAS (single call)
     const updRes = await updateCumulative(newCumulative);
-    if (!updRes) {
-      console.warn("Failed to update cumulative to GAS");
-    } else {
-      console.log("Cumulative updated to GAS");
-    }
+    if (!updRes) console.warn("Failed to update cumulative to GAS");
+    else console.log("Cumulative updated to GAS");
 
-    // 10) render
+    // --- 9) 描画 ---
     renderRankingTable(filteredProcessed);
     renderTopCharts(filteredProcessed);
     scheduleRenderTitleCatalog();
 
-    // 11) save local logs (titleHistory, rankingHistory)
+    // --- 10) ローカルログ保存 ---
     saveTitleHistory();
     saveRankingHistory();
 
     return filteredProcessed;
   } catch (e) {
     console.error("processRankingWithGAS error", e);
-    // best-effort: render whatever local cache we have
     const fallback = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
     fallback.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
     fallback.forEach((p, i, arr) => {
@@ -564,6 +522,7 @@ if (!rankingArray) {
     isFetching = false;
   }
 }
+
 
 /* =========================
    Random title assignment helpers (uses playerData counts stored in cumulative)
