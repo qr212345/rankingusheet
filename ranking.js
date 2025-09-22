@@ -821,89 +821,29 @@ RANDOM_TITLES.forEach(name => {
 /* =========================
    Table rendering / CSV / Charts
 ========================= */
-
-const STORAGE_KEY = "rankingPlayer";
-
-/**
- * ランク変動などをフォーマットする関数
- */
-function fmtChange(change) {
-    if (change == null) return "-";
-    if (change > 0) return `↑${change}`;
-    if (change < 0) return `↓${Math.abs(change)}`;
-    return "→";
-}
-
-/**
- * ランキングテーブル描画
- * 元の機能をすべて保持しつつ playerData 形式に対応
- */
-function renderRankingTable(playerData) {
-    const tbody = document.querySelector("#rankingTable tbody");
-    if (!tbody) return;
-
-    const players = Object.entries(playerData)
-        .filter(([id, p]) => !p.deleted)
-        .sort((a, b) => (b[1].rate ?? 0) - (a[1].rate ?? 0));
-
-    if (players.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
-        return;
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    players.forEach(([id, p], index) => {
-        const tr = document.createElement("tr");
-
-        // ランク変動・rate変動を保持したまま描画
-        tr.innerHTML = `
-            <td>${p.rank ?? index + 1}</td>
-            <td>${p.playerId ?? id}</td>
-            <td>${p.rate ?? "-"}</td>
-            <td>${fmtChange(p.rankChange)}</td>
-            <td>${fmtChange(p.rateRankChange)}</td>
-            <td>${Array.isArray(p.titles) ? p.titles.join(", ") : ""}</td>
-            <td class="admin-only">
-                <button data-id="${p.playerId ?? id}" style="display:${isAdmin ? "inline-block" : "none"}">削除</button>
-            </td>
-        `;
-        fragment.appendChild(tr);
-    });
-
-    tbody.innerHTML = "";
-    tbody.appendChild(fragment);
-}
-
-/**
- * ローカルランキングデータ初期化
- */
-function initializeRankingData(cumulative) {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const merged = { ...stored };
-    Object.entries(cumulative).forEach(([id, data]) => {
-        merged[id] = { ...(merged[id] || {}), ...data };
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    return merged;
-}
-
-/**
- * 累計情報 + 削除済み反映
- */
-async function loadInitialRanking() {
-    try {
-        const { cumulative, deletedPlayers } = await fetchCumulative();
-        const rankingData = initializeRankingData(cumulative);
-
-        deletedPlayers.forEach(id => {
-            if (rankingData[id]) rankingData[id].deleted = true;
-        });
-
-        renderRankingTable(rankingData);
-    } catch (e) {
-        console.error("ランキング初期化失敗", e);
-    }
+function renderRankingTable(data){
+  const tbody = $("#rankingTable tbody");
+  if(!tbody) return;
+  if(!Array.isArray(data) || data.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  data.forEach(p=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.rank ?? "-"}</td>
+      <td>${p.playerId ?? "-"}</td>
+      <td>${p.rate ?? "-"}</td>
+      <td>${fmtChange(p.rankChange)}</td>
+      <td>${fmtChange(p.rateRankChange)}</td>
+      <td>${Array.isArray(p.titles) ? p.titles.join(", ") : ""}</td>
+      <td class="admin-only"><button data-id="${p.playerId ?? ""}" style="display:${isAdmin ? "inline-block" : "none"}">削除</button></td>
+    `;
+    fragment.appendChild(tr);
+  });
+  tbody.innerHTML = "";
+  tbody.appendChild(fragment);
 }
 
 function exportCSV(data){
