@@ -431,8 +431,22 @@ async function processRankingWithGAS(latestRankingData = null) {
 
     lastProcessedRows = filteredProcessed;
 
-    // --- 6) タイトル割り当て ---
-    filteredProcessed.forEach(p => assignTitles(p));
+    // --- 6) タイトル割り当て（差分ありのみ） ---
+    filteredProcessed.forEach(p => {
+      const prev = playerData.get(p.playerId);
+      const newData = {
+        rate: p.rate,
+        rank: p.rank,
+        };
+
+  // 前回と全く同じならスキップ
+      const keysToCompare = ["rate", "rank", ]; // 比較するプロパティだけ選択
+      const isSame = prev && keysToCompare.every(k => prev[k] === newData[k]);
+
+      if (!isSame) {
+        assignTitles(p); // 差分ありなら称号付与
+      }
+    });
 
     // --- 7) 累計更新・GAS同期 ---
     const newCumulative = {};
