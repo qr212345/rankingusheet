@@ -1221,6 +1221,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+   document.addEventListener("DOMContentLoaded", () => {
+  const loadingEl = document.getElementById("loadingMessage");
+  if (loadingEl) loadingEl.style.display = "block";
+
+  // 0.8秒遅延してからGAS読み込み開始
+  setTimeout(async () => {
+    try {
+      await processRankingWithGAS();
+      renderTitleCatalog();
+    } finally {
+      if (loadingEl) loadingEl.style.display = "none";
+    }
+  }, 800);
+});
+
   // general click handler for delete buttons in table (admin-only)
   document.addEventListener("click", async (e)=>{
     const btn = e.target.closest("button[data-id]");
