@@ -783,16 +783,21 @@ function assignTitles(player, isNewMatch = false) {
   // authoritative playerData from GAS
   const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || { playerId: player.playerId });
 
-  // === GASデータの差分判定 ===
-  // 主要フィールドのみ比較して効率化
-  const gasDataChanged =
+  // === GASデータ差分判定 ===
+  // 永続系称号に必要な主要フィールドのみ比較
+  const persistentChanged =
+    player.rank !== prevData.rank ||
+    player.rate !== prevData.rate ||
+    player.bonus !== prevData.bonus ||
+    player.avoidedLastBaba !== prevData.avoidedLastBaba ||
+    isNewMatch;
+
+  // ランダム称号に必要な主要フィールドのみ比較
+  const randomChanged =
     player.rank !== prevData.rank ||
     player.rate !== prevData.rate ||
     player.bonus !== prevData.bonus ||
     player.avoidedLastBaba !== prevData.avoidedLastBaba;
-
-  // 変化がなければ計算・称号付与・保存をスキップ
-  if (!gasDataChanged && !isNewMatch) return;
 
   // === 基本情報更新 ===
   player.consecutiveGames = (prevData.consecutiveGames ?? 0) + (isNewMatch ? 1 : 0);
@@ -803,7 +808,7 @@ function assignTitles(player, isNewMatch = false) {
   player.rateGain = (player.rate ?? 0) - (prevData.rate ?? player.rate ?? 0);
 
   player.winStreak = (player.rank === 1) ? ((prevData.winStreak ?? 0) + 1) : 0;
-  player.rank1Count = (prevData.rank1Count ?? 0) + (player.rank === 1 ? 1 : 0);
+  player.rank1Count = (player.rank === 1) ? ((prevData.rank1Count ?? 0) + 1) : (prevData.rank1Count ?? 0);
   player.rateTrend = ((prevData.rate ?? 0) < player.rate) ? ((prevData.rateTrend ?? 0) + 1) : 0;
 
   player.bonus = Number.isFinite(player.bonus) ? Number(player.bonus) : (prevData.bonus ?? 0);
@@ -821,60 +826,66 @@ function assignTitles(player, isNewMatch = false) {
     if (!player.titles.includes(dynTitle)) player.titles.push(dynTitle);
   }
 
-  // === 永続系称号（GASデータ変化時のみ判定） ===
-  const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
-  const maxRateGain = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
-  const maxBonus = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
+  // === 永続系称号（差分がある場合のみ判定） ===
+  if (persistentChanged) {
+    const FIXED_TITLES = ALL_TITLES.filter(
+      t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name)
+    );
+    const maxRateGain = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
+    const maxBonus = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
 
-  FIXED_TITLES.forEach(t => {
-    let cond = false;
-    switch (t.name) {
-      case "逆転の達人":
-        cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
-      case "サプライズ勝利":
-        cond = ((prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength)) && (player.rank === 1); break;
-      case "幸運の持ち主":
-        cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2); break;
-      case "不屈の挑戦者": cond = (player.consecutiveGames >= 3); break;
-      case "レートブースター": cond = (player.rateGain !== undefined && player.rateGain === maxRateGain && maxRateGain > 0); break;
-      case "反撃の鬼": cond = ((prevData.lastRank ?? player.rank) > (player.rank ?? 999)) && (player.rank !== null && player.rank <= 3); break;
-      case "チャンスメーカー": cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0); break;
-      case "連勝街道": cond = (player.winStreak >= 2); break;
-      case "勝利の方程式": cond = (player.rateTrend >= 3); break;
-      case "挑戦者": cond = isNewMatch && (player.rank !== null && player.rank <= 5); break;
-      case "エピックババ": cond = (player.totalTitles >= 5); break;
-      case "ババキング": cond = (player.rank1Count >= 3); break;
-      case "観察眼": cond = (player.maxBonusCount >= 3); break;
-      case "運命の番人": cond = (player.lastBabaSafe === true); break;
-      case "究極のババ":
-        const fixedNames = FIXED_TITLES.map(ft => ft.name);
-        cond = player.titles.filter(tn => fixedNames.includes(tn)).length === fixedNames.length;
-        break;
-      default: cond = false;
-    }
+    FIXED_TITLES.forEach(t => {
+      let cond = false;
+      switch (t.name) {
+        case "逆転の達人":
+          cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
+        case "サプライズ勝利":
+          cond = ((prevData.lastRank ?? player.currentRankingLength) === (player.currentRankingLength ?? prevData.currentRankingLength)) && (player.rank === 1); break;
+        case "幸運の持ち主":
+          cond = (player.titles.filter(tt => RANDOM_TITLES.includes(tt)).length >= 2); break;
+        case "不屈の挑戦者": cond = (player.consecutiveGames >= 3); break;
+        case "レートブースター": cond = (player.rateGain !== undefined && player.rateGain === maxRateGain && maxRateGain > 0); break;
+        case "反撃の鬼": cond = ((prevData.lastRank ?? player.rank) > (player.rank ?? 999)) && (player.rank !== null && player.rank <= 3); break;
+        case "チャンスメーカー": cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0); break;
+        case "連勝街道": cond = (player.winStreak >= 2); break;
+        case "勝利の方程式": cond = (player.rateTrend >= 3); break;
+        case "挑戦者": cond = isNewMatch && (player.rank !== null && player.rank <= 5); break;
+        case "エピックババ": cond = (player.totalTitles >= 5); break;
+        case "ババキング": cond = (player.rank1Count >= 3); break;
+        case "観察眼": cond = (player.maxBonusCount >= 3); break;
+        case "運命の番人": cond = (player.lastBabaSafe === true); break;
+        case "究極のババ":
+          const fixedNames = FIXED_TITLES.map(ft => ft.name);
+          cond = player.titles.filter(tn => fixedNames.includes(tn)).length === fixedNames.length;
+          break;
+        default: cond = false;
+      }
 
-    if (cond && !prevData.titles?.includes(t.name)) {
-      player.titles.push(t.name);
-      updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, t);
-      titleHistory.push({ playerId: player.playerId, title: t.name, date: new Date().toISOString() });
-    }
-  });
-
-  // === ランダム称号（GASデータ変化時のみ抽選チャンス） ===
-  RANDOM_TITLES.forEach(name => {
-    const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
-    if (!player.titles.includes(name) && gasDataChanged && canAssignRandom(player.playerId)) {
-      const prob = RANDOM_TITLE_PROB[name] ?? 0;
-      if (Math.random() < prob) {
-        player.titles.push(name);
+      if (cond && !prevData.titles?.includes(t.name)) {
+        player.titles.push(t.name);
         updateTitleCatalog(t);
         enqueueTitlePopup(player.playerId, t);
-        registerRandomAssign(player.playerId);
-        titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
+        titleHistory.push({ playerId: player.playerId, title: t.name, date: new Date().toISOString() });
       }
-    }
-  });
+    });
+  }
+
+  // === ランダム称号（差分がある場合のみ抽選） ===
+  if (randomChanged) {
+    RANDOM_TITLES.forEach(name => {
+      const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
+      if (!player.titles.includes(name) && canAssignRandom(player.playerId)) {
+        const prob = RANDOM_TITLE_PROB[name] ?? 0;
+        if (Math.random() < prob) {
+          player.titles.push(name);
+          updateTitleCatalog(t);
+          enqueueTitlePopup(player.playerId, t);
+          registerRandomAssign(player.playerId);
+          titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
+        }
+      }
+    });
+  }
 
   // === playerData にマージ & 永続保存 ===
   const merged = {
