@@ -671,7 +671,6 @@ function updateTitleCatalog(title) {
   scheduleRenderTitleCatalog();
 }
 
-let renderScheduled = false;
 function scheduleRenderTitleCatalog() {
   if(renderScheduled) return;
   renderScheduled = true;
