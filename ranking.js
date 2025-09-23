@@ -1100,4 +1100,3 @@ async function init(){
   window.addEventListener("resize", debounce(()=>scheduleRenderTitleCatalog(),200));
 }
 window.appInit = init; // expose for debugging if needed
-にある機能を全部書いて
