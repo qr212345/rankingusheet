@@ -233,7 +233,7 @@ async function saveTitleDataToGAS(){
    - This replaces previous loadPlayerData local-first behavior
 ========================= */
 async function initPlayerDataFromGAS(){
-  const { cumulative, deletedPlayers: gasDeleted } = await fetchCumulative();
+  const { cumulative, deletedPlayers: gasDeleted } = await fetchMasterData();
   deletedPlayers = new Set(gasDeleted || []);
   playerData = new Map();
   for(const [id, data] of Object.entries(cumulative || {})){
@@ -269,7 +269,7 @@ async function savePlayerDataToGAS(){
       lastUpdated: p.lastUpdated ?? null
     };
   });
-  return await updateCumulative(cumulativeData);
+  return await updateMasterData(masterData);
 }
 
 /* =========================
