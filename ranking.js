@@ -566,6 +566,7 @@ const TITLE_SOUNDS = {
   "ラッキーババ":"sounds/lucky.mp3","不屈の挑戦者":"sounds/fire.mp3","連勝街道":"sounds/fire.mp3",
   "default":"sounds/popup.mp3"
 };
+
 function getTitleAnimationClass(titleName){
   if(/雷|銀|火/.test(titleName)) return "title-medal";
   if(/逆転|サプライズ/.test(titleName)) return "title-explosion";
@@ -574,109 +575,197 @@ function getTitleAnimationClass(titleName){
   return "title-generic";
 }
 
-const popupQueue=[]; let popupActive=false;
-function enqueueTitlePopup(playerId, titleObj){ popupQueue.push({playerId,titleObj}); if(!popupActive) processPopupQueue(); }
-function processPopupQueue(){
-  if(popupQueue.length===0){ popupActive=false; return; }
-  popupActive=true;
-  const {playerId,titleObj} = popupQueue.shift();
-  showTitlePopup(playerId, titleObj);
-  setTimeout(processPopupQueue, window.innerWidth<768 ? 1000 : 700);
+function getTitlePriority(titleName){
+  if(/キング|究極|ラッキー/.test(titleName)) return 3; // 高優先度
+  if(/シルバー/.test(titleName)) return 2;               // 中優先度
+  return 1;                                             // 低優先度
 }
-function showTitlePopup(playerId, titleObj){
+
+/* =========================
+   ポップアップキュー管理（優先度付き）
+========================= */
+const popupQueue = [];
+let popupActive = false;
+
+function enqueueTitlePopup(playerId, titleObj) {
+  const priority = getTitlePriority(titleObj.name);
+  // 優先度が高いものほど前に挿入
+  let inserted = false;
+  for(let i=0;i<popupQueue.length;i++){
+    if(priority > popupQueue[i].priority){
+      popupQueue.splice(i,0,{playerId,titleObj,priority});
+      inserted = true;
+      break;
+    }
+  }
+  if(!inserted) popupQueue.push({playerId,titleObj,priority});
+  if(!popupActive) processPopupQueue();
+}
+
+function processPopupQueue() {
+  if (popupQueue.length === 0) {
+    popupActive = false;
+    return;
+  }
+  popupActive = true;
+  const { playerId, titleObj } = popupQueue.shift();
+  showTitlePopup(playerId, titleObj);
+  setTimeout(processPopupQueue, window.innerWidth < 768 ? 1000 : 700);
+}
+
+/* =========================
+   ポップアップ表示
+========================= */
+function showTitlePopup(playerId, titleObj) {
   const unlocked = titleCatalog[titleObj.name]?.unlocked ?? false;
+
   const popup = document.createElement("div");
   popup.className = "title-popup " + getTitleAnimationClass(titleObj.name);
+
   const titleName = unlocked ? titleObj.name : "？？？";
   const titleDesc = unlocked ? titleObj.desc : "？？？";
+
   popup.innerHTML = `<strong>${playerId}</strong><br><strong>${titleName}</strong><br><small>${titleDesc}</small>`;
   document.body.appendChild(popup);
+
   try {
-    const audio = new Audio(unlocked ? (TITLE_SOUNDS[titleObj.name]||TITLE_SOUNDS.default) : TITLE_SOUNDS.default);
-    audio.volume = volume; audio.play().catch(()=>{});
+    const audio = new Audio(unlocked ? (TITLE_SOUNDS[titleObj.name] || TITLE_SOUNDS.default) : TITLE_SOUNDS.default);
+    audio.volume = volume; 
+    audio.play().catch(()=>{});
   } catch(e){}
-  const particleContainer = document.createElement("div"); particleContainer.className="particle-container";
+
+  const particleContainer = document.createElement("div"); 
+  particleContainer.className="particle-container";
   document.body.appendChild(particleContainer);
-  const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth<1200 ? 20 : 30;
-  for(let i=0;i<particleCount;i++){
-    const p=document.createElement("div"); p.className="particle";
+
+  const particleCount = window.innerWidth < 768 ? 10 : window.innerWidth < 1200 ? 20 : 30;
+  for(let i = 0; i < particleCount; i++){
+    const p = document.createElement("div");
+    p.className = "particle";
     p.style.left = Math.random()*100 + "vw";
     p.style.top  = Math.random()*100 + "vh";
     p.style.animationDuration = (0.5 + Math.random()*1.5) + "s";
     p.style.backgroundColor = unlocked ? `hsl(${Math.random()*360},80%,60%)` : `hsl(0,0%,70%)`;
     particleContainer.appendChild(p);
   }
-  setTimeout(()=>popup.classList.add("show"),50);
-  const removePopup = ()=>{
+
+  setTimeout(() => popup.classList.add("show"), 50);
+
+  const removePopup = () => {
     popup.classList.remove("show");
-    try{ particleContainer.remove(); }catch(e){}
-    setTimeout(()=>{ try{ popup.remove(); }catch(e){} }, 600);
+    try { particleContainer.remove(); } catch(e){}
+    setTimeout(() => { try{ popup.remove(); } catch(e){} }, 600);
     popup.removeEventListener("click", removePopup);
   };
+
   popup.addEventListener("click", removePopup);
   setTimeout(removePopup, 2500);
 }
 
-function updateTitleCatalog(title){
-  if(!titleCatalog[title.name]) titleCatalog[title.name] = { unlocked:true, desc: title.desc };
+/* =========================
+   称号カタログ管理
+========================= */
+function updateTitleCatalog(title) {
+  if(!titleCatalog[title.name]) titleCatalog[title.name] = { unlocked: true, desc: title.desc };
   else titleCatalog[title.name].unlocked = true;
   scheduleRenderTitleCatalog();
 }
-function scheduleRenderTitleCatalog(){
+
+let renderScheduled = false;
+function scheduleRenderTitleCatalog() {
   if(renderScheduled) return;
   renderScheduled = true;
   requestAnimationFrame(()=>{ renderTitleCatalog(); renderScheduled = false; });
 }
-function renderTitleCatalog(){
+
+/* =========================
+   称号カタログ表示
+========================= */
+function renderTitleCatalog() {
   const container = $("#titleCatalog");
   if(!container) return;
   container.innerHTML = "";
-  const cols = window.innerWidth<480 ? 1 : window.innerWidth<768 ? 2 : window.innerWidth<1024 ? 3 : 4;
+
+  const cols = window.innerWidth < 480 ? 1 : window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4;
   container.style.display = "grid";
   container.style.gridTemplateColumns = `repeat(${cols}, minmax(0,1fr))`;
   container.style.gap = "12px";
 
-  ALL_TITLES.forEach(title=>{
+  ALL_TITLES.forEach(title => {
     const unlocked = titleCatalog[title.name]?.unlocked ?? false;
     if((titleFilter==="unlocked" && !unlocked) || (titleFilter==="locked" && unlocked)) return;
     if(titleSearch && !title.name.toLowerCase().includes(titleSearch.toLowerCase())) return;
+
     const historyItems = titleHistory.filter(h => h.title === title.name);
-    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h=>new Date(h.date)))) : null;
+    const latest = historyItems.length ? new Date(Math.max(...historyItems.map(h => new Date(h.date)))) : null;
     const dateStr = latest ? latest.toLocaleDateString() : "";
+
     const cardContainer = document.createElement("div"); cardContainer.className = "title-card-container";
     const card = document.createElement("div"); card.className = "title-card";
+
     const front = document.createElement("div"); front.className = "front";
     front.innerHTML = `<strong>？？？</strong><small>？？？</small>`;
-    front.title = title.desc;
+    front.title = unlocked ? title.desc : "取得条件: ???";
+
     const back = document.createElement("div"); back.className = "back " + getRarityClass(title.name);
     back.innerHTML = `<strong>${title.name}</strong><small>${title.desc}</small>${dateStr?`<small>取得日:${dateStr}</small>`:""}`;
-    card.appendChild(front); card.appendChild(back); cardContainer.appendChild(card); container.appendChild(cardContainer);
-    if(unlocked && !card.dataset.rendered){
-      card.classList.add("gain"); card.dataset.rendered = "true";
+
+    card.appendChild(front); card.appendChild(back);
+    cardContainer.appendChild(card);
+    container.appendChild(cardContainer);
+
+    if(unlocked && !card.dataset.rendered) {
+      card.classList.add("gain");
+      card.dataset.rendered = "true";
       createParticles(cardContainer);
     }
-    card.addEventListener("click", ()=> showTitleDetailPopup(title));
+
+    card.addEventListener("click", () => showTitleDetailPopup(title, unlocked));
   });
 }
+
 function getRarityClass(titleName){
   if(/キング|ラッキー|究極/.test(titleName)) return "rare-rainbow";
   if(/シルバー/.test(titleName)) return "rare-silver";
   if(/ブロンズ/.test(titleName)) return "rare-bronze";
   return "rare-gold";
 }
-function showTitleDetailPopup(title){
+
+/* =========================
+   詳細ポップアップ表示
+========================= */
+function showTitleDetailPopup(title, unlocked) {
   const overlay = document.createElement("div"); overlay.className = "title-detail-overlay";
-  overlay.innerHTML = `<div class="title-detail-popup"><h3>${title.name}</h3><p>${title.desc}</p><button id="closeTitleDetail">閉じる</button></div>`;
+
+  const nameText = unlocked ? title.name : "？？？";
+  const descText = unlocked ? title.desc : "取得条件: ???";
+
+  overlay.innerHTML = `
+    <div class="title-detail-popup ${unlocked ? "unlocked" : "locked"}">
+      <h3>${nameText}</h3>
+      <p>${descText}</p>
+      <button id="closeTitleDetail">閉じる</button>
+    </div>
+  `;
   document.body.appendChild(overlay);
+
+  if(unlocked) createParticles(overlay.querySelector(".title-detail-popup"));
+
   $("#closeTitleDetail").addEventListener("click", ()=> overlay.remove());
 }
+
+/* =========================
+   パーティクル生成
+========================= */
 function createParticles(target){
   const particleContainer = document.createElement("div"); particleContainer.className = "particle-container";
   target.appendChild(particleContainer);
-  const particleCount = window.innerWidth<480 ? 10 : window.innerWidth<768 ? 15 : window.innerWidth<1200 ? 20 : 30;
+
+  const particleCount = window.innerWidth < 480 ? 10 : window.innerWidth < 768 ? 15 : window.innerWidth < 1200 ? 20 : 30;
   for(let i=0;i<particleCount;i++){
     const p = document.createElement("div"); p.className = "particle";
-    p.style.left = `${Math.random()*100}%`; p.style.top = `${Math.random()*100}%`;
+    p.style.left = `${Math.random()*100}%`;
+    p.style.top = `${Math.random()*100}%`;
     p.style.animationDuration = `${0.5 + Math.random()*1.5}s`;
     p.style.backgroundColor = `hsl(${Math.random()*360},80%,60%)`;
     particleContainer.appendChild(p);
@@ -688,14 +777,15 @@ function createParticles(target){
    Title assignment & persistence (商品化レベルで完全版)
    - fills missing properties, uses playerData (GAS-authoritative)
 ========================= */
-function assignTitles(player){
-  if(!player || !player.playerId) return;
-  if(!player.titles) player.titles = [];
+function assignTitles(player, isNewMatch=false) {
+  if (!player || !player.playerId) return;
+  if (!player.titles) player.titles = [];
 
-  // prevData from authoritative playerData map (GAS)
+  // authoritative playerData from GAS
   const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || { playerId: player.playerId });
 
-  player.consecutiveGames = (prevData.consecutiveGames ?? 0) + 1;
+  // === 基本情報更新 ===
+  player.consecutiveGames = (prevData.consecutiveGames ?? 0) + (isNewMatch ? 1 : 0);
   player.prevGames = prevData.prevGames ?? 0;
   player.totalTitles = (Array.isArray(prevData.titles) ? prevData.titles.length : 0);
 
@@ -704,38 +794,31 @@ function assignTitles(player){
 
   player.winStreak = (player.rank === 1) ? ((prevData.winStreak ?? 0) + 1) : 0;
   player.rank1Count = (prevData.rank1Count ?? 0) + (player.rank === 1 ? 1 : 0);
-
   player.rateTrend = ((prevData.rate ?? 0) < player.rate) ? ((prevData.rateTrend ?? 0) + 1) : 0;
 
   player.bonus = Number.isFinite(player.bonus) ? Number(player.bonus) : (prevData.bonus ?? 0);
   player.maxBonusCount = Math.max(prevData.maxBonusCount ?? 0, player.bonus ?? 0);
 
   player.lastBabaSafe = prevData.lastBabaSafe ?? false;
-  if(player.avoidedLastBaba === true) player.lastBabaSafe = true;
+  if (player.avoidedLastBaba === true) player.lastBabaSafe = true;
 
   player.currentRankingLength = lastProcessedRows?.length ?? player.currentRankingLength ?? null;
 
-  // podium titles
+  // === 動的称号（順位に応じて毎回判定、Popup不要） ===
   const podiumTitles = ["キングババ","シルバーババ","ブロンズババ"];
-  if(player.rank && player.rank >=1 && player.rank <=3){
-    const title = podiumTitles[player.rank - 1];
-    if(!player.titles.includes(title)){
-      player.titles.push(title);
-      const t = ALL_TITLES.find(tt => tt.name === title) || { name: title, desc:"" };
-      updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, t);
-      titleHistory.push({ playerId: player.playerId, title, date: new Date().toISOString() });
-    }
+  if (player.rank && player.rank >= 1 && player.rank <= 3) {
+    const dynTitle = podiumTitles[player.rank - 1];
+    if (!player.titles.includes(dynTitle)) player.titles.push(dynTitle);
   }
 
-  // fixed titles
+  // === 永続系称号（GASデータが変化した場合のみ判定、Popupは初回のみ） ===
   const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
-  const maxRateGain = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
-  const maxBonus = lastProcessedRows && lastProcessedRows.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
+  const maxRateGain = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
+  const maxBonus = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
 
   FIXED_TITLES.forEach(t => {
     let cond = false;
-    switch(t.name){
+    switch (t.name) {
       case "逆転の達人":
         cond = ((prevData.lastRank ?? player.rank) - (player.rank ?? prevData.lastRank ?? 0)) >= 3; break;
       case "サプライズ勝利":
@@ -748,7 +831,7 @@ function assignTitles(player){
       case "チャンスメーカー": cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0); break;
       case "連勝街道": cond = (player.winStreak >= 2); break;
       case "勝利の方程式": cond = (player.rateTrend >= 3); break;
-      case "挑戦者": cond = ((prevData.prevGames ?? 0) === 0) && (player.rank !== null && player.rank <= 5); break;
+      case "挑戦者": cond = isNewMatch && (player.rank !== null && player.rank <= 5); break; // 新規試合に参加したときのみ
       case "エピックババ": cond = (player.totalTitles >= 5); break;
       case "ババキング": cond = (player.rank1Count >= 3); break;
       case "観察眼": cond = (player.maxBonusCount >= 3); break;
@@ -759,7 +842,9 @@ function assignTitles(player){
         break;
       default: cond = false;
     }
-    if(cond && !player.titles.includes(t.name)){
+
+    // 永続系は未取得かつ条件満たす場合のみ付与
+    if (cond && !prevData.titles?.includes(t.name)) {
       player.titles.push(t.name);
       updateTitleCatalog(t);
       enqueueTitlePopup(player.playerId, t);
@@ -767,37 +852,32 @@ function assignTitles(player){
     }
   });
 
-  // random titles (controlled by cumulative/randomTitleCount in playerData)
-RANDOM_TITLES.forEach(name => {
-  const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
-  
-  // 未取得称号かつ付与可能なプレイヤーのみ対象
-  if(!player.titles.includes(name) && canAssignRandom(player.playerId)){
-    const prob = RANDOM_TITLE_PROB[name] ?? 0;  // 例: { "ミラクルババ":0.005, "ラッキーババ":0.01 }
-    
-    // ランダム判定
-    if(Math.random() < prob){
-      player.titles.push(name);
-      updateTitleCatalog(t);
-      enqueueTitlePopup(player.playerId, t);
-      registerRandomAssign(player.playerId);
-      titleHistory.push({
-        playerId: player.playerId,
-        title: name,
-        date: new Date().toISOString()
-      });
-    }
-  }
-});
+  // === ランダム称号（GASデータ変化時のみ抽選チャンス） ===
+  RANDOM_TITLES.forEach(name => {
+    const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
 
-  // merge into playerData (authoritative) and persist minimal local logs
+    // 未取得称号かつ付与可能
+    const dataChanged = JSON.stringify(prevData) !== JSON.stringify(playerData.get(player.playerId));
+    if (!player.titles.includes(name) && dataChanged && canAssignRandom(player.playerId)) {
+      const prob = RANDOM_TITLE_PROB[name] ?? 0;
+      if (Math.random() < prob) {
+        player.titles.push(name);
+        updateTitleCatalog(t);
+        enqueueTitlePopup(player.playerId, t);
+        registerRandomAssign(player.playerId);
+        titleHistory.push({ playerId: player.playerId, title: name, date: new Date().toISOString() });
+      }
+    }
+  });
+
+  // === playerData にマージ & 永続保存 ===
   const merged = {
     ...normalizeStoredPlayer(prevData),
     rate: player.rate,
     lastRank: player.rank ?? prevData.lastRank,
     prevRateRank: player.rateRank ?? prevData.prevRateRank,
     bonus: player.bonus ?? prevData.bonus ?? 0,
-    titles: Array.from(new Set([...(prevData.titles||[]), ...(player.titles||[])])),
+    titles: Array.from(new Set([...(prevData.titles || []), ...(player.titles || [])])),
     consecutiveGames: player.consecutiveGames,
     prevGames: player.prevGames,
     rateGain: player.rateGain,
@@ -813,9 +893,8 @@ RANDOM_TITLES.forEach(name => {
 
   playerData.set(player.playerId, normalizeStoredPlayer(merged));
 
-  // local-only logs: titleHistory already appended above
   saveTitleHistory();
-  saveToStorage(STORAGE_KEY, Array.from(playerData.entries())); // local quick cache
+  saveToStorage(STORAGE_KEY, Array.from(playerData.entries()));
 }
 
 /* =========================
