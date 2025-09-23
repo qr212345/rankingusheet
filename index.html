@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🔥 ババ抜きランキング 🔥</title>
-<link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔥 ババ抜きランキング 🔥</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chart.js 読み込み -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -15,34 +16,48 @@
     <button id="refreshBtn">更新</button>
     <button id="exportCSVBtn">CSV出力</button>
     <button id="toggleAdminBtn">管理者モード切替</button>
-     <button onclick="window.open('https://qr212345.github.io/0987654321/')">プレイヤー・順位登録に戻る</button>
-    <button id="resetLocalBtn" style="display:none">称号初期化（ローカルのみ）</button>
+    <button onclick="window.open('https://qr212345.github.io/0987654321/')">
+      プレイヤー・順位登録に戻る
+    </button>
+    <button id="resetLocalBtn" class="admin-only" style="display:none">
+      称号初期化（ローカルのみ）
+    </button>
   </div>
 </header>
 
 <main>
 
-  <section>
+  <!-- ランキングセクション -->
+  <section id="rankingSection">
     <h2>ランキング</h2>
     <div class="table-wrapper">
       <table id="rankingTable">
         <thead>
           <tr>
-            <th>順位</th><th>プレイヤー</th><th>レート</th>
-            <th>順位変動</th><th>レート変動</th><th>称号</th>
+            <th>順位</th>
+            <th>プレイヤー</th>
+            <th>レート</th>
+            <th>順位変動</th>
+            <th>レート変動</th>
+            <th>称号</th>
             <th class="admin-only">操作</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+          <!-- JSでランキングを埋め込み -->
+        </tbody>
       </table>
     </div>
+
+    <!-- 上位/下位変動チャート -->
     <div class="charts-container">
       <canvas id="chartTopUp"></canvas>
       <canvas id="chartTopDown"></canvas>
     </div>
   </section>
 
-  <section>
+  <!-- 称号カタログセクション -->
+  <section id="titleSection">
     <h2>称号一覧</h2>
     <div id="titleFilters">
       <select id="titleFilterSelect">
@@ -52,14 +67,20 @@
       </select>
       <input type="text" id="titleSearchInput" placeholder="称号検索">
     </div>
-    <div id="titleCatalog"></div>
+    <div id="titleCatalog">
+      <!-- JSで称号カタログを埋め込み -->
+    </div>
   </section>
 
 </main>
 
+<!-- トースト通知 -->
 <div id="toast" class="hidden"></div>
+
+<!-- 称号詳細ポップアップ -->
 <div id="titleDetailContainer"></div>
 
+<!-- メインスクリプト -->
 <script src="ranking.js"></script>
 </body>
 </html>
