@@ -776,12 +776,23 @@ function createParticles(target){
    Title assignment & persistence (商品化レベルで完全版)
    - fills missing properties, uses playerData (GAS-authoritative)
 ========================= */
-function assignTitles(player, isNewMatch=false) {
+function assignTitles(player, isNewMatch = false) {
   if (!player || !player.playerId) return;
   if (!player.titles) player.titles = [];
 
   // authoritative playerData from GAS
   const prevData = normalizeStoredPlayer(playerData.get(player.playerId) || { playerId: player.playerId });
+
+  // === GASデータの差分判定 ===
+  // 主要フィールドのみ比較して効率化
+  const gasDataChanged =
+    player.rank !== prevData.rank ||
+    player.rate !== prevData.rate ||
+    player.bonus !== prevData.bonus ||
+    player.avoidedLastBaba !== prevData.avoidedLastBaba;
+
+  // 変化がなければ計算・称号付与・保存をスキップ
+  if (!gasDataChanged && !isNewMatch) return;
 
   // === 基本情報更新 ===
   player.consecutiveGames = (prevData.consecutiveGames ?? 0) + (isNewMatch ? 1 : 0);
@@ -803,14 +814,14 @@ function assignTitles(player, isNewMatch=false) {
 
   player.currentRankingLength = lastProcessedRows?.length ?? player.currentRankingLength ?? null;
 
-  // === 動的称号（順位に応じて毎回判定、Popup不要） ===
-  const podiumTitles = ["キングババ","シルバーババ","ブロンズババ"];
+  // === 動的称号（順位に応じて毎回判定） ===
+  const podiumTitles = ["キングババ", "シルバーババ", "ブロンズババ"];
   if (player.rank && player.rank >= 1 && player.rank <= 3) {
     const dynTitle = podiumTitles[player.rank - 1];
     if (!player.titles.includes(dynTitle)) player.titles.push(dynTitle);
   }
 
-  // === 永続系称号（GASデータが変化した場合のみ判定、Popupは初回のみ） ===
+  // === 永続系称号（GASデータ変化時のみ判定） ===
   const FIXED_TITLES = ALL_TITLES.filter(t => !podiumTitles.includes(t.name) && !RANDOM_TITLES.includes(t.name));
   const maxRateGain = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.rateGain ?? 0)) : 0;
   const maxBonus = lastProcessedRows?.length ? Math.max(...lastProcessedRows.map(x => x.bonus ?? 0)) : 0;
@@ -830,7 +841,7 @@ function assignTitles(player, isNewMatch=false) {
       case "チャンスメーカー": cond = (player.bonus !== undefined && player.bonus === maxBonus && maxBonus > 0); break;
       case "連勝街道": cond = (player.winStreak >= 2); break;
       case "勝利の方程式": cond = (player.rateTrend >= 3); break;
-      case "挑戦者": cond = isNewMatch && (player.rank !== null && player.rank <= 5); break; // 新規試合に参加したときのみ
+      case "挑戦者": cond = isNewMatch && (player.rank !== null && player.rank <= 5); break;
       case "エピックババ": cond = (player.totalTitles >= 5); break;
       case "ババキング": cond = (player.rank1Count >= 3); break;
       case "観察眼": cond = (player.maxBonusCount >= 3); break;
@@ -842,7 +853,6 @@ function assignTitles(player, isNewMatch=false) {
       default: cond = false;
     }
 
-    // 永続系は未取得かつ条件満たす場合のみ付与
     if (cond && !prevData.titles?.includes(t.name)) {
       player.titles.push(t.name);
       updateTitleCatalog(t);
@@ -854,10 +864,7 @@ function assignTitles(player, isNewMatch=false) {
   // === ランダム称号（GASデータ変化時のみ抽選チャンス） ===
   RANDOM_TITLES.forEach(name => {
     const t = ALL_TITLES.find(tt => tt.name === name) || { name, desc: "" };
-
-    // 未取得称号かつ付与可能
-    const dataChanged = JSON.stringify(prevData) !== JSON.stringify(playerData.get(player.playerId));
-    if (!player.titles.includes(name) && dataChanged && canAssignRandom(player.playerId)) {
+    if (!player.titles.includes(name) && gasDataChanged && canAssignRandom(player.playerId)) {
       const prob = RANDOM_TITLE_PROB[name] ?? 0;
       if (Math.random() < prob) {
         player.titles.push(name);
@@ -891,7 +898,6 @@ function assignTitles(player, isNewMatch=false) {
   };
 
   playerData.set(player.playerId, normalizeStoredPlayer(merged));
-
   saveTitleHistory();
   saveToStorage(STORAGE_KEY, Array.from(playerData.entries()));
 }
