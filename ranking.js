@@ -61,6 +61,7 @@ let dailyRandomCount = {}; // { "YYYY-MM-DD": count }  local
 let renderScheduled = false;
 let isFetching = false;
 let rankingArray = null;
+let playerSearch = "";
 
 /* =========================
    DOM & Utility
@@ -146,6 +147,154 @@ function setAdminMode(enabled){
   if(toggleBtn) toggleBtn.textContent = isAdmin ? "管理者モード解除" : "管理者モード切替";
   // update buttons visibility inside table
   $$("button[data-id]").forEach(btn => btn.style.display = isAdmin ? "inline-block" : "none");
+}
+
+/* =========================
+   リアルタイム検索フィルタ
+========================= */
+function setPlayerSearch(query){
+  playerSearch = query.trim().toLowerCase();
+  renderRankingTable(lastProcessedRows);
+}
+
+/* =========================
+   差分ハイライト強化
+========================= */
+function highlightChanges(rowEl, player){
+  rowEl.classList.remove("highlight-up","highlight-down","highlight-gold","highlight-blue","highlight-fire");
+
+  if(player.rankChange > 0) rowEl.classList.add("highlight-up");        // 上昇：緑
+  else if(player.rankChange < 0) rowEl.classList.add("highlight-down"); // 下降：赤
+
+  const newTitles = player.titles.filter(t => !(playerData.get(player.playerId)?.titles || []).includes(t));
+  if(newTitles.length) rowEl.classList.add("highlight-gold");            // 称号獲得：金
+
+  if(player.bonus && player.bonus > (playerData.get(player.playerId)?.bonus || 0))
+    rowEl.classList.add("highlight-blue");                               // ボーナス獲得：青
+
+  if(player.winStreak && player.winStreak >= 2)
+    rowEl.classList.add("highlight-fire");                               // 連勝：炎
+}
+
+/* =========================
+   ランキング描画拡張（検索・フィルタ反映）
+========================= */
+function renderRankingTable(data){
+  const tbody = $("#rankingTable tbody");
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  if(!Array.isArray(data) || data.length === 0){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center">ランキングデータがありません</td></tr>`;
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  data.forEach(player=>{
+    // 検索フィルタ適用
+    if(playerSearch && !player.playerId.toLowerCase().includes(playerSearch)) return;
+    if(titleFilter !== "all" && !player.titles.some(t => t === titleFilter)) return;
+    if(titleSearch && !player.titles.some(t => t.toLowerCase().includes(titleSearch.toLowerCase()))) return;
+
+    const tr = document.createElement("tr");
+    tr.dataset.playerId = player.playerId;
+    tr.innerHTML = `
+      <td>${player.rateRank ?? "-"}</td>
+      <td>${player.playerId}</td>
+      <td>${player.rate}</td>
+      <td>${player.rankChange ?? 0}</td>
+      <td>${player.bonus ?? 0}</td>
+      <td>${player.titles.join(", ")}</td>
+      <td class="admin-only"><button data-id="${player.playerId}">削除</button></td>
+    `;
+    highlightChanges(tr, player);
+    tr.addEventListener("click", ()=>showPlayerDetailPopup(player.playerId));
+    fragment.appendChild(tr);
+  });
+  tbody.appendChild(fragment);
+}
+
+/* =========================
+   プレイヤー詳細ポップアップ
+========================= */
+function showPlayerDetailPopup(playerId){
+  const p = playerData.get(playerId);
+  if(!p) return;
+  const overlay = document.createElement("div");
+  overlay.className = "player-detail-overlay";
+  overlay.innerHTML = `
+    <div class="player-detail-popup">
+      <h3>${playerId}</h3>
+      <p>現在ランク: ${p.rank ?? "-"}</p>
+      <p>スコア: ${p.rate ?? 0}</p>
+      <p>連勝: ${p.winStreak ?? 0}</p>
+      <p>称号: ${p.titles.join(", ") || "-"}</p>
+      <canvas id="scoreChart" width="400" height="200"></canvas>
+      <button id="closePlayerDetail">閉じる</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const ctx = overlay.querySelector("#scoreChart").getContext("2d");
+  if(ctx && Array.isArray(p.history?.score)){
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: p.history.score.map((_,i)=>`#${i+1}`),
+        datasets: [{ label:'スコア推移', data:p.history.score, borderColor:'blue', fill:false }]
+      }
+    });
+  }
+
+  $("#closePlayerDetail").addEventListener("click", ()=> overlay.remove());
+}
+
+/* =========================
+   自動/手動更新 UI
+========================= */
+let autoRefreshIntervalSec = AUTO_REFRESH_INTERVAL;
+function startAutoRefresh(){
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(()=> processRankingWithGAS(), autoRefreshIntervalSec*1000);
+}
+function stopAutoRefresh(){
+  if(autoRefreshTimer){ clearInterval(autoRefreshTimer); autoRefreshTimer=null; }
+}
+function setAutoRefreshInterval(sec){
+  autoRefreshIntervalSec = sec;
+  if(autoRefreshTimer) startAutoRefresh();
+}
+
+/* =========================
+   バリデーション強化
+========================= */
+function validatePlayerSubmission(p){
+  if(!p.playerId) { toast("playerId必須"); return false; }
+  if(p.rate===undefined || p.rate===null) { toast("rate必須"); return false; }
+  if(p.rank===undefined || p.rank===null) { toast("rank必須"); return false; }
+  const duplicate = Array.from(playerData.values()).some(x=>x.playerId===p.playerId && x !== p);
+  if(duplicate){ toast("playerIdが重複"); return false; }
+  if(p.titles){
+    const today = (new Date()).toISOString().slice(0,10);
+    if(dailyRandomCount[today] >= RANDOM_TITLE_DAILY_LIMIT){ toast("本日のランダム称号上限に達しています"); return false; }
+  }
+  return true;
+}
+
+/* =========================
+   複数テーブル統合管理
+========================= */
+const tablePlayerMap = new Map(); // tableId -> Map(playerId->playerObj)
+function setTablePlayers(tableId, players){
+  tablePlayerMap.set(tableId, new Map(players.map(p=>[p.playerId, p])));
+}
+function getMergedPlayers(){
+  const merged = new Map();
+  tablePlayerMap.forEach(tbl=>{
+    tbl.forEach((p,id)=>{
+      if(!merged.has(id)) merged.set(id, p);
+    });
+  });
+  return Array.from(merged.values());
 }
 
 /* =========================
@@ -1086,6 +1235,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // load saved user settings & logs
+  loadTitleState(); 
+  loadVolumeSetting();
+  loadNotificationSetting();
+  loadRankingHistory(); 
+  loadTitleHistory();
+  setAdminMode(loadFromStorage("isAdmin", false));
+  startAutoRefresh();
   loadTitleHistory();
   loadTitleState();
   loadVolumeSetting();
@@ -1106,6 +1262,13 @@ document.addEventListener("DOMContentLoaded", () => {
 // compatibility: alias init if external code calls it
 async function init(){
   // load local settings/logs and then sync with GAS
+  loadTitleState();
+  loadVolumeSetting(); 
+  loadNotificationSetting();
+  loadRankingHistory();
+  loadTitleHistory();
+  setAdminMode(loadFromStorage("isAdmin", false));
+  startAutoRefresh();
   loadTitleHistory();
   loadTitleState();
   loadVolumeSetting();
