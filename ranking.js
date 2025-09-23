@@ -62,6 +62,7 @@ let renderScheduled = false;
 let isFetching = false;
 let rankingArray = null;
 let isPolling = false;
+let lastTimestamp = 0;
 
 /* =========================
    DOM & Utility
@@ -318,26 +319,28 @@ async function pollRankingWithMaster() {
   if (isPolling) return;
   isPolling = true;
 
-  try {
-    while (true) {
+  while (true) {
+    try {
       await processRankingWithMaster();
 
-      // GAS 側で更新がない場合も待機
+      // GAS 側で更新がない場合も待機（1秒）
       await new Promise(resolve => setTimeout(resolve, 1000));
+
+    } catch (e) {
+      console.error("pollRankingWithMaster error:", e);
+      // エラー時は少し待ってから再開
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
-  } catch(e) {
-    console.error("pollRankingWithMaster error", e);
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    isPolling = false;
-    pollRankingWithMaster();
   }
 }
 
-async function processRankingWithMaster(latestRankingData = null) {
+async function processRankingWithMaster() {
+  if (isFetching) return;
   isFetching = true;
+
   try {
     // --- 1) マスターデータ取得 ---
-    const master = await fetchMasterData();
+    const master = await fetchMasterData(); // { playerId: {...} }
 
     deletedPlayers = new Set();
     playerData = new Map();
@@ -346,54 +349,26 @@ async function processRankingWithMaster(latestRankingData = null) {
       if (data.deleted) deletedPlayers.add(id);
     }
 
-    // --- 2) ランキング取得 ---
-    if (!rankingArray) {
-      const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}`, { cache: "no-cache" });
-      if (!res.ok) throw new Error(`status ${res.status}`);
-      const json = await res.json();
+    // --- 2) GASから最新ランキングを取得（ロングポーリング対応） ---
+    const res = await fetch(`${GAS_URL}?mode=getRanking&secret=${SECRET_KEY}&since=${lastTimestamp}`, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const json = await res.json();
 
-      const parseRankingString = (str) => {
-        const obj = {};
-        str.split(",").forEach(part => {
-          const [key, value] = part.split("=").map(s => s.trim());
-          obj[key.toLowerCase()] = key === "rate" || key === "rank" ? Number(value) : value;
-        });
-        return obj;
-      };
+    if (!json || (!json.ranking && !json.timestamp)) return; // 更新なし
+    lastTimestamp = json.timestamp || lastTimestamp;
 
-      if (Array.isArray(json)) {
-        if (json.length > 0 && Array.isArray(json[0])) {
-          rankingArray = json.map(arr => ({ playerId: arr[0], rate: Number(arr[1]), rank: Number(arr[2]) }));
-        } else if (json.length > 0 && typeof json[0] === "object") {
-          rankingArray = json.map(obj => typeof obj === "string" ? parseRankingString(obj) : ({
-            playerId: obj.playerId ?? obj.id ?? null,
-            rate: Number(obj.rate) || 0,
-            rank: Number(obj.rank) || null
-          }));
-        } else if (json.length > 0 && typeof json[0] === "string") {
-          rankingArray = json.map(line => parseRankingString(line));
-        } else {
-          rankingArray = [];
-        }
-      } else if (json.ranking && typeof json.ranking === "object") {
-        rankingArray = Object.entries(json.ranking).map(([id, values]) => {
-          if (typeof values === "string") {
-            const parsed = parseRankingString(values);
-            return { playerId: parsed.playerId || id, rate: parsed.rate || 0, rank: parsed.rank || null };
-          } else if (Array.isArray(values)) {
-            return { playerId: id, rate: Number(values[0]), rank: Number(values[1]) };
-          } else if (typeof values === "object") {
-            return { playerId: id, rate: Number(values.rate) || 0, rank: Number(values.rank) || null };
-          } else {
-            return { playerId: id, rate: 0, rank: null };
-          }
-        });
-      } else {
-        rankingArray = [];
-      }
+    // --- 3) ランキングの整形 ---
+    rankingArray = [];
+    if (Array.isArray(json.ranking)) {
+      rankingArray = json.ranking.map(p => ({
+        playerId: p.playerId,
+        rate: Number(p.rate) || 0,
+        rank: Number(p.rank) || null,
+        bonus: Number(p.bonus) || 0
+      }));
     }
 
-    // --- 3) ランキング空なら累計のみ表示 ---
+    // --- 4) ランキング空なら累計のみ表示 ---
     if (!rankingArray || rankingArray.length === 0) {
       const fallbackRows = Array.from(playerData.values()).filter(p => !deletedPlayers.has(p.playerId));
       fallbackRows.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
@@ -409,7 +384,7 @@ async function processRankingWithMaster(latestRankingData = null) {
       return lastProcessedRows;
     }
 
-    // --- 4) マスターデータ統合・差分計算 ---
+    // --- 5) マスターデータ統合・差分計算 ---
     const processed = rankingArray.map(p => {
       const prev = master[p.playerId] || {};
       const rate = Number.isFinite(p.rate) ? Number(p.rate) : 0;
@@ -436,7 +411,7 @@ async function processRankingWithMaster(latestRankingData = null) {
       };
     });
 
-    // --- 5) 削除済み除外・レート順ソート・順位差計算 ---
+    // --- 6) 削除済み除外・レート順ソート・順位差計算 ---
     const filteredProcessed = processed.filter(p => !deletedPlayers.has(p.playerId));
     filteredProcessed.sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0));
     filteredProcessed.forEach((p, i, arr) => {
@@ -445,19 +420,18 @@ async function processRankingWithMaster(latestRankingData = null) {
       p.rankChange = (p.prevRank ?? p.rank) - p.rank;
       p.rateRankChange = prevRateRank - p.rateRank;
     });
-
     lastProcessedRows = filteredProcessed;
 
-    // --- 6) タイトル割り当て（差分ありのみ） ---
+    // --- 7) タイトル割り当て（差分ありのみ） ---
     filteredProcessed.forEach(p => {
       const prev = playerData.get(p.playerId);
       const newData = { rate: p.rate, rank: p.rank };
       const keysToCompare = ["rate", "rank"];
       const isSame = prev && keysToCompare.every(k => prev[k] === newData[k]);
-      if (!isSame) assignTitles(p); // 称号付与（王含む）
+      if (!isSame) assignTitles(p);
     });
 
-    // --- 7) マスターデータ更新 ---
+    // --- 8) マスターデータ更新 ---
     const newMaster = {};
     filteredProcessed.forEach(p => {
       const merged = normalizeStoredPlayer({
@@ -480,21 +454,20 @@ async function processRankingWithMaster(latestRankingData = null) {
       newMaster[p.playerId] = { ...merged };
     });
 
-    // --- 8) 当日のランキングにないプレイヤーも保持 ---
+    // --- 9) 当日のランキングにないプレイヤーも保持 ---
     playerData.forEach((v, id) => {
       if (!(id in newMaster)) newMaster[id] = { ...v };
     });
 
     const updRes = await updateMasterData(newMaster);
     if (!updRes) console.warn("Failed to update master data");
-    else console.log("Master data updated");
 
-    // --- 9) 描画 ---
+    // --- 10) 描画 ---
     renderRankingTable(filteredProcessed);
     renderTopCharts(filteredProcessed);
     scheduleRenderTitleCatalog();
 
-    // --- 10) ローカル保存 ---
+    // --- 11) 履歴保存 ---
     saveTitleHistory();
     saveRankingHistory();
 
@@ -514,6 +487,7 @@ async function processRankingWithMaster(latestRankingData = null) {
     renderTopCharts(lastProcessedRows);
     scheduleRenderTitleCatalog();
     return lastProcessedRows;
+
   } finally {
     isFetching = false;
   }
