@@ -3,7 +3,7 @@
 /* =========================
    設定・定数
 ========================= */
-const GAS_URL = "https://script.google.com/macros/s/AKfycbxB6v1w4xr6Kopy_jP-W27TDmiRde0BPHvSA73gmnOXmXcrCt1jaiVvXNbehMCKh7I/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzI9LkF17my0AdtdiE9KWxBmhL2VCBRX565nx8inRc1cofS9WfdJs0XvlXHJDglPMA/exec";
 const ENDPOINT = "https://script.google.com/macros/s/AKfycbzJ0-yF5R7NSvEahxv15ke0AU2lNT8mHSHCLoop74MpUy_-RiFa5Y3OGlq0OBUTr6_t/exec";
 const ADMIN_PASSWORD = "babanuki123";
 const STORAGE_KEY = "rankingPlayerData_v4"; // local cache (but GAS is authoritative)
